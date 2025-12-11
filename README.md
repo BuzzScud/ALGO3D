@@ -1,9 +1,16 @@
 # ALGO3D - Trading Dashboard
 
-A modern web application with HTML5 frontend and PHP backend featuring real-time market data, world clocks, and todo list management.
+A modern web application with HTML5 frontend and PHP backend featuring real-time market data, interactive trading charts, world clocks, notes, and todo list management.
 
 ## Features
 
+- **Interactive Trading Charts**: Fully functional candlestick charts with pan and zoom capabilities
+  - Real-time price data with technical indicators (SMA, EMA, RSI, MACD, Bollinger Bands)
+  - Pan by clicking and dragging
+  - Zoom with mouse wheel or control buttons
+  - Save and load chart studies
+  - Multiple chart types (Candlestick, Line, Area)
+  - Multiple timeframes (1D, 5D, 1M, 3M, 6M, 1Y, 5Y)
 - **World Clocks**: Real-time clocks for Miami, London, and Tokyo (updates every second)
 - **Real-Time Market Data**: Live stock data with dual API support
   - Primary: Finnhub API (60 calls/minute)
@@ -12,11 +19,14 @@ A modern web application with HTML5 frontend and PHP backend featuring real-time
   - Rate limiting and caching to respect API limits
   - Default symbols: SPY, QQQ, VIX, DXY
   - Add/remove custom symbols
+- **Notes**: Full-featured note-taking system with search and color coding
 - **Todo List**: Daily and weekly task tracking with filtering
   - Filter by: All, Daily, Weekly, Completed
   - Persistent storage with SQLite
-- **Modern UI**: Responsive dark theme design
-- **User-Friendly Menu**: Easy navigation with mobile support
+- **User Profile**: Customizable user widget with statistics
+- **Settings**: Comprehensive settings page with tabs for API, Display, Notifications, and Data management
+- **Modern UI**: Responsive dark/light theme design with sidebar navigation
+- **TradingView Integration**: Ticker tape widget for market overview
 
 ## Requirements
 
@@ -53,19 +63,28 @@ ALGO3D/
 │   ├── set_api_source.php    # Change API source
 │   ├── add_symbol.php        # Add stock symbol
 │   ├── delete_symbol.php     # Remove stock symbol
-│   └── todos.php             # Todo CRUD operations
+│   ├── charts.php            # Chart data and studies
+│   ├── notes.php             # Notes CRUD operations
+│   ├── todos.php             # Todo CRUD operations
+│   ├── settings.php          # Settings management
+│   ├── user.php              # User profile management
+│   └── stats.php             # Dashboard statistics
 ├── assets/
 │   ├── css/
-│   │   └── style.css         # Modern dark theme
+│   │   └── style.css         # Modern dark/light theme
 │   └── js/
 │       ├── main.js           # Navigation & general functionality
+│       ├── charts.js         # Interactive charts with pan/zoom
 │       ├── world-clocks.js   # World clock updates
 │       ├── market-data.js    # Market data & API switching
-│       └── todo-list.js      # Todo list functionality
+│       ├── todo-list.js      # Todo list functionality
+│       ├── notes.js          # Notes functionality
+│       ├── settings.js       # Settings management
+│       └── user-widget.js   # User profile widget
 ├── includes/
-│   ├── config.php            # API keys & configuration
+│   ├── config.php            # API keys & configuration (not in repo)
 │   └── database.php          # SQLite database handler
-├── data/                     # SQLite database (auto-created)
+├── data/                     # SQLite database (auto-created, not in repo)
 ├── cache/                    # API response cache (auto-created)
 ├── index.php                 # Main dashboard page
 ├── setup.php                 # Setup verification script
@@ -77,7 +96,7 @@ ALGO3D/
 The application uses these APIs (configured in `includes/config.php`):
 
 ### Finnhub (Primary)
-- API Key: Pre-configured
+- API Key: Configure in `includes/config.php`
 - Rate Limit: 60 calls/minute
 - Documentation: https://finnhub.io/docs/api
 
@@ -86,58 +105,28 @@ The application uses these APIs (configured in `includes/config.php`):
 - Rate Limit: ~100 calls/minute
 - Automatic fallback when Finnhub fails
 
-## API Endpoints
+## Key Features
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/get_market_data.php?source=finnhub` | Fetch market data |
-| GET | `/api/get_api_status.php` | Get API rate limit status |
-| POST | `/api/add_symbol.php` | Add stock symbol |
-| POST | `/api/delete_symbol.php` | Remove stock symbol |
-| GET | `/api/todos.php?filter=all` | Get todos |
-| POST | `/api/todos.php` | Create todo |
-| PUT | `/api/todos.php` | Update todo |
-| DELETE | `/api/todos.php` | Delete todo |
+### Interactive Charts
+- Pan: Click and drag to move around the chart
+- Zoom: Scroll with mouse wheel or use zoom buttons
+- Technical Indicators: Toggle SMA, EMA, RSI, MACD, Bollinger Bands
+- Save Studies: Save chart configurations for later analysis
+- Multiple Timeframes: 1D, 5D, 1M, 3M, 6M, 1Y, 5Y
 
-## Usage
+### Market Data
+- Real-time price updates
+- Change percentages
+- Volume information
+- API source switching
+- Custom symbol tracking
 
-### Switching Data Sources
-1. Use the "Data Source" dropdown in the Market Data section
-2. Select either "Finnhub" or "Yahoo Finance"
-3. Data refreshes automatically
-
-### Adding Stock Symbols
-1. Click "Add Symbol" button
-2. Enter a symbol (e.g., AAPL, MSFT, TSLA)
-3. Click "Add Symbol"
-
-### Managing Todos
-1. Enter a task in the input field
-2. Select task type (Daily or Weekly)
-3. Click "Add" or press Enter
-4. Use filter buttons to view categories
-5. Click checkbox to mark complete
-6. Click trash icon to delete
-
-## Technical Details
-
-- **Database**: SQLite (no external database required)
-- **Caching**: 60-second cache to respect API limits
-- **Rate Limiting**: Tracks API calls per minute
-- **Fallback**: Automatic switch to backup API on failures
-- **Responsive**: Mobile-friendly design
-- **Real-time**: Market data refreshes every 60 seconds
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| Database errors | Ensure `data/` directory is writable |
-| API errors | Check rate limits in UI; wait if exceeded |
-| Cache errors | Ensure `cache/` directory is writable |
-| Blank page | Check PHP error logs |
+### Notes System
+- Create, edit, and delete notes
+- Search functionality
+- Color coding
+- Persistent storage
 
 ## License
 
-This project is open source and available for personal and commercial use.
-
+GPL-3.0 License
