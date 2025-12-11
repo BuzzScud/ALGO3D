@@ -1,0 +1,36 @@
+# Cache files
+cache/*.json
+!cache/.gitkeep
+
+# Database
+*.sql
+*.sqlite
+*.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+error_log
+
+# Environment
+.env
+config.local.php
+
+# Sensitive config (contains API keys)
+includes/config.php
+
+# Data directory (contains database)
+data/
+*.db
+*.sqlite
+
