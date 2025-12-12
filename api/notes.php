@@ -24,6 +24,39 @@ try {
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ");
+    
+    // Add futures trading columns if they don't exist
+    $stmt = $conn->query("PRAGMA table_info(notes)");
+    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN, 1);
+    
+    $tradingColumns = [
+        'contract_symbol' => "ALTER TABLE notes ADD COLUMN contract_symbol TEXT",
+        'contract_type' => "ALTER TABLE notes ADD COLUMN contract_type TEXT DEFAULT 'futures'",
+        'entry_price' => "ALTER TABLE notes ADD COLUMN entry_price REAL",
+        'exit_price' => "ALTER TABLE notes ADD COLUMN exit_price REAL",
+        'quantity' => "ALTER TABLE notes ADD COLUMN quantity INTEGER DEFAULT 1",
+        'direction' => "ALTER TABLE notes ADD COLUMN direction TEXT CHECK(direction IN ('long', 'short'))",
+        'pnl' => "ALTER TABLE notes ADD COLUMN pnl REAL",
+        'pnl_percent' => "ALTER TABLE notes ADD COLUMN pnl_percent REAL",
+        'entry_time' => "ALTER TABLE notes ADD COLUMN entry_time DATETIME",
+        'exit_time' => "ALTER TABLE notes ADD COLUMN exit_time DATETIME",
+        'stop_loss' => "ALTER TABLE notes ADD COLUMN stop_loss REAL",
+        'take_profit' => "ALTER TABLE notes ADD COLUMN take_profit REAL",
+        'strategy' => "ALTER TABLE notes ADD COLUMN strategy TEXT",
+        'timeframe' => "ALTER TABLE notes ADD COLUMN timeframe TEXT",
+        'notes_type' => "ALTER TABLE notes ADD COLUMN notes_type TEXT DEFAULT 'trade'",
+            'category' => "ALTER TABLE notes ADD COLUMN category TEXT"
+    ];
+    
+    foreach ($tradingColumns as $col => $sql) {
+        if (!in_array($col, $columns)) {
+            try {
+                $conn->exec($sql);
+            } catch (PDOException $e) {
+                // Column might already exist
+            }
+        }
+    }
 } catch (PDOException $e) {
     // Table might already exist
 }
@@ -54,8 +87,26 @@ try {
             $content = $input['content'] ?? '';
             $color = $input['color'] ?? '#1e293b';
             
-            $stmt = $conn->prepare("INSERT INTO notes (title, content, color) VALUES (?, ?, ?)");
-            $stmt->execute([$title, $content, $color]);
+            // Trading fields
+            $contractSymbol = $input['contract_symbol'] ?? null;
+            $contractType = $input['contract_type'] ?? 'futures';
+            $entryPrice = isset($input['entry_price']) ? floatval($input['entry_price']) : null;
+            $exitPrice = isset($input['exit_price']) ? floatval($input['exit_price']) : null;
+            $quantity = isset($input['quantity']) ? intval($input['quantity']) : 1;
+            $direction = $input['direction'] ?? null;
+            $pnl = isset($input['pnl']) ? floatval($input['pnl']) : null;
+            $pnlPercent = isset($input['pnl_percent']) ? floatval($input['pnl_percent']) : null;
+            $entryTime = $input['entry_time'] ?? null;
+            $exitTime = $input['exit_time'] ?? null;
+            $stopLoss = isset($input['stop_loss']) ? floatval($input['stop_loss']) : null;
+            $takeProfit = isset($input['take_profit']) ? floatval($input['take_profit']) : null;
+            $strategy = $input['strategy'] ?? null;
+            $timeframe = $input['timeframe'] ?? null;
+            $notesType = $input['notes_type'] ?? 'trade';
+            $category = $input['category'] ?? null;
+            
+            $stmt = $conn->prepare("INSERT INTO notes (title, content, color, contract_symbol, contract_type, entry_price, exit_price, quantity, direction, pnl, pnl_percent, entry_time, exit_time, stop_loss, take_profit, strategy, timeframe, notes_type, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$title, $content, $color, $contractSymbol, $contractType, $entryPrice, $exitPrice, $quantity, $direction, $pnl, $pnlPercent, $entryTime, $exitTime, $stopLoss, $takeProfit, $strategy, $timeframe, $notesType, $category]);
             
             echo json_encode(['success' => true, 'id' => $conn->lastInsertId()]);
             break;
@@ -67,9 +118,27 @@ try {
             $content = $input['content'] ?? '';
             $color = $input['color'] ?? '#1e293b';
             
+            // Trading fields
+            $contractSymbol = $input['contract_symbol'] ?? null;
+            $contractType = $input['contract_type'] ?? 'futures';
+            $entryPrice = isset($input['entry_price']) ? floatval($input['entry_price']) : null;
+            $exitPrice = isset($input['exit_price']) ? floatval($input['exit_price']) : null;
+            $quantity = isset($input['quantity']) ? intval($input['quantity']) : 1;
+            $direction = $input['direction'] ?? null;
+            $pnl = isset($input['pnl']) ? floatval($input['pnl']) : null;
+            $pnlPercent = isset($input['pnl_percent']) ? floatval($input['pnl_percent']) : null;
+            $entryTime = $input['entry_time'] ?? null;
+            $exitTime = $input['exit_time'] ?? null;
+            $stopLoss = isset($input['stop_loss']) ? floatval($input['stop_loss']) : null;
+            $takeProfit = isset($input['take_profit']) ? floatval($input['take_profit']) : null;
+            $strategy = $input['strategy'] ?? null;
+            $timeframe = $input['timeframe'] ?? null;
+            $notesType = $input['notes_type'] ?? 'trade';
+            $category = $input['category'] ?? null;
+            
             if ($id > 0) {
-                $stmt = $conn->prepare("UPDATE notes SET title = ?, content = ?, color = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                $stmt->execute([$title, $content, $color, $id]);
+                $stmt = $conn->prepare("UPDATE notes SET title = ?, content = ?, color = ?, contract_symbol = ?, contract_type = ?, entry_price = ?, exit_price = ?, quantity = ?, direction = ?, pnl = ?, pnl_percent = ?, entry_time = ?, exit_time = ?, stop_loss = ?, take_profit = ?, strategy = ?, timeframe = ?, notes_type = ?, category = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                $stmt->execute([$title, $content, $color, $contractSymbol, $contractType, $entryPrice, $exitPrice, $quantity, $direction, $pnl, $pnlPercent, $entryTime, $exitTime, $stopLoss, $takeProfit, $strategy, $timeframe, $notesType, $category, $id]);
                 echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Invalid ID']);
@@ -97,4 +166,9 @@ try {
     echo json_encode(['success' => false, 'message' => 'Database error']);
 }
 ?>
+
+
+
+
+
 

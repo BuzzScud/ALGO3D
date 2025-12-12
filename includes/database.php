@@ -102,6 +102,27 @@ class Database {
                 added_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ");
+
+        // Create notes table
+        $this->conn->exec("
+            CREATE TABLE IF NOT EXISTS notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT,
+                color TEXT DEFAULT '#1e293b',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+
+        // Insert default symbols if none exist
+        $stmt = $this->conn->query("SELECT COUNT(*) FROM stock_symbols");
+        if ($stmt->fetchColumn() == 0) {
+            $this->conn->exec("
+                INSERT INTO stock_symbols (symbol) VALUES 
+                ('SPY'), ('QQQ'), ('AAPL'), ('MSFT')
+            ");
+        }
     }
 }
 ?>

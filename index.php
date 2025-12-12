@@ -34,7 +34,7 @@ require_once 'includes/database.php';
                 </li>
                 <li class="sidebar-item" data-page="charts">
                     <a href="#" class="sidebar-link">
-                        <i class="fas fa-chart-candlestick"></i>
+                        <i class="fas fa-chart-line"></i>
                         <span>Charts</span>
                     </a>
                 </li>
@@ -42,6 +42,12 @@ require_once 'includes/database.php';
                     <a href="#" class="sidebar-link">
                         <i class="fas fa-sticky-note"></i>
                         <span>Notes</span>
+                    </a>
+                </li>
+                <li class="sidebar-item" data-page="todo">
+                    <a href="#" class="sidebar-link">
+                        <i class="fas fa-tasks"></i>
+                        <span>To Do List</span>
                     </a>
                 </li>
                 <li class="sidebar-item" data-page="settings">
@@ -248,42 +254,16 @@ require_once 'includes/database.php';
                     </div>
                 </section>
 
-                <!-- Todo List Section -->
-                <section class="dashboard-section todo-section">
-                    <h2 class="section-title">
-                        <i class="fas fa-tasks"></i>
-                        Todo List
-                    </h2>
-                    <div class="todo-container">
-                        <div class="todo-filters">
-                            <button class="filter-btn active" data-filter="all">All</button>
-                            <button class="filter-btn" data-filter="daily">Daily</button>
-                            <button class="filter-btn" data-filter="weekly">Weekly</button>
-                            <button class="filter-btn" data-filter="completed">Completed</button>
-                        </div>
-                        <div class="todo-input-section">
-                            <input type="text" id="todo-input" class="todo-input" placeholder="Add a new task...">
-                            <select id="todo-type" class="todo-type-select">
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                            </select>
-                            <button class="btn btn-primary" id="add-todo-btn">
-                                <i class="fas fa-plus"></i>
-                                Add
-                            </button>
-                        </div>
-                        <div class="todo-list" id="todo-list">
-                            <!-- Todo items will be loaded here -->
-                        </div>
-                    </div>
-                </section>
             </div>
         </main>
 
         <!-- Charts Page -->
         <main class="page-content" id="page-charts">
             <div class="page-header">
-                <h1 class="page-title">Trading Charts</h1>
+                <h1 class="page-title">
+                    <i class="fas fa-chart-candlestick"></i>
+                    Trading Charts
+                </h1>
                 <div class="charts-header-actions">
                     <button class="btn btn-secondary" id="save-study-btn">
                         <i class="fas fa-bookmark"></i>
@@ -577,22 +557,452 @@ require_once 'includes/database.php';
         <!-- Notes Page -->
         <main class="page-content" id="page-notes">
             <div class="page-header">
-                <h1 class="page-title">Notes</h1>
-                <button class="btn btn-primary" id="add-note-btn">
-                    <i class="fas fa-plus"></i>
-                    New Note
-                </button>
+                <h1 class="page-title">
+                    <i class="fas fa-chart-line"></i>
+                    Futures Trading Journal
+                </h1>
             </div>
-            <section class="dashboard-section notes-section">
-                <div class="notes-container">
-                    <div class="notes-search">
-                        <input type="text" id="notes-search-input" class="form-input" placeholder="Search notes...">
+            
+            <!-- Trading Performance Dashboard -->
+            <div class="trading-performance-dashboard">
+                <div class="metric-card trading-pnl-card">
+                    <div class="metric-header">
+                        <i class="fas fa-dollar-sign"></i>
+                        <span>Total P&L</span>
                     </div>
-                    <div class="notes-grid" id="notes-grid">
-                        <!-- Notes will be loaded here -->
+                    <div class="metric-content">
+                        <div class="stat-large" id="trading-total-pnl">$0.00</div>
+                        <div class="stat-label">All Time</div>
+                        <div class="stat-small">
+                            <span id="trading-today-pnl">$0.00</span> today
+                        </div>
                     </div>
                 </div>
-            </section>
+                
+                <div class="metric-card trading-wins-card">
+                    <div class="metric-header">
+                        <i class="fas fa-trophy"></i>
+                        <span>Win Rate</span>
+                    </div>
+                    <div class="metric-content">
+                        <div class="stat-large" id="trading-win-rate">0%</div>
+                        <div class="stat-label">Success Rate</div>
+                        <div class="stat-small">
+                            <span id="trading-wins">0</span> wins / <span id="trading-losses">0</span> losses
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="metric-card trading-trades-card">
+                    <div class="metric-header">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span>Total Trades</span>
+                    </div>
+                    <div class="metric-content">
+                        <div class="stat-large" id="trading-total-trades">0</div>
+                        <div class="stat-label">All Trades</div>
+                        <div class="stat-small">
+                            <span id="trading-today-trades">0</span> today
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="metric-card trading-avg-card">
+                    <div class="metric-header">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Avg P&L</span>
+                    </div>
+                    <div class="metric-content">
+                        <div class="stat-large" id="trading-avg-pnl">$0.00</div>
+                        <div class="stat-label">Per Trade</div>
+                        <div class="stat-small">
+                            Best: <span id="trading-best-trade">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Grid -->
+            <div class="notes-page-grid">
+                <!-- Left Column: Trading Notes Management -->
+                <div class="notes-management-panel">
+                    <div class="panel-header">
+                        <h2>
+                            <i class="fas fa-book"></i>
+                            Trading Journal
+                        </h2>
+                        <div class="view-toggle">
+                            <button class="view-btn active" data-view="grid" title="Grid View">
+                                <i class="fas fa-th"></i>
+                            </button>
+                            <button class="view-btn" data-view="list" title="List View">
+                                <i class="fas fa-list"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="notes-filters-enhanced">
+                        <div class="filter-group">
+                            <label>Type</label>
+                            <div class="filter-buttons">
+                                <button class="filter-btn active" data-type="all">All</button>
+                                <button class="filter-btn" data-type="trade">Trades</button>
+                                <button class="filter-btn" data-type="strategy">Strategy</button>
+                                <button class="filter-btn" data-type="journal">Journal</button>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label>Sort By</label>
+                            <div class="filter-buttons">
+                                <button class="filter-btn active" data-sort="recent">Recent</button>
+                                <button class="filter-btn" data-sort="pnl">P&L</button>
+                                <button class="filter-btn" data-sort="contract">Contract</button>
+                                <button class="filter-btn" data-sort="date">Date</button>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label>Filter</label>
+                            <div class="filter-buttons">
+                                <button class="filter-btn active" data-filter="all">All</button>
+                                <button class="filter-btn" data-filter="today">Today</button>
+                                <button class="filter-btn" data-filter="week">Week</button>
+                                <button class="filter-btn" data-filter="profitable">Profitable</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="notes-search-enhanced">
+                        <div class="input-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="notes-search-input" class="notes-search-input" placeholder="Search by contract, strategy, or notes...">
+                            <button class="search-clear-btn" id="notes-search-clear" style="display: none;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <button class="btn btn-primary" id="add-note-btn">
+                            <i class="fas fa-plus"></i>
+                            New Trade Note
+                        </button>
+                    </div>
+                    
+                    <div class="notes-grid-container">
+                        <div class="notes-grid" id="notes-grid">
+                            <!-- Trading notes will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Column: 3D Visualization & Analytics -->
+                <div class="notes-visualization-panel">
+                    <div class="panel-header">
+                        <h2>
+                            <i class="fas fa-cube"></i>
+                            3D Trading Analytics
+                        </h2>
+                        <div class="viz-controls">
+                            <button class="viz-btn" id="notes-rotate-toggle" title="Auto Rotate">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <button class="viz-btn" id="notes-reset-view" title="Reset View">
+                                <i class="fas fa-home"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="viz-container-wrapper">
+                        <div class="notes-3d-container" id="notes-3d-container">
+                            <canvas id="notes-3d-canvas"></canvas>
+                            <div class="viz-loading" id="notes-viz-loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <span>Loading 3D visualization...</span>
+                            </div>
+                            <div class="viz-overlay">
+                                <div class="viz-info">
+                                    <div class="viz-stat">
+                                        <span class="viz-label">Total Trades</span>
+                                        <span class="viz-value" id="viz-total-trades">0</span>
+                                    </div>
+                                    <div class="viz-stat">
+                                        <span class="viz-label">Win Rate</span>
+                                        <span class="viz-value" id="viz-win-rate">0%</span>
+                                    </div>
+                                    <div class="viz-stat">
+                                        <span class="viz-label">Total P&L</span>
+                                        <span class="viz-value" id="viz-total-pnl">$0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-section">
+                        <h3>
+                            <i class="fas fa-chart-line"></i>
+                            Performance Metrics
+                        </h3>
+                        <div class="analytics-grid">
+                            <div class="analytics-item">
+                                <div class="analytics-icon">
+                                    <i class="fas fa-calendar-week"></i>
+                                </div>
+                                <div class="analytics-content">
+                                    <div class="analytics-value" id="analytics-week-trades">0</div>
+                                    <div class="analytics-label">This Week</div>
+                                </div>
+                            </div>
+                            <div class="analytics-item">
+                                <div class="analytics-icon">
+                                    <i class="fas fa-trophy"></i>
+                                </div>
+                                <div class="analytics-content">
+                                    <div class="analytics-value" id="analytics-streak">0</div>
+                                    <div class="analytics-label">Win Streak</div>
+                                </div>
+                            </div>
+                            <div class="analytics-item">
+                                <div class="analytics-icon">
+                                    <i class="fas fa-dollar-sign"></i>
+                                </div>
+                                <div class="analytics-content">
+                                    <div class="analytics-value" id="analytics-avg-pnl">$0</div>
+                                    <div class="analytics-label">Avg P&L</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-section">
+                        <h3>
+                            <i class="fas fa-tags"></i>
+                            Top Contracts
+                        </h3>
+                        <div class="contracts-list" id="contracts-list">
+                            <!-- Top contracts will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- To Do List Page -->
+        <main class="page-content" id="page-todo">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <i class="fas fa-tasks"></i>
+                    Trading Task Manager
+                </h1>
+            </div>
+            
+            <!-- Trading Metrics Dashboard -->
+            <div class="trading-metrics-dashboard">
+                <div class="metric-card market-status-card">
+                    <div class="metric-header">
+                        <i class="fas fa-clock"></i>
+                        <span>Market Status</span>
+                    </div>
+                    <div class="metric-content">
+                        <div class="current-time-display" id="current-time-display">--:--:--</div>
+                        <div class="market-status" id="market-status">Market Closed</div>
+                        <div class="market-countdown" id="market-countdown">--</div>
+                    </div>
+                </div>
+                
+                <div class="metric-card trading-session-card">
+                    <div class="metric-header">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Trading Session</span>
+                    </div>
+                    <div class="metric-content">
+                        <div class="session-info" id="session-info">Pre-Market</div>
+                        <div class="session-time" id="session-time">4:00 AM - 9:30 AM ET</div>
+                        <div class="session-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="session-progress"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="metric-card task-stats-card">
+                    <div class="metric-header">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Today's Progress</span>
+                    </div>
+                    <div class="metric-content">
+                        <div class="stat-large" id="stat-today-completed">0</div>
+                        <div class="stat-label">Completed</div>
+                        <div class="stat-small">
+                            <span id="stat-today-total">0</span> total tasks
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="metric-card productivity-card">
+                    <div class="metric-header">
+                        <i class="fas fa-fire"></i>
+                        <span>Productivity Score</span>
+                    </div>
+                    <div class="metric-content">
+                        <div class="score-circle" id="productivity-score">
+                            <svg class="score-svg" viewBox="0 0 100 100">
+                                <circle class="score-bg" cx="50" cy="50" r="45"></circle>
+                                <circle class="score-fill" cx="50" cy="50" r="45" id="score-circle"></circle>
+                            </svg>
+                            <div class="score-text" id="score-text">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Grid -->
+            <div class="todo-page-grid">
+                <!-- Left Column: Task Management -->
+                <div class="todo-management-panel">
+                    <div class="panel-header">
+                        <h2>
+                            <i class="fas fa-list-check"></i>
+                            Task Management
+                        </h2>
+                        <div class="view-toggle">
+                            <button class="view-btn active" data-view="list" title="List View">
+                                <i class="fas fa-list"></i>
+                            </button>
+                            <button class="view-btn" data-view="grid" title="Grid View">
+                                <i class="fas fa-th"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="todo-filters-enhanced">
+                        <div class="filter-group">
+                            <label>Status</label>
+                            <div class="filter-buttons">
+                                <button class="filter-btn active" data-filter="all">All</button>
+                                <button class="filter-btn" data-filter="daily">Daily</button>
+                                <button class="filter-btn" data-filter="weekly">Weekly</button>
+                                <button class="filter-btn" data-filter="completed">Done</button>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label>Priority</label>
+                            <div class="filter-buttons">
+                                <button class="filter-btn" data-priority="all">All</button>
+                                <button class="filter-btn" data-priority="high">High</button>
+                                <button class="filter-btn" data-priority="medium">Med</button>
+                                <button class="filter-btn" data-priority="low">Low</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="todo-input-section-enhanced">
+                        <div class="input-wrapper">
+                            <i class="fas fa-plus-circle"></i>
+                            <input type="text" id="todo-input" class="todo-input" placeholder="Add a new trading task...">
+                        </div>
+                        <div class="input-options">
+                            <select id="todo-type" class="todo-type-select">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                            </select>
+                            <select id="todo-priority" class="todo-priority-select">
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="low">Low</option>
+                            </select>
+                            <button class="btn btn-primary" id="add-todo-btn">
+                                <i class="fas fa-plus"></i>
+                                Add Task
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="todo-list-container">
+                        <div class="todo-list" id="todo-list">
+                            <!-- Todo items will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Column: 3D Visualization & Analytics -->
+                <div class="todo-visualization-panel">
+                    <div class="panel-header">
+                        <h2>
+                            <i class="fas fa-cube"></i>
+                            3D Analytics
+                        </h2>
+                        <div class="viz-controls">
+                            <button class="viz-btn" id="rotate-toggle" title="Auto Rotate">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <button class="viz-btn" id="reset-view" title="Reset View">
+                                <i class="fas fa-home"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="viz-container-wrapper">
+                        <div class="todo-3d-container" id="todo-3d-container">
+                            <canvas id="todo-3d-canvas"></canvas>
+                            <div class="viz-loading" id="viz-loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <span>Loading 3D visualization...</span>
+                            </div>
+                            <div class="viz-overlay">
+                                <div class="viz-info">
+                                    <div class="viz-stat">
+                                        <span class="viz-label">Tasks Completed</span>
+                                        <span class="viz-value" id="viz-completed">0</span>
+                                    </div>
+                                    <div class="viz-stat">
+                                        <span class="viz-label">Active Tasks</span>
+                                        <span class="viz-value" id="viz-active">0</span>
+                                    </div>
+                                    <div class="viz-stat">
+                                        <span class="viz-label">Completion Rate</span>
+                                        <span class="viz-value" id="viz-rate">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-section">
+                        <h3>
+                            <i class="fas fa-chart-bar"></i>
+                            Performance Metrics
+                        </h3>
+                        <div class="analytics-grid">
+                            <div class="analytics-item">
+                                <div class="analytics-icon">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                                <div class="analytics-content">
+                                    <div class="analytics-value" id="analytics-weekly">0</div>
+                                    <div class="analytics-label">This Week</div>
+                                </div>
+                            </div>
+                            <div class="analytics-item">
+                                <div class="analytics-icon">
+                                    <i class="fas fa-trophy"></i>
+                                </div>
+                                <div class="analytics-content">
+                                    <div class="analytics-value" id="analytics-streak">0</div>
+                                    <div class="analytics-label">Day Streak</div>
+                                </div>
+                            </div>
+                            <div class="analytics-item">
+                                <div class="analytics-icon">
+                                    <i class="fas fa-bolt"></i>
+                                </div>
+                                <div class="analytics-content">
+                                    <div class="analytics-value" id="analytics-avg">0</div>
+                                    <div class="analytics-label">Avg/Day</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- Settings Page -->
@@ -924,32 +1334,190 @@ require_once 'includes/database.php';
         </div>
     </div>
 
-    <!-- Note Editor Modal -->
+    <!-- Trading Note Editor Modal -->
     <div class="modal" id="note-modal">
-        <div class="modal-content modal-large">
+        <div class="modal-content modal-extra-large">
             <div class="modal-header">
-                <h3 id="note-modal-title">New Note</h3>
+                <h3 id="note-modal-title">
+                    <i class="fas fa-chart-line"></i>
+                    New Trading Note
+                </h3>
                 <button class="modal-close" id="close-note-modal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body trading-note-form">
                 <input type="hidden" id="note-id">
-                <input type="text" id="note-title-input" class="form-input" placeholder="Note title...">
-                <div class="note-color-picker">
-                    <label>Color:</label>
-                    <div class="color-options">
-                        <button class="color-option active" data-color="#1e293b" style="background:#1e293b"></button>
-                        <button class="color-option" data-color="#164e63" style="background:#164e63"></button>
-                        <button class="color-option" data-color="#166534" style="background:#166534"></button>
-                        <button class="color-option" data-color="#854d0e" style="background:#854d0e"></button>
-                        <button class="color-option" data-color="#7c2d12" style="background:#7c2d12"></button>
-                        <button class="color-option" data-color="#581c87" style="background:#581c87"></button>
+                
+                <!-- Note Type Tabs -->
+                <div class="note-type-tabs">
+                    <button class="note-type-tab active" data-type="trade">
+                        <i class="fas fa-exchange-alt"></i>
+                        Trade
+                    </button>
+                    <button class="note-type-tab" data-type="strategy">
+                        <i class="fas fa-chess"></i>
+                        Strategy
+                    </button>
+                    <button class="note-type-tab" data-type="journal">
+                        <i class="fas fa-book"></i>
+                        Journal
+                    </button>
+                </div>
+                
+                <!-- Basic Info Section -->
+                <div class="form-section">
+                    <h4 class="form-section-title">
+                        <i class="fas fa-info-circle"></i>
+                        Basic Information
+                    </h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Title *</label>
+                            <input type="text" id="note-title-input" class="form-input" placeholder="e.g., ES Long Entry - Morning Session">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select id="note-category" class="form-input">
+                                <option value="">Select Category</option>
+                                <option value="scalp">Scalping</option>
+                                <option value="swing">Swing Trading</option>
+                                <option value="day">Day Trading</option>
+                                <option value="breakout">Breakout</option>
+                                <option value="reversal">Reversal</option>
+                                <option value="trend">Trend Following</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-                <textarea id="note-content-input" class="form-textarea" placeholder="Write your note here..." rows="10"></textarea>
+                
+                <!-- Trading Details Section (for Trade type) -->
+                <div class="form-section trading-details-section" id="trading-details-section">
+                    <h4 class="form-section-title">
+                        <i class="fas fa-chart-candlestick"></i>
+                        Trading Details
+                    </h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Contract Symbol *</label>
+                            <input type="text" id="note-contract-symbol" class="form-input" placeholder="e.g., ES, NQ, YM, CL">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Contract Type</label>
+                            <select id="note-contract-type" class="form-input">
+                                <option value="futures">Futures</option>
+                                <option value="options">Options</option>
+                                <option value="forex">Forex</option>
+                                <option value="crypto">Crypto</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Direction *</label>
+                            <select id="note-direction" class="form-input">
+                                <option value="">Select</option>
+                                <option value="long">Long</option>
+                                <option value="short">Short</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Entry Price *</label>
+                            <input type="number" id="note-entry-price" class="form-input" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Exit Price</label>
+                            <input type="number" id="note-exit-price" class="form-input" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" id="note-quantity" class="form-input" value="1" min="1">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Entry Time</label>
+                            <input type="datetime-local" id="note-entry-time" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Exit Time</label>
+                            <input type="datetime-local" id="note-exit-time" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Timeframe</label>
+                            <select id="note-timeframe" class="form-input">
+                                <option value="">Select</option>
+                                <option value="1m">1 Minute</option>
+                                <option value="5m">5 Minutes</option>
+                                <option value="15m">15 Minutes</option>
+                                <option value="30m">30 Minutes</option>
+                                <option value="1h">1 Hour</option>
+                                <option value="4h">4 Hours</option>
+                                <option value="1d">Daily</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Stop Loss</label>
+                            <input type="number" id="note-stop-loss" class="form-input" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Take Profit</label>
+                            <input type="number" id="note-take-profit" class="form-input" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Strategy</label>
+                            <input type="text" id="note-strategy" class="form-input" placeholder="e.g., Breakout, Reversal">
+                        </div>
+                    </div>
+                    
+                    <!-- P&L Calculation Display -->
+                    <div class="pnl-display" id="pnl-display" style="display: none;">
+                        <div class="pnl-row">
+                            <span class="pnl-label">P&L:</span>
+                            <span class="pnl-value" id="calculated-pnl">$0.00</span>
+                        </div>
+                        <div class="pnl-row">
+                            <span class="pnl-label">P&L %:</span>
+                            <span class="pnl-value" id="calculated-pnl-percent">0.00%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Notes Content Section -->
+                <div class="form-section">
+                    <h4 class="form-section-title">
+                        <i class="fas fa-sticky-note"></i>
+                        Notes & Analysis
+                    </h4>
+                    <textarea id="note-content-input" class="form-textarea" placeholder="Write your trading notes, analysis, lessons learned, market observations..." rows="8"></textarea>
+                </div>
+                
+                <!-- Color Picker -->
+                <div class="form-section">
+                    <div class="note-color-picker">
+                        <label>Note Color:</label>
+                        <div class="color-options">
+                            <button class="color-option active" data-color="#1e293b" style="background:#1e293b" title="Default"></button>
+                            <button class="color-option" data-color="#164e63" style="background:#164e63" title="Blue"></button>
+                            <button class="color-option" data-color="#166534" style="background:#166534" title="Green"></button>
+                            <button class="color-option" data-color="#854d0e" style="background:#854d0e" title="Yellow"></button>
+                            <button class="color-option" data-color="#7c2d12" style="background:#7c2d12" title="Red"></button>
+                            <button class="color-option" data-color="#581c87" style="background:#581c87" title="Purple"></button>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="modal-actions">
-                    <button class="btn btn-primary" id="save-note-btn">Save Note</button>
+                    <button class="btn btn-primary" id="save-note-btn">
+                        <i class="fas fa-save"></i>
+                        Save Trading Note
+                    </button>
                     <button class="btn btn-secondary" id="cancel-note-btn">Cancel</button>
                 </div>
             </div>
@@ -1025,6 +1593,8 @@ require_once 'includes/database.php';
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2"></script>
+    <!-- Three.js Library for 3D Visualizations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="assets/js/charts.js"></script>
     <script src="assets/js/world-clocks.js"></script>
     <script src="assets/js/market-data.js"></script>

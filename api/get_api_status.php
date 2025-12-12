@@ -41,3 +41,8 @@ $status['cache_duration'] = CACHE_DURATION;
 echo json_encode($status);
 ?>
 
+
+
+
+
+

@@ -81,13 +81,14 @@ function getQuote() {
         return;
     }
 
-    // Check cache (5 minute cache for quotes)
+    // Check cache (1 minute cache for quotes - more frequent updates)
     $cacheFile = $cacheDir . '/quote_' . $symbol . '.json';
-    if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 300) {
+    if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 60) {
         echo file_get_contents($cacheFile);
         return;
     }
 
+    // Try Finnhub first
     $data = fetchFinnhubQuote($symbol);
     
     if ($data && isset($data['c']) && $data['c'] > 0) {
@@ -101,20 +102,29 @@ function getQuote() {
             'previousClose' => $data['pc'],
             'change' => $data['d'] ?? ($data['c'] - $data['pc']),
             'changePercent' => $data['dp'] ?? (($data['c'] - $data['pc']) / $data['pc'] * 100),
-            'timestamp' => $data['t'] ?? time()
+            'timestamp' => $data['t'] ?? time(),
+            'source' => 'finnhub'
         ];
         file_put_contents($cacheFile, json_encode($result));
         echo json_encode($result);
-    } else {
-        // Try Yahoo Finance as backup
-        $yahooData = fetchYahooQuote($symbol);
-        if ($yahooData) {
-            file_put_contents($cacheFile, json_encode($yahooData));
-            echo json_encode($yahooData);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Unable to fetch quote data']);
-        }
+        return;
     }
+    
+    // Try Yahoo Finance as backup
+    $yahooData = fetchYahooQuote($symbol);
+    if ($yahooData && $yahooData['success']) {
+        $yahooData['source'] = 'yahoo';
+        file_put_contents($cacheFile, json_encode($yahooData));
+        echo json_encode($yahooData);
+        return;
+    }
+    
+    // Return error - no demo data
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Unable to fetch real-time quote data for ' . $symbol,
+        'symbol' => $symbol
+    ]);
 }
 
 function getChartData() {
@@ -133,24 +143,46 @@ function getChartData() {
     // Check cache
     $cacheKey = $symbol . '_' . $timeframe;
     $cacheFile = $cacheDir . '/chart_' . $cacheKey . '.json';
-    $cacheTime = $timeframe === '1D' ? 60 : 300; // 1 min for intraday, 5 min for others
+    // Shorter cache for intraday timeframes for more real-time data
+    $cacheTime = in_array($timeframe, ['15MIN', '1H', '4H', '1D']) ? 60 : 300; // 1 min for intraday, 5 min for others
     
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTime) {
-        echo file_get_contents($cacheFile);
-        return;
+        $cachedData = file_get_contents($cacheFile);
+        $decoded = json_decode($cachedData, true);
+        // Only use cache if it's real data (not demo)
+        if ($decoded && !isset($decoded['demo'])) {
+            echo $cachedData;
+            return;
+        }
     }
 
+    // Try Finnhub first
     $data = fetchFinnhubCandles($symbol, $params['resolution'], $params['from'], $params['to']);
     
-    if ($data && isset($data['c']) && count($data['c']) > 0) {
+    if ($data && isset($data['c']) && is_array($data['c']) && count($data['c']) > 0) {
         $chartData = formatCandleData($data, $symbol, $timeframe);
+        $chartData['source'] = 'finnhub';
         file_put_contents($cacheFile, json_encode($chartData));
         echo json_encode($chartData);
-    } else {
-        // Generate demo data if API fails
-        $demoData = generateDemoData($symbol, $timeframe);
-        echo json_encode($demoData);
+        return;
     }
+    
+    // Try Yahoo Finance as backup
+    $yahooData = fetchYahooChartData($symbol, $timeframe);
+    if ($yahooData && isset($yahooData['candles']) && count($yahooData['candles']) > 0) {
+        $yahooData['source'] = 'yahoo';
+        file_put_contents($cacheFile, json_encode($yahooData));
+        echo json_encode($yahooData);
+        return;
+    }
+    
+    // Return error - NO demo data
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Unable to fetch real-time market data. Please check your API configuration or try again later.',
+        'symbol' => $symbol,
+        'timeframe' => $timeframe
+    ]);
 }
 
 function getTimeframeParams($timeframe) {
@@ -159,6 +191,18 @@ function getTimeframeParams($timeframe) {
     $from = $now - 86400; // Default to 1 day
     
     switch ($timeframe) {
+        case '15MIN':
+            $resolution = '15'; // 15-minute bars
+            $from = $now - (5 * 86400); // Last 5 days for 15 min bars (to get enough data)
+            break;
+        case '1H':
+            $resolution = '60'; // 1-hour bars
+            $from = $now - (30 * 86400); // Last 30 days for 1 hour bars
+            break;
+        case '4H':
+            $resolution = '60'; // Use 1-hour bars (Finnhub doesn't support 4H directly, will show hourly bars)
+            $from = $now - (60 * 86400); // Last 60 days for 4 hour view (showing hourly bars)
+            break;
         case '1D':
             $resolution = '5';
             $from = strtotime('today 09:30', $now);
@@ -204,9 +248,26 @@ function fetchFinnhubQuote($symbol) {
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
     
-    return json_decode($response, true);
+    if ($httpCode !== 200 || $error) {
+        error_log("Finnhub quote error: HTTP $httpCode, Error: $error");
+        return null;
+    }
+    
+    $data = json_decode($response, true);
+    
+    // Check if we got valid data (Finnhub returns all zeros for invalid symbols)
+    if (!$data || (isset($data['c']) && $data['c'] == 0)) {
+        return null;
+    }
+    
+    return $data;
 }
 
 function fetchFinnhubCandles($symbol, $resolution, $from, $to) {
@@ -217,9 +278,27 @@ function fetchFinnhubCandles($symbol, $resolution, $from, $to) {
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
     
-    return json_decode($response, true);
+    if ($httpCode !== 200 || $error) {
+        error_log("Finnhub candles error: HTTP $httpCode, Error: $error, URL: $url");
+        return null;
+    }
+    
+    $data = json_decode($response, true);
+    
+    // Check for valid response (Finnhub returns 's' => 'no_data' when no data available)
+    if (!$data || (isset($data['s']) && $data['s'] === 'no_data')) {
+        error_log("Finnhub candles: No data available for $symbol");
+        return null;
+    }
+    
+    return $data;
 }
 
 function fetchYahooQuote($symbol) {
@@ -229,8 +308,10 @@ function fetchYahooQuote($symbol) {
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     $response = curl_exec($ch);
+    curl_close($ch);
     
     $data = json_decode($response, true);
     
@@ -251,6 +332,136 @@ function fetchYahooQuote($symbol) {
     }
     
     return null;
+}
+
+function fetchYahooChartData($symbol, $timeframe) {
+    // Map timeframe to Yahoo Finance parameters
+    $yahooParams = getYahooTimeframeParams($timeframe);
+    
+    $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?interval={$yahooParams['interval']}&range={$yahooParams['range']}";
+    
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200 || empty($response)) {
+        return null;
+    }
+    
+    $data = json_decode($response, true);
+    
+    if (!isset($data['chart']['result'][0])) {
+        return null;
+    }
+    
+    $result = $data['chart']['result'][0];
+    $meta = $result['meta'] ?? [];
+    $timestamps = $result['timestamp'] ?? [];
+    $quote = $result['indicators']['quote'][0] ?? [];
+    
+    if (empty($timestamps) || empty($quote)) {
+        return null;
+    }
+    
+    $candles = [];
+    $count = count($timestamps);
+    
+    for ($i = 0; $i < $count; $i++) {
+        // Skip null values
+        if (!isset($quote['open'][$i]) || $quote['open'][$i] === null) {
+            continue;
+        }
+        
+        $candles[] = [
+            'time' => $timestamps[$i] * 1000, // Convert to milliseconds
+            'open' => round($quote['open'][$i], 2),
+            'high' => round($quote['high'][$i], 2),
+            'low' => round($quote['low'][$i], 2),
+            'close' => round($quote['close'][$i], 2),
+            'volume' => $quote['volume'][$i] ?? 0
+        ];
+    }
+    
+    if (empty($candles)) {
+        return null;
+    }
+    
+    // Calculate statistics
+    $closes = array_column($candles, 'close');
+    $volumes = array_column($candles, 'volume');
+    $highs = array_column($candles, 'high');
+    $lows = array_column($candles, 'low');
+    
+    // Calculate indicators
+    $sma20 = calculateSMA($closes, 20);
+    $sma50 = calculateSMA($closes, 50);
+    $ema12 = calculateEMA($closes, 12);
+    $ema26 = calculateEMA($closes, 26);
+    $rsi = calculateRSI($closes, 14);
+    $macd = calculateMACD($closes);
+    $bollinger = calculateBollingerBands($closes, 20);
+    $fibonacci = calculateFibonacciLevels($highs, $lows, $closes);
+    
+    return [
+        'success' => true,
+        'symbol' => $symbol,
+        'timeframe' => $timeframe,
+        'candles' => $candles,
+        'statistics' => [
+            'open' => $candles[0]['open'],
+            'high' => max($highs),
+            'low' => min($lows),
+            'close' => end($closes),
+            'volume' => end($volumes),
+            'avgVolume' => count($volumes) > 0 ? array_sum($volumes) / count($volumes) : 0,
+            'high52w' => max($highs),
+            'low52w' => min($lows)
+        ],
+        'indicators' => [
+            'sma20' => $sma20,
+            'sma50' => $sma50,
+            'ema12' => $ema12,
+            'ema26' => $ema26,
+            'rsi' => $rsi,
+            'macd' => $macd,
+            'bollinger' => $bollinger,
+            'fibonacci' => $fibonacci
+        ]
+    ];
+}
+
+function getYahooTimeframeParams($timeframe) {
+    switch ($timeframe) {
+        case '15MIN':
+            return ['interval' => '1m', 'range' => '1d'];
+        case '1H':
+            return ['interval' => '5m', 'range' => '5d'];
+        case '4H':
+            return ['interval' => '15m', 'range' => '1mo'];
+        case '1D':
+            return ['interval' => '5m', 'range' => '1d'];
+        case '5D':
+            return ['interval' => '15m', 'range' => '5d'];
+        case '1M':
+            return ['interval' => '1h', 'range' => '1mo'];
+        case '3M':
+            return ['interval' => '1d', 'range' => '3mo'];
+        case '6M':
+            return ['interval' => '1d', 'range' => '6mo'];
+        case '1Y':
+            return ['interval' => '1d', 'range' => '1y'];
+        case '5Y':
+            return ['interval' => '1wk', 'range' => '5y'];
+        default:
+            return ['interval' => '5m', 'range' => '1d'];
+    }
 }
 
 function formatCandleData($data, $symbol, $timeframe) {
@@ -289,6 +500,9 @@ function formatCandleData($data, $symbol, $timeframe) {
     // Calculate Bollinger Bands
     $bollinger = calculateBollingerBands($closes, 20);
     
+    // Calculate Fibonacci levels
+    $fibonacci = calculateFibonacciLevels($highs, $lows, $closes);
+    
     // 52-week high/low (if we have enough data)
     $high52w = max($highs);
     $low52w = min($lows);
@@ -315,7 +529,8 @@ function formatCandleData($data, $symbol, $timeframe) {
             'ema26' => $ema26,
             'rsi' => $rsi,
             'macd' => $macd,
-            'bollinger' => $bollinger
+            'bollinger' => $bollinger,
+            'fibonacci' => $fibonacci
         ]
     ];
 }
@@ -438,6 +653,61 @@ function calculateBollingerBands($data, $period = 20) {
     ];
 }
 
+function calculateFibonacciLevels($highs, $lows, $closes) {
+    if (empty($highs) || empty($lows)) return null;
+    
+    $high = max($highs);
+    $low = min($lows);
+    $diff = $high - $low;
+    $currentPrice = end($closes);
+    
+    // Fibonacci retracement levels (from high to low)
+    $levels = [
+        '0' => $high,                           // 0% - High
+        '236' => $high - ($diff * 0.236),       // 23.6%
+        '382' => $high - ($diff * 0.382),       // 38.2%
+        '50' => $high - ($diff * 0.5),          // 50%
+        '618' => $high - ($diff * 0.618),       // 61.8% (Golden Ratio)
+        '786' => $high - ($diff * 0.786),       // 78.6%
+        '100' => $low                            // 100% - Low
+    ];
+    
+    // Fibonacci extension levels for price targets
+    $extensions = [
+        '1618' => $high + ($diff * 0.618),      // 161.8% extension
+        '2618' => $high + ($diff * 1.618),      // 261.8% extension
+        '4236' => $high + ($diff * 3.236)       // 423.6% extension
+    ];
+    
+    // Fibonacci spiral price targets based on current price
+    $spiralTargets = [
+        'target1' => round($currentPrice * 1.618, 2),   // Golden ratio up
+        'target2' => round($currentPrice * 2.618, 2),   // 2.618x up
+        'support1' => round($currentPrice * 0.618, 2),  // Golden ratio down
+        'support2' => round($currentPrice * 0.382, 2)   // 0.382x down
+    ];
+    
+    // Determine current position relative to Fibonacci levels
+    $position = 'neutral';
+    if ($currentPrice > $levels['382']) {
+        $position = 'above_382';
+    } else if ($currentPrice > $levels['618']) {
+        $position = 'between_382_618';
+    } else {
+        $position = 'below_618';
+    }
+    
+    return [
+        'levels' => array_map(function($v) { return round($v, 2); }, $levels),
+        'extensions' => array_map(function($v) { return round($v, 2); }, $extensions),
+        'spiralTargets' => $spiralTargets,
+        'high' => round($high, 2),
+        'low' => round($low, 2),
+        'range' => round($diff, 2),
+        'currentPosition' => $position
+    ];
+}
+
 function generateDemoData($symbol, $timeframe) {
     $candles = [];
     $basePrice = 100 + (ord($symbol[0]) % 400);
@@ -505,7 +775,8 @@ function generateDemoData($symbol, $timeframe) {
             'ema26' => calculateEMA($closes, 26),
             'rsi' => calculateRSI($closes, 14),
             'macd' => calculateMACD($closes),
-            'bollinger' => calculateBollingerBands($closes, 20)
+            'bollinger' => calculateBollingerBands($closes, 20),
+            'fibonacci' => calculateFibonacciLevels($highs, $lows, $closes)
         ]
     ];
 }

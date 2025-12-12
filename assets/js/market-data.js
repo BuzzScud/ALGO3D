@@ -49,24 +49,41 @@ async function updateApiStatus() {
 // Fetch market data from API
 async function fetchMarketData() {
     const marketGrid = document.getElementById('market-grid');
-    if (marketGrid) {
-        marketGrid.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading market data...</div>';
-    }
+    if (!marketGrid) return;
+    
+    marketGrid.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading market data...</div>';
     
     try {
         const response = await fetch(`api/get_market_data.php?source=${currentApiSource}`);
-        if (!response.ok) throw new Error('Failed to fetch market data');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
         const result = await response.json();
-        displayMarketData(result.data);
-        updateDataInfo(result);
         
-        // Update API status after fetch
-        updateApiStatus();
+        if (result.success === false) {
+            throw new Error(result.message || 'Failed to fetch market data');
+        }
+        
+        if (result.data && Array.isArray(result.data)) {
+            displayMarketData(result.data);
+            updateDataInfo(result);
+            updateApiStatus();
+        } else {
+            throw new Error('Invalid data format received');
+        }
     } catch (error) {
         console.error('Error fetching market data:', error);
         if (marketGrid) {
-            marketGrid.innerHTML = '<div class="loading error-message">Error loading market data. Please try again later.</div>';
+            marketGrid.innerHTML = `
+                <div class="loading error-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Error loading market data: ${error.message}</p>
+                    <button class="btn btn-secondary btn-sm" onclick="fetchMarketData()" style="margin-top: 10px;">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                </div>
+            `;
         }
     }
 }
@@ -94,7 +111,15 @@ function displayMarketData(data) {
     if (!marketGrid) return;
 
     if (!data || data.length === 0) {
-        marketGrid.innerHTML = '<div class="loading">No market data available. Add symbols to get started.</div>';
+        marketGrid.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-info-circle"></i>
+                <p>No market data available.</p>
+                <button class="btn btn-primary btn-sm" onclick="openAddSymbolModal()" style="margin-top: 10px;">
+                    <i class="fas fa-plus"></i> Add Symbol
+                </button>
+            </div>
+        `;
         return;
     }
 
