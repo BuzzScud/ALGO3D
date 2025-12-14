@@ -38,6 +38,12 @@ require_once 'includes/database.php';
                         <span>Charts</span>
                     </a>
                 </li>
+                <li class="sidebar-item" data-page="projections">
+                    <a href="#" class="sidebar-link">
+                        <i class="fas fa-project-diagram"></i>
+                        <span>Projections</span>
+                    </a>
+                </li>
                 <li class="sidebar-item" data-page="notes">
                     <a href="#" class="sidebar-link">
                         <i class="fas fa-sticky-note"></i>
@@ -141,8 +147,8 @@ require_once 'includes/database.php';
                 <h1 class="page-title">Dashboard</h1>
             </div>
             <div class="dashboard-container">
-                <!-- World Clocks Section -->
-                <section class="dashboard-section clocks-section">
+                <!-- Top Row: World Clocks Section -->
+                <section class="dashboard-section clocks-section clocks-section-top">
                     <h2 class="section-title">
                         <i class="fas fa-clock"></i>
                         World Clocks
@@ -181,46 +187,8 @@ require_once 'includes/database.php';
                     </div>
                 </section>
 
-                <!-- Quick Stats -->
-                <section class="dashboard-section">
-                    <h2 class="section-title">
-                        <i class="fas fa-chart-pie"></i>
-                        Quick Overview
-                    </h2>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
-                            <div class="stat-info">
-                                <span class="stat-value" id="stat-symbols">--</span>
-                                <span class="stat-label">Tracked Symbols</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon"><i class="fas fa-tasks"></i></div>
-                            <div class="stat-info">
-                                <span class="stat-value" id="stat-todos">--</span>
-                                <span class="stat-label">Active Tasks</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon"><i class="fas fa-sticky-note"></i></div>
-                            <div class="stat-info">
-                                <span class="stat-value" id="stat-notes">--</span>
-                                <span class="stat-label">Notes</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon"><i class="fas fa-server"></i></div>
-                            <div class="stat-info">
-                                <span class="stat-value" id="stat-api">--</span>
-                                <span class="stat-label">API Status</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
                 <!-- Market Data Section -->
-                <section class="dashboard-section market-section">
+                <section class="dashboard-section market-section market-section-full">
                     <div class="section-header">
                         <h2 class="section-title">
                             <i class="fas fa-chart-line"></i>
@@ -304,13 +272,10 @@ require_once 'includes/database.php';
                         </div>
                     </div>
                     <div class="chart-timeframe-selector">
+                        <button class="timeframe-btn" data-timeframe="15MIN">15 MIN</button>
+                        <button class="timeframe-btn" data-timeframe="1H">1H</button>
+                        <button class="timeframe-btn" data-timeframe="4H">4H</button>
                         <button class="timeframe-btn active" data-timeframe="1D">1D</button>
-                        <button class="timeframe-btn" data-timeframe="5D">5D</button>
-                        <button class="timeframe-btn" data-timeframe="1M">1M</button>
-                        <button class="timeframe-btn" data-timeframe="3M">3M</button>
-                        <button class="timeframe-btn" data-timeframe="6M">6M</button>
-                        <button class="timeframe-btn" data-timeframe="1Y">1Y</button>
-                        <button class="timeframe-btn" data-timeframe="5Y">5Y</button>
                     </div>
                     <div class="chart-type-selector">
                         <button class="chart-type-btn active" data-type="candlestick" title="Candlestick">
@@ -679,17 +644,17 @@ require_once 'includes/database.php';
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <button class="btn btn-primary" id="add-note-btn">
-                            <i class="fas fa-plus"></i>
+                <button class="btn btn-primary" id="add-note-btn">
+                    <i class="fas fa-plus"></i>
                             New Trade Note
-                        </button>
-                    </div>
+                </button>
+            </div>
                     
                     <div class="notes-grid-container">
-                        <div class="notes-grid" id="notes-grid">
+                    <div class="notes-grid" id="notes-grid">
                             <!-- Trading notes will be loaded here -->
-                        </div>
                     </div>
+                </div>
                 </div>
                 
                 <!-- Right Column: 3D Visualization & Analytics -->
@@ -710,26 +675,55 @@ require_once 'includes/database.php';
                     </div>
                     
                     <div class="viz-container-wrapper">
-                        <div class="notes-3d-container" id="notes-3d-container">
-                            <canvas id="notes-3d-canvas"></canvas>
-                            <div class="viz-loading" id="notes-viz-loading">
-                                <i class="fas fa-spinner fa-spin"></i>
-                                <span>Loading 3D visualization...</span>
+                        <!-- Tab Navigation -->
+                        <div class="viz-tabs">
+                            <button class="viz-tab active" data-tab="3d-viz">
+                                <i class="fas fa-cube"></i>
+                                <span>3D Analytics</span>
+                            </button>
+                            <button class="viz-tab" data-tab="projections">
+                                <i class="fas fa-project-diagram"></i>
+                                <span>Saved Projections</span>
+                            </button>
+                        </div>
+                        
+                        <!-- 3D Visualization Tab -->
+                        <div class="viz-tab-content active" id="tab-3d-viz">
+                            <div class="notes-3d-container" id="notes-3d-container">
+                                <canvas id="notes-3d-canvas"></canvas>
+                                <div class="viz-loading" id="notes-viz-loading">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <span>Loading 3D visualization...</span>
+                                </div>
+                                <div class="viz-overlay">
+                                    <div class="viz-info">
+                                        <div class="viz-stat">
+                                            <span class="viz-label">Total Trades</span>
+                                            <span class="viz-value" id="viz-total-trades">0</span>
+                                        </div>
+                                        <div class="viz-stat">
+                                            <span class="viz-label">Win Rate</span>
+                                            <span class="viz-value" id="viz-win-rate">0%</span>
+                                        </div>
+                                        <div class="viz-stat">
+                                            <span class="viz-label">Total P&L</span>
+                                            <span class="viz-value" id="viz-total-pnl">$0</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="viz-overlay">
-                                <div class="viz-info">
-                                    <div class="viz-stat">
-                                        <span class="viz-label">Total Trades</span>
-                                        <span class="viz-value" id="viz-total-trades">0</span>
-                                    </div>
-                                    <div class="viz-stat">
-                                        <span class="viz-label">Win Rate</span>
-                                        <span class="viz-value" id="viz-win-rate">0%</span>
-                                    </div>
-                                    <div class="viz-stat">
-                                        <span class="viz-label">Total P&L</span>
-                                        <span class="viz-value" id="viz-total-pnl">$0</span>
-                                    </div>
+                        </div>
+                        
+                        <!-- Saved Projections Tab -->
+                        <div class="viz-tab-content" id="tab-projections">
+                            <div class="projections-tab-container">
+                                <div class="saved-projections-list" id="saved-projections-list">
+                                    <!-- Saved projections will be loaded here -->
+                                </div>
+                                <div class="empty-projections" id="empty-projections" style="display: none;">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>No saved projections yet</p>
+                                    <p class="empty-hint">Save projections from the Projections page to view them here</p>
                                 </div>
                             </div>
                         </div>
@@ -780,6 +774,7 @@ require_once 'includes/database.php';
                             <!-- Top contracts will be loaded here -->
                         </div>
                     </div>
+                    
                 </div>
             </div>
         </main>
@@ -998,6 +993,135 @@ require_once 'includes/database.php';
                                     <div class="analytics-value" id="analytics-avg">0</div>
                                     <div class="analytics-label">Avg/Day</div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Projections Page -->
+        <main class="page-content" id="page-projections">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <i class="fas fa-project-diagram"></i>
+                    Price Projections
+                </h1>
+            </div>
+            
+            <div class="projections-container">
+                <!-- Search and Controls Section -->
+                <div class="projections-controls-panel">
+                    <div class="projections-search-section">
+                        <div class="search-input-group">
+                            <input type="text" id="projection-symbol-input" class="projection-input" placeholder="Enter symbol (e.g., AAPL, TSLA, SPY)" value="">
+                            <button id="projection-search-btn" class="btn btn-primary">
+                                <i class="fas fa-search"></i>
+                                Search
+                            </button>
+                            <button id="projection-refresh-btn" class="btn btn-secondary" style="display: none;">
+                                <i class="fas fa-sync-alt"></i>
+                                Refresh
+                            </button>
+                        </div>
+                        <div class="projection-interval-selector">
+                            <label>Interval:</label>
+                            <select id="projection-interval-select" class="projection-select">
+                                <option value="1d">1 Day</option>
+                                <option value="5d">5 Days</option>
+                                <option value="1mo">1 Month</option>
+                                <option value="3mo">3 Months</option>
+                                <option value="6mo">6 Months</option>
+                                <option value="1y">1 Year</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Projection Parameters -->
+                    <div class="projection-parameters-panel">
+                        <h3>Projection Parameters</h3>
+                        <div class="params-grid">
+                            <div class="param-group">
+                                <label for="projection-steps">Projection Steps</label>
+                                <input type="number" id="projection-steps" class="projection-input" min="1" max="200" value="20">
+                            </div>
+                            <div class="param-group">
+                                <label for="projection-base">Base</label>
+                                <input type="number" id="projection-base" class="projection-input" min="2" max="10" value="3" step="0.1">
+                            </div>
+                            <div class="param-group">
+                                <label for="projection-count">Projection Count</label>
+                                <input type="number" id="projection-count" class="projection-input" min="1" max="50" value="12">
+                            </div>
+                            <div class="param-group">
+                                <label for="projection-depth">Prime Depth</label>
+                                <select id="projection-depth" class="projection-select">
+                                    <option value="11">11</option>
+                                    <option value="13">13</option>
+                                    <option value="17">17</option>
+                                    <option value="29">29</option>
+                                    <option value="31" selected>31</option>
+                                    <option value="47">47</option>
+                                    <option value="59">59</option>
+                                    <option value="61">61</option>
+                                    <option value="97">97</option>
+                                    <option value="101">101</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Metrics Section -->
+                <div class="projections-metrics-section" id="projections-metrics-section" style="display: none;">
+                    <h3>Price Metrics</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card-projection">
+                            <div class="metric-label">Current Price</div>
+                            <div class="metric-value" id="metric-current-price">--</div>
+                        </div>
+                        <div class="metric-card-projection">
+                            <div class="metric-label">Historical Change</div>
+                            <div class="metric-value" id="metric-historical-change">--</div>
+                            <div class="metric-percent" id="metric-historical-percent">--</div>
+                        </div>
+                        <div class="metric-card-projection">
+                            <div class="metric-label">Projected Price</div>
+                            <div class="metric-value" id="metric-projected-price">--</div>
+                        </div>
+                        <div class="metric-card-projection">
+                            <div class="metric-label">Projected Change</div>
+                            <div class="metric-value" id="metric-projected-change">--</div>
+                            <div class="metric-percent" id="metric-projected-percent">--</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chart Section -->
+                <div class="projections-chart-section">
+                    <div class="projections-chart-container">
+                        <div class="chart-header">
+                            <h3 id="projection-chart-title">Price Projection Chart</h3>
+                            <div class="chart-controls">
+                                <button id="save-projection-btn" class="btn btn-primary btn-small" style="display: none;">
+                                    <i class="fas fa-save"></i>
+                                    Save Projection
+                                </button>
+                                <button id="reset-zoom-btn" class="btn btn-small" style="display: none;">
+                                    <i class="fas fa-expand"></i>
+                                    Reset Zoom
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="projection-chart"></canvas>
+                            <div id="projection-loading" class="projection-loading" style="display: none;">
+                                <div class="loading-spinner"></div>
+                                <p>Loading projection data...</p>
+                            </div>
+                            <div id="projection-error" class="projection-error" style="display: none;">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <p></p>
                             </div>
                         </div>
                     </div>
@@ -1500,17 +1624,17 @@ require_once 'includes/database.php';
                 
                 <!-- Color Picker -->
                 <div class="form-section">
-                    <div class="note-color-picker">
+                <div class="note-color-picker">
                         <label>Note Color:</label>
-                        <div class="color-options">
+                    <div class="color-options">
                             <button class="color-option active" data-color="#1e293b" style="background:#1e293b" title="Default"></button>
                             <button class="color-option" data-color="#164e63" style="background:#164e63" title="Blue"></button>
                             <button class="color-option" data-color="#166534" style="background:#166534" title="Green"></button>
                             <button class="color-option" data-color="#854d0e" style="background:#854d0e" title="Yellow"></button>
                             <button class="color-option" data-color="#7c2d12" style="background:#7c2d12" title="Red"></button>
                             <button class="color-option" data-color="#581c87" style="background:#581c87" title="Purple"></button>
-                        </div>
                     </div>
+                </div>
                 </div>
                 
                 <div class="modal-actions">
@@ -1600,6 +1724,7 @@ require_once 'includes/database.php';
     <script src="assets/js/market-data.js"></script>
     <script src="assets/js/todo-list.js"></script>
     <script src="assets/js/notes.js"></script>
+    <script src="assets/js/projections.js"></script>
     <script src="assets/js/settings-tabs.js"></script>
     <script src="assets/js/settings.js"></script>
     <script src="assets/js/user-widget.js"></script>

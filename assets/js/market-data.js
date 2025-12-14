@@ -136,44 +136,111 @@ function displayMarketData(data) {
 
 // Create market card HTML
 function createMarketCard(data) {
-    const changeClass = data.change >= 0 ? 'positive' : 'negative';
-    const changeSign = data.change >= 0 ? '+' : '';
-    const priceDisplay = data.price > 0 ? `$${data.price.toFixed(2)}` : 'N/A';
-    const hasError = data.error || data.price === 0;
+    // Safely extract and parse all values
+    const price = parseFloat(data.price) || 0;
+    const change = parseFloat(data.change) || 0;
+    const changePercent = parseFloat(data.changePercent) || 0;
+    
+    const changeClass = change >= 0 ? 'positive' : 'negative';
+    const changeSign = change >= 0 ? '+' : '';
+    
+    // Format price with exactly 2 decimal places
+    const priceDisplay = price > 0 ? `$${price.toFixed(2)}` : 'N/A';
+    const hasError = data.error || !price || price === 0;
+    
+    // Safely extract values with proper fallbacks - ensure they're numbers
+    const open = (data.open !== undefined && data.open !== null && !isNaN(data.open) && parseFloat(data.open) > 0) 
+        ? parseFloat(data.open) 
+        : price;
+    const high = (data.high !== undefined && data.high !== null && !isNaN(data.high) && parseFloat(data.high) > 0) 
+        ? parseFloat(data.high) 
+        : price;
+    const low = (data.low !== undefined && data.low !== null && !isNaN(data.low) && parseFloat(data.low) > 0) 
+        ? parseFloat(data.low) 
+        : price;
+    const prevClose = (data.previousClose !== undefined && data.previousClose !== null && !isNaN(data.previousClose) && parseFloat(data.previousClose) > 0) 
+        ? parseFloat(data.previousClose) 
+        : ((open > 0 && open !== price) ? open : price);
+    
+    // Format day range - use low/high if valid, otherwise use price
+    const dayRangeLow = (low > 0) ? low : price;
+    const dayRangeHigh = (high > 0) ? high : price;
+    const dayRange = `${formatPriceShort(dayRangeLow)} - ${formatPriceShort(dayRangeHigh)}`;
+    
+    // Use day range as fallback for 52W range if not available
+    const yearRange = (data.high52w && data.low52w && 
+                      !isNaN(data.high52w) && !isNaN(data.low52w) && 
+                      parseFloat(data.high52w) > 0 && parseFloat(data.low52w) > 0 && 
+                      (parseFloat(data.high52w) !== high || parseFloat(data.low52w) !== low)) 
+        ? `${formatPriceShort(parseFloat(data.low52w))} - ${formatPriceShort(parseFloat(data.high52w))}` 
+        : dayRange;
+    
+    // Parse volume values
+    const volume = (data.volume !== undefined && data.volume !== null && !isNaN(data.volume)) 
+        ? parseInt(data.volume) 
+        : 0;
+    const avgVol = (data.avgVolume !== undefined && data.avgVolume !== null && !isNaN(data.avgVolume) && parseFloat(data.avgVolume) > 0) 
+        ? parseInt(data.avgVolume) 
+        : (volume > 0 ? volume : 0);
+    
+    // Format change percentage with proper sign and formatting
+    const changePercentFormatted = isNaN(changePercent) ? '0.00' : Math.abs(changePercent).toFixed(2);
+    const changeFormatted = isNaN(change) ? '0.00' : Math.abs(change).toFixed(2);
+    
+    const sourceLabel = data.source === 'finnhub' ? 'Finnhub' : data.source === 'yahoo' ? 'Yahoo Finance' : (data.source || 'Unknown');
     
     return `
         <div class="market-card ${hasError ? 'card-error' : ''}">
             <button class="delete-symbol-btn" data-symbol="${data.symbol}" title="Remove symbol">
                 <i class="fas fa-times"></i>
             </button>
-            <div class="market-card-header">
-                <div class="market-symbol-wrapper">
-                    <div class="market-symbol">${data.symbol}</div>
-                    ${data.source ? `<span class="source-badge">${data.source}</span>` : ''}
+            <div class="market-card-top">
+                <div class="market-symbol-section">
+                    <div class="market-symbol-large">${data.symbol}</div>
+                    ${data.source ? `<div class="market-source-label">${sourceLabel}</div>` : ''}
+                </div>
+                <div class="market-price-section">
+                    <div class="market-price-large">${priceDisplay}</div>
+                    ${!hasError ? `
+                    <div class="market-change-box ${changeClass}">
+                        ${changeSign}$${changeFormatted} (${changeSign}${changePercentFormatted}%)
+                    </div>
+                    ` : ''}
                 </div>
             </div>
-            <div class="market-price">${priceDisplay}</div>
             ${!hasError ? `
-            <div class="market-change ${changeClass}">
-                <i class="fas fa-${data.change >= 0 ? 'arrow-up' : 'arrow-down'}"></i>
-                <span>${changeSign}${data.change.toFixed(2)} (${changeSign}${data.changePercent.toFixed(2)}%)</span>
-            </div>
-            <div class="market-details">
-                <div class="market-detail-item">
-                    <span class="market-detail-label">Open</span>
-                    <span class="market-detail-value">$${data.open.toFixed(2)}</span>
+            <div class="market-metrics-grid">
+                <div class="market-metric">
+                    <span class="metric-label">OPEN</span>
+                    <span class="metric-value">${formatPriceShort(open)}</span>
                 </div>
-                <div class="market-detail-item">
-                    <span class="market-detail-label">High</span>
-                    <span class="market-detail-value">$${data.high.toFixed(2)}</span>
+                <div class="market-metric">
+                    <span class="metric-label">HIGH</span>
+                    <span class="metric-value positive">${formatPriceShort(high)}</span>
                 </div>
-                <div class="market-detail-item">
-                    <span class="market-detail-label">Low</span>
-                    <span class="market-detail-value">$${data.low.toFixed(2)}</span>
+                <div class="market-metric">
+                    <span class="metric-label">LOW</span>
+                    <span class="metric-value negative">${formatPriceShort(low)}</span>
                 </div>
-                <div class="market-detail-item">
-                    <span class="market-detail-label">Volume</span>
-                    <span class="market-detail-value">${formatNumber(data.volume)}</span>
+                <div class="market-metric">
+                    <span class="metric-label">PREV</span>
+                    <span class="metric-value">${formatPriceShort(prevClose)}</span>
+                </div>
+                <div class="market-metric">
+                    <span class="metric-label">VOLUME</span>
+                    <span class="metric-value">${formatNumber(volume)}</span>
+                </div>
+                <div class="market-metric">
+                    <span class="metric-label">DAY</span>
+                    <span class="metric-value">${dayRange}</span>
+                </div>
+                <div class="market-metric">
+                    <span class="metric-label">52W</span>
+                    <span class="metric-value">${yearRange}</span>
+                </div>
+                <div class="market-metric">
+                    <span class="metric-label">AVG VOL</span>
+                    <span class="metric-value">${formatNumber(avgVol)}</span>
                 </div>
             </div>
             ` : `
@@ -186,17 +253,30 @@ function createMarketCard(data) {
     `;
 }
 
+function formatPriceShort(price) {
+    if (price === null || price === undefined) return '--';
+    const numPrice = parseFloat(price);
+    if (isNaN(numPrice)) return '--';
+    // Allow 0 as a valid price (some securities can have 0 price)
+    if (numPrice < 0) return '--';
+    // Always format with 2 decimal places
+    return `$${numPrice.toFixed(2)}`;
+}
+
 // Format large numbers
 function formatNumber(num) {
-    if (!num || num === 0) return '--';
-    if (num >= 1000000000) {
-        return (num / 1000000000).toFixed(2) + 'B';
-    } else if (num >= 1000000) {
-        return (num / 1000000).toFixed(2) + 'M';
-    } else if (num >= 1000) {
-        return (num / 1000).toFixed(2) + 'K';
+    if (num === null || num === undefined || isNaN(num)) return '--';
+    const numValue = parseInt(num);
+    if (isNaN(numValue)) return '--';
+    if (numValue === 0) return '0';
+    if (numValue >= 1000000000) {
+        return (numValue / 1000000000).toFixed(2) + 'B';
+    } else if (numValue >= 1000000) {
+        return (numValue / 1000000).toFixed(2) + 'M';
+    } else if (numValue >= 1000) {
+        return (numValue / 1000).toFixed(2) + 'K';
     }
-    return num.toString();
+    return numValue.toLocaleString();
 }
 
 // Add new symbol
@@ -259,21 +339,21 @@ async function deleteSymbol(symbol) {
 
 // Modal functions
 function openAddSymbolModal() {
-    const modal = document.getElementById('add-symbol-modal');
-    if (modal) {
-        modal.classList.add('active');
+    const modalElement = document.getElementById('add-symbol-modal');
+    if (modalElement) {
+        modalElement.classList.add('active');
         const input = document.getElementById('symbol-input');
         if (input) {
             input.value = '';
-            input.focus();
+            setTimeout(() => input.focus(), 100);
         }
     }
 }
 
 function closeAddSymbolModal() {
-    const modal = document.getElementById('add-symbol-modal');
-    if (modal) {
-        modal.classList.remove('active');
+    const modalElement = document.getElementById('add-symbol-modal');
+    if (modalElement) {
+        modalElement.classList.remove('active');
     }
 }
 
@@ -309,15 +389,20 @@ function setupMarketDataListeners() {
         });
     }
 
-    // Modal close buttons
-    const closeModalBtn = document.getElementById('close-symbol-modal');
-    if (closeModalBtn) {
-        closeModalBtn.addEventListener('click', closeAddSymbolModal);
+    // Modal close button
+    const closeBtn = document.getElementById('close-symbol-modal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeAddSymbolModal);
     }
 
+    // Modal cancel button
     const cancelBtn = document.getElementById('cancel-symbol-btn');
     if (cancelBtn) {
-        cancelBtn.addEventListener('click', closeAddSymbolModal);
+        cancelBtn.addEventListener('click', function() {
+            closeAddSymbolModal();
+            const input = document.getElementById('symbol-input');
+            if (input) input.value = '';
+        });
     }
 
     // Save symbol button
@@ -326,7 +411,9 @@ function setupMarketDataListeners() {
         saveSymbolBtn.addEventListener('click', function() {
             const symbolInput = document.getElementById('symbol-input');
             if (symbolInput && symbolInput.value) {
-                addSymbol(symbolInput.value);
+                addSymbol(symbolInput.value).then(() => {
+                    closeAddSymbolModal();
+                });
             }
         });
     }
@@ -337,21 +424,33 @@ function setupMarketDataListeners() {
         symbolInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 if (this.value) {
-                    addSymbol(this.value);
+                    addSymbol(this.value).then(() => {
+                        closeAddSymbolModal();
+                    });
                 }
             }
         });
     }
 
     // Close modal on outside click
-    const modal = document.getElementById('add-symbol-modal');
-    if (modal) {
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
+    const modalElement = document.getElementById('add-symbol-modal');
+    if (modalElement) {
+        modalElement.addEventListener('click', function(e) {
+            if (e.target === modalElement) {
                 closeAddSymbolModal();
             }
         });
     }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modalElement = document.getElementById('add-symbol-modal');
+            if (modalElement && modalElement.classList.contains('active')) {
+                closeAddSymbolModal();
+            }
+        }
+    });
 }
 
 // Initialize when DOM is ready

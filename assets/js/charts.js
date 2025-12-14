@@ -1549,7 +1549,18 @@ const ChartsModule = (function() {
                     }
                 }
                 
-                if (chartData) renderChart();
+                // Only render if we have valid chart data
+                if (chartData && chartData.candles && chartData.candles.length > 0) {
+                    try {
+                        renderChart();
+                    } catch (error) {
+                        console.error('Error rendering chart with indicator:', indicator, error);
+                        // Revert the checkbox state on error
+                        e.target.checked = !e.target.checked;
+                        activeIndicators[indicator] = !activeIndicators[indicator];
+                        showChartError('Failed to add indicator. Please try again.', currentSymbol);
+                    }
+                }
             });
         });
 
@@ -1929,12 +1940,31 @@ const ChartsModule = (function() {
     }
 
     function renderChart() {
-        const ctx = document.getElementById('main-chart').getContext('2d');
+        if (!chartData || !chartData.candles || chartData.candles.length === 0) {
+            console.error('No chart data available for rendering');
+            return;
+        }
         
-        // Destroy existing chart
+        const canvas = document.getElementById('main-chart');
+        if (!canvas) {
+            console.error('Chart canvas not found');
+            return;
+        }
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Destroy existing chart and clear canvas
         if (mainChart) {
             mainChart.destroy();
+            mainChart = null;
         }
+        
+        // Clear canvas to prevent rendering artifacts
+        // Get actual canvas dimensions
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const candles = chartData.candles;
         const labels = candles.map(c => new Date(c.time));
@@ -2012,8 +2042,8 @@ const ChartsModule = (function() {
             });
         }
 
-        // Add indicator overlays
-        if (activeIndicators.sma20 && chartData.indicators.sma20?.values) {
+        // Add indicator overlays - ensure data exists and is valid
+        if (activeIndicators.sma20 && chartData.indicators && chartData.indicators.sma20 && chartData.indicators.sma20.values && Array.isArray(chartData.indicators.sma20.values) && chartData.indicators.sma20.values.length > 0) {
             const smaData = padIndicatorData(chartData.indicators.sma20.values, candles.length);
             datasets.push({
                 label: 'SMA 20',
@@ -2023,11 +2053,12 @@ const ChartsModule = (function() {
                 borderWidth: 1.5,
                 borderDash: [],
                 tension: 0.1,
-                pointRadius: 0
+                pointRadius: 0,
+                yAxisID: 'y'
             });
         }
 
-        if (activeIndicators.sma50 && chartData.indicators.sma50?.values) {
+        if (activeIndicators.sma50 && chartData.indicators && chartData.indicators.sma50 && chartData.indicators.sma50.values && Array.isArray(chartData.indicators.sma50.values) && chartData.indicators.sma50.values.length > 0) {
             const smaData = padIndicatorData(chartData.indicators.sma50.values, candles.length);
             datasets.push({
                 label: 'SMA 50',
@@ -2037,11 +2068,12 @@ const ChartsModule = (function() {
                 borderWidth: 1.5,
                 borderDash: [],
                 tension: 0.1,
-                pointRadius: 0
+                pointRadius: 0,
+                yAxisID: 'y'
             });
         }
 
-        if (activeIndicators.ema12 && chartData.indicators.ema12?.values) {
+        if (activeIndicators.ema12 && chartData.indicators && chartData.indicators.ema12 && chartData.indicators.ema12.values && Array.isArray(chartData.indicators.ema12.values) && chartData.indicators.ema12.values.length > 0) {
             const emaData = padIndicatorData(chartData.indicators.ema12.values, candles.length);
             datasets.push({
                 label: 'EMA 12',
@@ -2051,11 +2083,12 @@ const ChartsModule = (function() {
                 borderWidth: 1.5,
                 borderDash: [5, 5],
                 tension: 0.1,
-                pointRadius: 0
+                pointRadius: 0,
+                yAxisID: 'y'
             });
         }
 
-        if (activeIndicators.ema26 && chartData.indicators.ema26?.values) {
+        if (activeIndicators.ema26 && chartData.indicators && chartData.indicators.ema26 && chartData.indicators.ema26.values && Array.isArray(chartData.indicators.ema26.values) && chartData.indicators.ema26.values.length > 0) {
             const emaData = padIndicatorData(chartData.indicators.ema26.values, candles.length);
             datasets.push({
                 label: 'EMA 26',
@@ -2065,15 +2098,15 @@ const ChartsModule = (function() {
                 borderWidth: 1.5,
                 borderDash: [5, 5],
                 tension: 0.1,
-                pointRadius: 0
+                pointRadius: 0,
+                yAxisID: 'y'
             });
         }
 
         // Bollinger Bands
-        if (activeIndicators.bollinger && chartData.indicators.bollinger) {
+        if (activeIndicators.bollinger && chartData.indicators && chartData.indicators.bollinger && typeof chartData.indicators.bollinger === 'object' && chartData.indicators.bollinger.upper !== undefined) {
             const bb = chartData.indicators.bollinger;
             const bbUpper = Array(candles.length).fill(bb.upper);
-            const bbMiddle = Array(candles.length).fill(bb.middle);
             const bbLower = Array(candles.length).fill(bb.lower);
             
             datasets.push({
@@ -2084,7 +2117,8 @@ const ChartsModule = (function() {
                 borderWidth: 1,
                 borderDash: [3, 3],
                 tension: 0,
-                pointRadius: 0
+                pointRadius: 0,
+                yAxisID: 'y'
             });
             datasets.push({
                 label: 'BB Lower',
@@ -2094,12 +2128,13 @@ const ChartsModule = (function() {
                 borderWidth: 1,
                 borderDash: [3, 3],
                 tension: 0,
-                pointRadius: 0
+                pointRadius: 0,
+                yAxisID: 'y'
             });
         }
 
         // Fibonacci Retracement and Extension Levels
-        if (activeIndicators.fibonacci && chartData.indicators.fibonacci) {
+        if (activeIndicators.fibonacci && chartData.indicators && chartData.indicators.fibonacci && typeof chartData.indicators.fibonacci === 'object' && chartData.indicators.fibonacci.levels) {
             const fib = chartData.indicators.fibonacci;
             
             // Retracement levels (from high to low)
@@ -2132,7 +2167,8 @@ const ChartsModule = (function() {
                         borderWidth: isKey ? 2 : 1,
                         borderDash: isKey ? [] : [5, 5],
                         tension: 0,
-                        pointRadius: 0
+                        pointRadius: 0,
+                        yAxisID: 'y'
                     });
                 }
             });
@@ -2141,7 +2177,7 @@ const ChartsModule = (function() {
             if (fib.extensions) {
                 extensionLevels.forEach(({ level, color, label, isKey }) => {
                     const price = fib.extensions[level];
-                    if (price !== undefined) {
+                    if (price !== undefined && !isNaN(price)) {
                         datasets.push({
                             label: label,
                             data: Array(candles.length).fill(price),
@@ -2150,19 +2186,45 @@ const ChartsModule = (function() {
                             borderWidth: isKey ? 2 : 1,
                             borderDash: isKey ? [] : [5, 5],
                             tension: 0,
-                            pointRadius: 0
+                            pointRadius: 0,
+                            yAxisID: 'y'
                         });
                     }
                 });
             }
         }
 
-        mainChart = new Chart(ctx, {
-            type: chartType,
-            data: {
-                labels: labels,
-                datasets: datasets
-            },
+        // Ensure we have at least one dataset (the main price data)
+        if (datasets.length === 0) {
+            console.error('No datasets to render');
+            showChartError('No data available to render chart.', currentSymbol);
+            return;
+        }
+        
+        // Validate that all datasets have valid data
+        for (let i = 0; i < datasets.length; i++) {
+            const dataset = datasets[i];
+            if (!dataset.data || !Array.isArray(dataset.data) || dataset.data.length === 0) {
+                console.error(`Dataset ${i} (${dataset.label}) has invalid data:`, dataset);
+                // Remove invalid dataset
+                datasets.splice(i, 1);
+                i--;
+            }
+        }
+        
+        if (datasets.length === 0) {
+            console.error('All datasets were invalid');
+            showChartError('Invalid chart data. Please try again.', currentSymbol);
+            return;
+        }
+        
+        try {
+            mainChart = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -2300,6 +2362,11 @@ const ChartsModule = (function() {
                 }
             }
         });
+        } catch (error) {
+            console.error('Error creating chart:', error);
+            showChartError('Failed to render chart. Please try again.', currentSymbol);
+            return;
+        }
 
         // Store original scale ranges for reset functionality and setup pan
         if (mainChart) {
@@ -2469,8 +2536,30 @@ const ChartsModule = (function() {
     }
 
     function padIndicatorData(values, targetLength) {
-        const padding = targetLength - values.length;
-        return [...Array(padding).fill(null), ...values];
+        if (!values || !Array.isArray(values) || values.length === 0) {
+            console.warn('Invalid indicator values, returning empty array');
+            return Array(targetLength).fill(null);
+        }
+        
+        // Filter out any null/undefined/NaN values and ensure all are numbers
+        const validValues = values.filter(v => v !== null && v !== undefined && !isNaN(v)).map(v => parseFloat(v));
+        
+        if (validValues.length === 0) {
+            console.warn('No valid indicator values after filtering');
+            return Array(targetLength).fill(null);
+        }
+        
+        const padding = Math.max(0, targetLength - validValues.length);
+        const padded = [...Array(padding).fill(null), ...validValues];
+        
+        // Ensure the result matches the target length exactly
+        if (padded.length < targetLength) {
+            padded.push(...Array(targetLength - padded.length).fill(null));
+        } else if (padded.length > targetLength) {
+            return padded.slice(-targetLength);
+        }
+        
+        return padded;
     }
 
     function formatPrice(price) {

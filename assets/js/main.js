@@ -149,10 +149,16 @@ async function loadDashboardStats() {
         
         const stats = await response.json();
         
-        document.getElementById('stat-symbols').textContent = stats.symbols || '--';
-        document.getElementById('stat-todos').textContent = stats.todos || '--';
-        document.getElementById('stat-notes').textContent = stats.notes || '--';
-        document.getElementById('stat-api').textContent = stats.api_status || '--';
+        // Update stats only if elements exist (Quick Overview section may be removed)
+        const statSymbols = document.getElementById('stat-symbols');
+        const statTodos = document.getElementById('stat-todos');
+        const statNotes = document.getElementById('stat-notes');
+        const statApi = document.getElementById('stat-api');
+        
+        if (statSymbols) statSymbols.textContent = stats.symbols || '--';
+        if (statTodos) statTodos.textContent = stats.todos || '--';
+        if (statNotes) statNotes.textContent = stats.notes || '--';
+        if (statApi) statApi.textContent = stats.api_status || '--';
     } catch (error) {
         console.error('Error loading stats:', error);
     }

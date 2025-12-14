@@ -190,6 +190,7 @@ function getTimeframeParams($timeframe) {
     $resolution = '60'; // Default to 1 hour
     $from = $now - 86400; // Default to 1 day
     
+    // Only allow 15MIN, 1H, 4H, and 1D timeframes
     switch ($timeframe) {
         case '15MIN':
             $resolution = '15'; // 15-minute bars
@@ -207,29 +208,10 @@ function getTimeframeParams($timeframe) {
             $resolution = '5';
             $from = strtotime('today 09:30', $now);
             break;
-        case '5D':
-            $resolution = '15';
-            $from = $now - (5 * 86400);
-            break;
-        case '1M':
-            $resolution = '60';
-            $from = $now - (30 * 86400);
-            break;
-        case '3M':
-            $resolution = 'D';
-            $from = $now - (90 * 86400);
-            break;
-        case '6M':
-            $resolution = 'D';
-            $from = $now - (180 * 86400);
-            break;
-        case '1Y':
-            $resolution = 'D';
-            $from = $now - (365 * 86400);
-            break;
-        case '5Y':
-            $resolution = 'W';
-            $from = $now - (5 * 365 * 86400);
+        default:
+            // Default to 1D if invalid timeframe
+            $resolution = '5';
+            $from = strtotime('today 09:30', $now);
             break;
     }
     
@@ -438,6 +420,7 @@ function fetchYahooChartData($symbol, $timeframe) {
 }
 
 function getYahooTimeframeParams($timeframe) {
+    // Only allow 15MIN, 1H, 4H, and 1D timeframes
     switch ($timeframe) {
         case '15MIN':
             return ['interval' => '1m', 'range' => '1d'];
@@ -447,19 +430,8 @@ function getYahooTimeframeParams($timeframe) {
             return ['interval' => '15m', 'range' => '1mo'];
         case '1D':
             return ['interval' => '5m', 'range' => '1d'];
-        case '5D':
-            return ['interval' => '15m', 'range' => '5d'];
-        case '1M':
-            return ['interval' => '1h', 'range' => '1mo'];
-        case '3M':
-            return ['interval' => '1d', 'range' => '3mo'];
-        case '6M':
-            return ['interval' => '1d', 'range' => '6mo'];
-        case '1Y':
-            return ['interval' => '1d', 'range' => '1y'];
-        case '5Y':
-            return ['interval' => '1wk', 'range' => '5y'];
         default:
+            // Default to 1D if invalid timeframe
             return ['interval' => '5m', 'range' => '1d'];
     }
 }

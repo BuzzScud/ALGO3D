@@ -207,27 +207,43 @@ function fetchFromYahoo($symbol) {
             $open = 0;
             $volume = 0;
             
-            if (!empty($quote['high'])) {
-                $high = floatval(end($quote['high']) ?? 0);
+            // Get day high (max of high array)
+            if (!empty($quote['high']) && is_array($quote['high'])) {
+                $highArray = array_filter($quote['high'], function($v) { return $v !== null && $v > 0; });
+                $high = !empty($highArray) ? floatval(max($highArray)) : 0;
             }
-            if (!empty($quote['low'])) {
-                $low = floatval(end($quote['low']) ?? 0);
+            
+            // Get day low (min of low array)
+            if (!empty($quote['low']) && is_array($quote['low'])) {
+                $lowArray = array_filter($quote['low'], function($v) { return $v !== null && $v > 0; });
+                $low = !empty($lowArray) ? floatval(min($lowArray)) : 0;
             }
-            if (!empty($quote['open'])) {
-                $open = floatval(reset($quote['open']) ?? 0);
+            
+            // Get open (first non-null value)
+            if (!empty($quote['open']) && is_array($quote['open'])) {
+                $openArray = array_filter($quote['open'], function($v) { return $v !== null && $v > 0; });
+                $open = !empty($openArray) ? floatval(reset($openArray)) : 0;
             }
-            if (!empty($quote['volume'])) {
-                $volume = intval(end($quote['volume']) ?? 0);
+            
+            // Get volume (sum of all volumes for the day)
+            if (!empty($quote['volume']) && is_array($quote['volume'])) {
+                $volumeArray = array_filter($quote['volume'], function($v) { return $v !== null && $v > 0; });
+                $volume = !empty($volumeArray) ? intval(array_sum($volumeArray)) : 0;
             }
+            
+            // Use current price as fallback if values are 0 or invalid
+            $high = ($high > 0) ? $high : $currentPrice;
+            $low = ($low > 0) ? $low : $currentPrice;
+            $open = ($open > 0) ? $open : $currentPrice;
             
             return [
                 'symbol' => $symbol,
                 'price' => $currentPrice,
                 'change' => round($change, 2),
                 'changePercent' => round($changePercent, 2),
-                'high' => $high ?: $currentPrice,
-                'low' => $low ?: $currentPrice,
-                'open' => $open ?: $currentPrice,
+                'high' => $high,
+                'low' => $low,
+                'open' => $open,
                 'previousClose' => $previousClose,
                 'volume' => $volume,
                 'timestamp' => date('Y-m-d H:i:s'),

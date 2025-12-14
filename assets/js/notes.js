@@ -327,7 +327,7 @@ function createNoteCard(note) {
         <div class="note-card trading-note-card ${cardClass}" data-id="${note.id}" style="background-color: ${note.color || '#1e293b'}">
             <div class="note-card-header">
                 <div class="note-title-section">
-                    <h3 class="note-title">${escapeHtml(note.title)}</h3>
+                <h3 class="note-title">${escapeHtml(note.title)}</h3>
                     ${note.contract_symbol ? `<span class="contract-badge">${escapeHtml(note.contract_symbol)}</span>` : ''}
                 </div>
                 <div class="note-actions">
@@ -556,7 +556,7 @@ function openNewNoteModal() {
     }
     
     console.log('Opening note modal');
-    modal.classList.add('active');
+        modal.classList.add('active');
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
     
     if (modalTitle) modalTitle.innerHTML = '<i class="fas fa-chart-line"></i> New Trading Note';
@@ -571,15 +571,15 @@ function openNewNoteModal() {
         tradeTab.classList.add('active');
         toggleTradingDetailsSection('trade');
     }
-    
-    // Reset color selection
-    document.querySelectorAll('.color-option').forEach(opt => {
-        opt.classList.remove('active');
-        if (opt.dataset.color === selectedColor) {
-            opt.classList.add('active');
-        }
-    });
-    
+        
+        // Reset color selection
+        document.querySelectorAll('.color-option').forEach(opt => {
+            opt.classList.remove('active');
+            if (opt.dataset.color === selectedColor) {
+                opt.classList.add('active');
+            }
+        });
+        
     const titleInput = document.getElementById('note-title-input');
     if (titleInput) {
         setTimeout(() => titleInput.focus(), 100);
@@ -918,6 +918,29 @@ function setupNotesListeners() {
     if (resetView) {
         resetView.addEventListener('click', resetNotesView);
     }
+    
+    // Viz Tab Switching
+    document.querySelectorAll('.viz-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const targetTab = this.dataset.tab;
+            
+            // Remove active class from all tabs and content
+            document.querySelectorAll('.viz-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.viz-tab-content').forEach(c => c.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding content
+            this.classList.add('active');
+            const targetContent = document.getElementById(`tab-${targetTab}`);
+            if (targetContent) {
+                targetContent.classList.add('active');
+                
+                // If switching to projections tab, ensure projections are loaded
+                if (targetTab === 'projections') {
+                    loadSavedProjections();
+                }
+            }
+        });
+    });
 
     // Search input
     const searchInput = document.getElementById('notes-search-input');
@@ -1314,6 +1337,7 @@ function watchNotesPageActivation() {
                     // Re-fetch notes and render 3D when page becomes active
                     setTimeout(() => {
                         fetchNotes();
+                        loadSavedProjections();
                         // Also ensure 3D visualization is initialized
                         setTimeout(() => {
                             const trades = allNotes.filter(n => n.notes_type === 'trade' || (n.contract_symbol && n.entry_price));
@@ -1335,7 +1359,7 @@ function watchNotesPageActivation() {
     if (notesPage.classList.contains('active')) {
         console.log('Notes page is already active on init');
         setTimeout(() => {
-            setupNotesListeners();
+    setupNotesListeners();
             const trades = allNotes.filter(n => n.notes_type === 'trade' || (n.contract_symbol && n.entry_price));
             console.log('Initial render with', trades.length, 'trades from', allNotes.length, 'total notes');
             renderTrading3DVisualization(trades.length > 0 ? trades : []);
@@ -1362,6 +1386,7 @@ function initNotes() {
         // Fetch notes and initialize 3D
         setTimeout(() => {
             fetchNotes();
+            loadSavedProjections();
             setTimeout(() => {
                 const trades = allNotes.filter(n => n.notes_type === 'trade' || (n.contract_symbol && n.entry_price));
                 console.log('Initializing 3D with', trades.length, 'trades');
@@ -1372,7 +1397,178 @@ function initNotes() {
         // Fetch notes after a short delay to ensure DOM is ready
         setTimeout(() => {
             fetchNotes();
+            loadSavedProjections();
         }, 300);
+    }
+}
+
+// Load saved projections
+async function loadSavedProjections() {
+    try {
+        const response = await fetch('api/projections.php');
+        if (!response.ok) {
+            throw new Error('Failed to fetch saved projections');
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.projections) {
+            displaySavedProjections(result.projections);
+        } else {
+            displaySavedProjections([]);
+        }
+    } catch (error) {
+        console.error('Error loading saved projections:', error);
+        displaySavedProjections([]);
+    }
+}
+
+// Display saved projections
+function displaySavedProjections(projections) {
+    const container = document.getElementById('saved-projections-list');
+    const emptyState = document.getElementById('empty-projections');
+    
+    if (!container) return;
+    
+    if (!projections || projections.length === 0) {
+        if (emptyState) {
+            emptyState.style.display = 'block';
+        }
+        container.innerHTML = '';
+        return;
+    }
+    
+    if (emptyState) {
+        emptyState.style.display = 'none';
+    }
+    
+    container.innerHTML = projections.map(proj => {
+        const savedDate = new Date(proj.saved_at).toLocaleDateString();
+        const params = proj.params ? (typeof proj.params === 'string' ? JSON.parse(proj.params) : proj.params) : {};
+        
+        return `
+            <div class="saved-projection-card" data-id="${proj.id}">
+                <div class="projection-card-header">
+                    <div class="projection-card-title">
+                        <i class="fas fa-project-diagram"></i>
+                        <span>${proj.title || proj.symbol}</span>
+                    </div>
+                    <div class="projection-card-actions">
+                        <button class="btn-icon load-projection-btn" data-id="${proj.id}" title="Load Projection">
+                            <i class="fas fa-external-link-alt"></i>
+                        </button>
+                        <button class="btn-icon delete-projection-btn" data-id="${proj.id}" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="projection-card-body">
+                    <div class="projection-card-info">
+                        <span class="projection-symbol">${proj.symbol}</span>
+                        <span class="projection-date">${savedDate}</span>
+                    </div>
+                    ${params.steps ? `<div class="projection-params">Steps: ${params.steps} | Base: ${params.base || 3} | Depth: ${params.depthPrime || 31}</div>` : ''}
+                    ${proj.notes ? `<div class="projection-notes">${proj.notes}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Attach event listeners
+    container.querySelectorAll('.load-projection-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            loadProjection(id);
+        });
+    });
+    
+    container.querySelectorAll('.delete-projection-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            deleteProjection(id);
+        });
+    });
+}
+
+// Load projection to projections page
+function loadProjection(id) {
+    // Fetch current projections if not passed
+    fetch('api/projections.php')
+        .then(response => response.json())
+        .then(result => {
+            const projections = result.success && result.projections ? result.projections : [];
+            const proj = projections.find(p => p.id == id);
+            if (!proj) {
+                alert('Projection not found');
+                return;
+            }
+            
+            // Switch to projections page
+            const projectionsItem = document.querySelector('.sidebar-item[data-page="projections"]');
+            if (projectionsItem) {
+                projectionsItem.click();
+            }
+            
+            // Wait for page to load, then populate
+            setTimeout(() => {
+                const symbolInput = document.getElementById('projection-symbol-input');
+                const intervalSelect = document.getElementById('projection-interval-select');
+                const stepsInput = document.getElementById('projection-steps');
+                const baseInput = document.getElementById('projection-base');
+                const countInput = document.getElementById('projection-count');
+                const depthSelect = document.getElementById('projection-depth');
+                
+                if (symbolInput) symbolInput.value = proj.symbol;
+                if (intervalSelect && proj.projection_data && proj.projection_data.interval) {
+                    intervalSelect.value = proj.projection_data.interval;
+                }
+                
+                const params = proj.params ? (typeof proj.params === 'string' ? JSON.parse(proj.params) : proj.params) : {};
+                if (stepsInput && params.steps) stepsInput.value = params.steps;
+                if (baseInput && params.base) baseInput.value = params.base;
+                if (countInput && params.projectionCount) countInput.value = params.projectionCount;
+                if (depthSelect && params.depthPrime) depthSelect.value = params.depthPrime;
+                
+                // Trigger search
+                const searchBtn = document.getElementById('projection-search-btn');
+                if (searchBtn) {
+                    searchBtn.click();
+                }
+            }, 500);
+        })
+        .catch(error => {
+            console.error('Error loading projection:', error);
+            alert('Failed to load projection');
+        });
+}
+
+// Delete projection
+async function deleteProjection(id) {
+    if (!confirm('Are you sure you want to delete this projection?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('api/projections.php', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ id: id })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            loadSavedProjections();
+        } else {
+            alert(result.message || 'Failed to delete projection');
+        }
+    } catch (error) {
+        console.error('Error deleting projection:', error);
+        alert('Failed to delete projection. Please try again.');
     }
 }
 
