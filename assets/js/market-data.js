@@ -190,57 +190,23 @@ function createMarketCard(data) {
     const sourceLabel = data.source === 'finnhub' ? 'Finnhub' : data.source === 'yahoo' ? 'Yahoo Finance' : (data.source || 'Unknown');
     
     return `
-        <div class="market-card ${hasError ? 'card-error' : ''}">
-            <button class="delete-symbol-btn" data-symbol="${data.symbol}" title="Remove symbol">
-                <i class="fas fa-times"></i>
-            </button>
-            <div class="market-card-top">
-                <div class="market-symbol-section">
-                    <div class="market-symbol-large">${data.symbol}</div>
-                    ${data.source ? `<div class="market-source-label">${sourceLabel}</div>` : ''}
-                </div>
-                <div class="market-price-section">
-                    <div class="market-price-large">${priceDisplay}</div>
-                    ${!hasError ? `
-                    <div class="market-change-box ${changeClass}">
-                        ${changeSign}$${changeFormatted} (${changeSign}${changePercentFormatted}%)
-                    </div>
-                    ` : ''}
-                </div>
+        <div class="market-card-simple ${hasError ? 'card-error' : ''}">
+            <div class="market-card-simple-header">
+                <div class="market-symbol-badge">${data.symbol}</div>
+                <span class="market-status-label">Open</span>
+                <button class="delete-symbol-btn" data-symbol="${data.symbol}" title="Remove symbol">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             ${!hasError ? `
-            <div class="market-metrics-grid">
-                <div class="market-metric">
-                    <span class="metric-label">OPEN</span>
-                    <span class="metric-value">${formatPriceShort(open)}</span>
+            <div class="market-card-simple-content">
+                <div class="market-price-large-simple">${priceDisplay}</div>
+                <div class="market-change-simple ${changeClass}">
+                    ${changeSign}$${changeFormatted} (${changeSign}${changePercentFormatted}%)
                 </div>
-                <div class="market-metric">
-                    <span class="metric-label">HIGH</span>
-                    <span class="metric-value positive">${formatPriceShort(high)}</span>
-                </div>
-                <div class="market-metric">
-                    <span class="metric-label">LOW</span>
-                    <span class="metric-value negative">${formatPriceShort(low)}</span>
-                </div>
-                <div class="market-metric">
-                    <span class="metric-label">PREV</span>
-                    <span class="metric-value">${formatPriceShort(prevClose)}</span>
-                </div>
-                <div class="market-metric">
-                    <span class="metric-label">VOLUME</span>
-                    <span class="metric-value">${formatNumber(volume)}</span>
-                </div>
-                <div class="market-metric">
-                    <span class="metric-label">DAY</span>
-                    <span class="metric-value">${dayRange}</span>
-                </div>
-                <div class="market-metric">
-                    <span class="metric-label">52W</span>
-                    <span class="metric-value">${yearRange}</span>
-                </div>
-                <div class="market-metric">
-                    <span class="metric-label">AVG VOL</span>
-                    <span class="metric-value">${formatNumber(avgVol)}</span>
+                <div class="market-prev-close">
+                    <span class="prev-close-label">Previous Close</span>
+                    <span class="prev-close-value">${formatPriceShort(prevClose)}</span>
                 </div>
             </div>
             ` : `
@@ -372,10 +338,37 @@ function initMarketData() {
 
 // Setup event listeners
 function setupMarketDataListeners() {
-    // Add symbol button
+    // Add symbol button (modal)
     const addSymbolBtn = document.getElementById('add-symbol-btn');
     if (addSymbolBtn) {
         addSymbolBtn.addEventListener('click', openAddSymbolModal);
+    }
+
+    // Inline add symbol button
+    const addSymbolBtnInline = document.getElementById('add-symbol-btn-inline');
+    if (addSymbolBtnInline) {
+        addSymbolBtnInline.addEventListener('click', function() {
+            const symbolInput = document.getElementById('symbol-input-inline');
+            if (symbolInput && symbolInput.value) {
+                addSymbol(symbolInput.value).then(() => {
+                    symbolInput.value = '';
+                });
+            }
+        });
+    }
+
+    // Inline symbol input Enter key support
+    const symbolInputInline = document.getElementById('symbol-input-inline');
+    if (symbolInputInline) {
+        symbolInputInline.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                if (this.value) {
+                    addSymbol(this.value).then(() => {
+                        this.value = '';
+                    });
+                }
+            }
+        });
     }
 
     // Refresh button

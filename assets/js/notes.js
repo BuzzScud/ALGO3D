@@ -1519,6 +1519,10 @@ function loadProjection(id) {
                 const baseInput = document.getElementById('projection-base');
                 const countInput = document.getElementById('projection-count');
                 const depthSelect = document.getElementById('projection-depth');
+                const stepsValueInput = document.getElementById('projection-steps-value');
+                const baseValueInput = document.getElementById('projection-base-value');
+                const countValueInput = document.getElementById('projection-count-value');
+                const depthValueInput = document.getElementById('projection-depth-value');
                 
                 if (symbolInput) symbolInput.value = proj.symbol;
                 if (intervalSelect && proj.projection_data && proj.projection_data.interval) {
@@ -1526,10 +1530,24 @@ function loadProjection(id) {
                 }
                 
                 const params = proj.params ? (typeof proj.params === 'string' ? JSON.parse(proj.params) : proj.params) : {};
+                
+                // Set custom mode and update inputs
+                const customPreset = document.getElementById('preset-custom');
+                if (customPreset) {
+                    customPreset.checked = true;
+                    customPreset.dispatchEvent(new Event('change'));
+                }
+                
                 if (stepsInput && params.steps) stepsInput.value = params.steps;
                 if (baseInput && params.base) baseInput.value = params.base;
                 if (countInput && params.projectionCount) countInput.value = params.projectionCount;
                 if (depthSelect && params.depthPrime) depthSelect.value = params.depthPrime;
+                
+                // Also update hidden values
+                if (stepsValueInput && params.steps) stepsValueInput.value = params.steps;
+                if (baseValueInput && params.base) baseValueInput.value = params.base;
+                if (countValueInput && params.projectionCount) countValueInput.value = params.projectionCount;
+                if (depthValueInput && params.depthPrime) depthValueInput.value = params.depthPrime;
                 
                 // Trigger search
                 const searchBtn = document.getElementById('projection-search-btn');

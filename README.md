@@ -64,6 +64,7 @@ ALGO3D/
 │   ├── add_symbol.php        # Add stock symbol
 │   ├── delete_symbol.php     # Remove stock symbol
 │   ├── charts.php            # Chart data and studies
+│   ├── fib_calc.php          # Fibonacci calculator API
 │   ├── notes.php             # Notes CRUD operations
 │   ├── todos.php             # Todo CRUD operations
 │   ├── settings.php          # Settings management
@@ -71,25 +72,46 @@ ALGO3D/
 │   └── stats.php             # Dashboard statistics
 ├── assets/
 │   ├── css/
-│   │   └── style.css         # Modern dark/light theme
+│   │   ├── style.css         # Main stylesheet
+│   │   └── fib-page.css      # Fibonacci calculator styles
 │   └── js/
 │       ├── main.js           # Navigation & general functionality
 │       ├── charts.js         # Interactive charts with pan/zoom
+│       ├── fib-calc.js       # Fibonacci calculator
+│       ├── projections.js    # Price projection engine
 │       ├── world-clocks.js   # World clock updates
 │       ├── market-data.js    # Market data & API switching
 │       ├── todo-list.js      # Todo list functionality
 │       ├── notes.js          # Notes functionality
 │       ├── settings.js       # Settings management
-│       └── user-widget.js   # User profile widget
+│       └── user-widget.js    # User profile widget
+├── docs/                     # Documentation
+│   ├── features/             # Feature documentation
+│   ├── implementation/       # Implementation guides
+│   ├── fixes/                # Bug fix documentation
+│   └── README.md             # Documentation index
 ├── includes/
 │   ├── config.php            # API keys & configuration (not in repo)
 │   └── database.php          # SQLite database handler
+├── math/                     # Mathematical algorithms and models
+│   ├── algorithms/           # C-based algorithms
+│   ├── src/                  # Mathematical source files
+│   └── THESIS.md             # Mathematical thesis
 ├── data/                     # SQLite database (auto-created, not in repo)
 ├── cache/                    # API response cache (auto-created)
 ├── index.php                 # Main dashboard page
 ├── setup.php                 # Setup verification script
 └── README.md
 ```
+
+## Documentation
+
+For detailed documentation, see the [`docs/`](docs/) directory:
+- **Features**: Implementation details for chart interactivity, hyperdimensional tools, and more
+- **Implementation**: Step-by-step guides for projection integration and validation metrics
+- **Fixes**: Bug fix documentation and resolution notes
+
+See [`docs/README.md`](docs/README.md) for a complete documentation index.
 
 ## API Configuration
 

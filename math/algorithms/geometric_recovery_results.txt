@@ -1,0 +1,37 @@
+=== GEOMETRIC RECOVERY SYSTEM TEST ===
+
+Configuration:
+  Dimensions: 52
+  Anchors: 10000
+  Test keys: 10
+  Bits: 257 (+1 for boundary)
+  Max scales: 10
+  Orbit samples: 1000
+
+Creating geometric recovery context...
+✓ Created Platonic Model: PLATONIC_4_D52_V65536_1765270834
+  Base: 4, Dimensions: 52, Vertices: 65536
+  Tetration towers: 6 bases × 31 depths = 186 towers
+Generating 10000 anchors...
+  Generated 1000/10000 anchors
+  Generated 2000/10000 anchors
+  Generated 3000/10000 anchors
+  Generated 4000/10000 anchors
+  Generated 5000/10000 anchors
+  Generated 6000/10000 anchors
+  Generated 7000/10000 anchors
+  Generated 8000/10000 anchors
+  Generated 9000/10000 anchors
+  Generated 10000/10000 anchors
+
+Initializing system (detecting tori, finding shared geometry)...
+  Tori detected: 52
+  Shared vertices: 2080
+  Shared faces: 0
+  Intersection curves: 1326
+  Tetration towers: 186
+
+Generating 10 test keys...
+
+Recovering keys using complete geometric system...
+  Test key 0: 

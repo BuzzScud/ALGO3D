@@ -35,8 +35,10 @@ const FibCalcModule = (function() {
             ytdHigh: document.getElementById('fib-ytd-high'),
             ytdLow: document.getElementById('fib-ytd-low'),
             range: document.getElementById('fib-range'),
-            positiveLevels: document.getElementById('fib-positive-levels'),
-            negativeLevels: document.getElementById('fib-negative-levels'),
+            positiveLevels1: document.getElementById('fib-positive-levels-1'),
+            positiveLevels2: document.getElementById('fib-positive-levels-2'),
+            negativeLevels1: document.getElementById('fib-negative-levels-1'),
+            negativeLevels2: document.getElementById('fib-negative-levels-2'),
             loading: document.getElementById('fib-loading'),
             error: document.getElementById('fib-error'),
             chartCanvas: document.getElementById('fib-chart'),
@@ -58,29 +60,47 @@ const FibCalcModule = (function() {
     function setupChartTypeToggle() {
         const lineBtn = document.getElementById('fib-chart-type-line');
         const candlestickBtn = document.getElementById('fib-chart-type-candlestick');
+        const lineBtnInline = document.getElementById('fib-chart-type-line-inline');
+        const candlestickBtnInline = document.getElementById('fib-chart-type-candlestick-inline');
+        
+        function switchToLine() {
+            if (currentChartType === 'line') return;
+            currentChartType = 'line';
+            lineBtn?.classList.add('active');
+            candlestickBtn?.classList.remove('active');
+            lineBtnInline?.classList.add('active');
+            candlestickBtnInline?.classList.remove('active');
+            if (currentData) {
+                renderChart(currentData);
+            }
+        }
+        
+        function switchToCandlestick() {
+            if (currentChartType === 'candlestick') return;
+            currentChartType = 'candlestick';
+            candlestickBtn?.classList.add('active');
+            lineBtn?.classList.remove('active');
+            candlestickBtnInline?.classList.add('active');
+            lineBtnInline?.classList.remove('active');
+            if (currentData) {
+                renderChart(currentData);
+            }
+        }
         
         if (lineBtn) {
-            lineBtn.addEventListener('click', () => {
-                if (currentChartType === 'line') return;
-                currentChartType = 'line';
-                lineBtn.classList.add('active');
-                candlestickBtn?.classList.remove('active');
-                if (currentData) {
-                    renderChart(currentData);
-                }
-            });
+            lineBtn.addEventListener('click', switchToLine);
         }
         
         if (candlestickBtn) {
-            candlestickBtn.addEventListener('click', () => {
-                if (currentChartType === 'candlestick') return;
-                currentChartType = 'candlestick';
-                candlestickBtn.classList.add('active');
-                lineBtn?.classList.remove('active');
-                if (currentData) {
-                    renderChart(currentData);
-                }
-            });
+            candlestickBtn.addEventListener('click', switchToCandlestick);
+        }
+        
+        if (lineBtnInline) {
+            lineBtnInline.addEventListener('click', switchToLine);
+        }
+        
+        if (candlestickBtnInline) {
+            candlestickBtnInline.addEventListener('click', switchToCandlestick);
         }
     }
     
@@ -160,6 +180,10 @@ const FibCalcModule = (function() {
         if (elements.marketData) elements.marketData.style.display = 'block';
         if (elements.levelsContainer) elements.levelsContainer.style.display = 'block';
         
+        // Show chart container
+        const chartContainer = document.getElementById('fib-chart-container');
+        if (chartContainer) chartContainer.style.display = 'block';
+        
         // Update market data
         if (elements.symbolName) {
             elements.symbolName.textContent = `${data.symbol} - YTD Analysis`;
@@ -191,19 +215,39 @@ const FibCalcModule = (function() {
             elements.range.textContent = `$${data.range.toFixed(precision)} (${data.rangePercent}%)`;
         }
         
-        // Display positive levels
-        if (elements.positiveLevels) {
-            elements.positiveLevels.innerHTML = data.positiveLevels.map(level => {
+        // Display positive levels - split into 2 columns
+        if (elements.positiveLevels1 && elements.positiveLevels2) {
+            const positiveLevels = data.positiveLevels || [];
+            const midPoint = Math.ceil(positiveLevels.length / 2);
+            const positiveCol1 = positiveLevels.slice(0, midPoint);
+            const positiveCol2 = positiveLevels.slice(midPoint);
+            
+            elements.positiveLevels1.innerHTML = positiveCol1.map(level => {
                 const isKey = KEY_POSITIVE_LEVELS.includes(level.ratio);
-                return createLevelItem(level, isKey);
+                return createLevelItem(level, isKey, precision);
+            }).join('');
+            
+            elements.positiveLevels2.innerHTML = positiveCol2.map(level => {
+                const isKey = KEY_POSITIVE_LEVELS.includes(level.ratio);
+                return createLevelItem(level, isKey, precision);
             }).join('');
         }
         
-        // Display negative levels
-        if (elements.negativeLevels) {
-            elements.negativeLevels.innerHTML = data.negativeLevels.map(level => {
+        // Display negative levels - split into 2 columns
+        if (elements.negativeLevels1 && elements.negativeLevels2) {
+            const negativeLevels = data.negativeLevels || [];
+            const midPoint = Math.ceil(negativeLevels.length / 2);
+            const negativeCol1 = negativeLevels.slice(0, midPoint);
+            const negativeCol2 = negativeLevels.slice(midPoint);
+            
+            elements.negativeLevels1.innerHTML = negativeCol1.map(level => {
                 const isKey = KEY_NEGATIVE_LEVELS.includes(level.ratio);
-                return createLevelItem(level, isKey);
+                return createLevelItem(level, isKey, precision);
+            }).join('');
+            
+            elements.negativeLevels2.innerHTML = negativeCol2.map(level => {
+                const isKey = KEY_NEGATIVE_LEVELS.includes(level.ratio);
+                return createLevelItem(level, isKey, precision);
             }).join('');
         }
         
@@ -211,11 +255,13 @@ const FibCalcModule = (function() {
         renderChart(data);
     }
     
-    function createLevelItem(level, isKey) {
+    function createLevelItem(level, isKey, precisionValue) {
+        const prec = precisionValue !== undefined ? precisionValue : precision;
+        const keyClass = isKey ? 'key-level' : '';
         return `
-            <div class="fib-level-item" data-key="${isKey}">
+            <div class="fib-level-item ${keyClass}">
                 <span class="fib-level-label">${level.label}</span>
-                <span class="fib-level-value">$${level.price.toFixed(precision)}</span>
+                <span class="fib-level-value">$${level.price.toFixed(prec)}</span>
             </div>
         `;
     }
@@ -1045,8 +1091,12 @@ const FibCalcModule = (function() {
                 // Update UI to reflect line chart
                 const lineBtn = document.getElementById('fib-chart-type-line');
                 const candlestickBtn = document.getElementById('fib-chart-type-candlestick');
+                const lineBtnInline = document.getElementById('fib-chart-type-line-inline');
+                const candlestickBtnInline = document.getElementById('fib-chart-type-candlestick-inline');
                 if (lineBtn) lineBtn.classList.add('active');
                 if (candlestickBtn) candlestickBtn.classList.remove('active');
+                if (lineBtnInline) lineBtnInline.classList.add('active');
+                if (candlestickBtnInline) candlestickBtnInline.classList.remove('active');
                 
                 const priceData = data.candles.map(c => ({
                     x: c.time * 1000,
@@ -1319,6 +1369,9 @@ const FibCalcModule = (function() {
         calculateForSymbol
     };
 })();
+
+
+
 
 
 

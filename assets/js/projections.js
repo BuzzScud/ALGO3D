@@ -1,10 +1,58 @@
-// Projections Module - Price Projection Engine
+/**
+ * Projections Module - Price Projection Engine
+ * FINAL UNIFIED SOLUTION
+ * 
+ * Features:
+ * - Unified Projection Engine (single optimized algorithm)
+ * - Integrated oscillation analysis (FFT-based)
+ * - Built-in statistical validation
+ * - Adaptive parameter tuning
+ * - Fully interactive chart with:
+ *   - Zoom (mouse wheel, pinch, buttons)
+ *   - Pan (drag to scroll)
+ *   - Range selection (Shift + drag)
+ *   - Toggleable data series
+ *   - Enhanced tooltips
+ *   - Export functionality
+ *   - Responsive design
+ */
 const ProjectionsModule = (function() {
     let projectionChart = null;
     let currentSymbol = '';
     let currentInterval = '1d';
     let historicalPrices = [];
     let historicalLabels = [];
+    let validationResults = null;
+    // Unified Projection Engine is now the primary method (replaces ensemble)
+    
+    // Pan state management (similar to charts.js)
+    let panState = {
+        isPanning: false,
+        startX: 0,
+        startY: 0,
+        lastX: 0,
+        lastY: 0,
+        boundHandlers: null
+    };
+    
+    // Chart colors matching charts.js design exactly
+    const chartColors = {
+        grid: 'rgba(255, 255, 255, 0.1)',
+        text: '#9ca3af',
+        primary: '#3b82f6',
+        bullish: '#22c55e',
+        bearish: '#ef4444',
+        sma20: '#3b82f6',
+        sma50: '#f59e0b',
+        ema12: '#8b5cf6',
+        ema26: '#ec4899'
+    };
+    
+    // Format price function (matching charts.js)
+    function formatPrice(value) {
+        if (value === null || value === undefined || isNaN(value)) return '$0.00';
+        return '$' + value.toFixed(2);
+    }
     
     // Constants from ALGO-1
     const PHI_D = [3, 7, 31, 12, 19, 5, 11, 13, 17, 23, 29, 31];
@@ -365,29 +413,186 @@ const ProjectionsModule = (function() {
                 return `Point ${i + 1}`;
             });
             
-            const params = {
-                steps: parseInt(document.getElementById('projection-steps').value) || 20,
-                base: parseFloat(document.getElementById('projection-base').value) || 3,
-                projectionCount: parseInt(document.getElementById('projection-count').value) || 12,
-                depthPrime: parseInt(document.getElementById('projection-depth').value) || 31
-            };
+            // Get parameters based on selected preset
+            const selectedPreset = document.querySelector('input[name="projection-preset"]:checked');
+            let params;
             
-            const projectionLines = calculateProjections(historicalPrices, params);
+            if (selectedPreset && selectedPreset.value === 'custom') {
+                // Custom preset: read from visible inputs
+                params = {
+                    steps: parseInt(document.getElementById('projection-steps').value) || 20,
+                    base: parseFloat(document.getElementById('projection-base').value) || 3,
+                    projectionCount: parseInt(document.getElementById('projection-count').value) || 12,
+                    depthPrime: parseInt(document.getElementById('projection-depth').value) || 31
+                };
+            } else {
+                // Preset selected: read from hidden value inputs (updated by preset)
+                params = {
+                    steps: parseInt(document.getElementById('projection-steps-value').value) || 20,
+                    base: parseFloat(document.getElementById('projection-base-value').value) || 3,
+                    projectionCount: parseInt(document.getElementById('projection-count-value').value) || 12,
+                    depthPrime: parseInt(document.getElementById('projection-depth-value').value) || 31
+                };
+            }
+            
+            // Update active parameters display
+            updateActiveParamsDisplay(params);
+            
+            // Log parameters for debugging
+            console.log('Projection parameters:', {
+                preset: selectedPreset ? selectedPreset.value : 'none',
+                params: params,
+                steps: params.steps,
+                base: params.base,
+                projectionCount: params.projectionCount,
+                depthPrime: params.depthPrime
+            });
+            
+            // Validate parameters are different from defaults to ensure presets are working
+            if (selectedPreset && selectedPreset.value !== 'custom') {
+                const presetConfig = PRESET_CONFIGS[selectedPreset.value];
+                if (presetConfig) {
+                    const paramsMatch = 
+                        params.steps === presetConfig.steps &&
+                        params.base === presetConfig.base &&
+                        params.projectionCount === presetConfig.projectionCount &&
+                        params.depthPrime === presetConfig.depthPrime;
+                    
+                    if (!paramsMatch) {
+                        console.warn('Parameter mismatch! Expected:', presetConfig, 'Got:', params);
+                    } else {
+                        console.log('✓ Parameters match preset configuration');
+                    }
+                }
+            }
+            
+            // Use Unified Projection Engine (FINAL SOLUTION)
+            let projectionLines = [];
+            let validationResults = null;
+            
+            try {
+                // Check for unified engine
+                if (typeof UnifiedProjectionEngine !== 'undefined' && 
+                    UnifiedProjectionEngine.UnifiedProjectionEngine) {
+                    
+                    // Use the unified engine (primary method)
+                    const engine = new UnifiedProjectionEngine.UnifiedProjectionEngine();
+                    const result = engine.project(historicalPrices, params);
+                    
+                    if (result && result.projectionLines) {
+                        // Convert to projection lines format
+                        projectionLines = result.projectionLines.map(line => ({
+                            triad: line.triad || ['Unknown'],
+                            points: line.points || [],
+                            confidence: line.confidence || 0.5
+                        })).filter(line => line.points && line.points.length > 0);
+                        
+                        // Add ensemble line as primary projection (weighted average)
+                        if (result.points && result.points.length > 0) {
+                            projectionLines.unshift({
+                                triad: ['Unified Ensemble'],
+                                points: result.points,
+                                confidence: result.confidence || 0.5,
+                                isEnsemble: true
+                            });
+                        }
+                        
+                        // Use validation from unified engine
+                        validationResults = result.validation;
+                    } else {
+                        throw new Error('Invalid result from unified engine');
+                    }
+                } else {
+                    // Fallback to original method if unified engine not available
+                    console.warn('Unified Projection Engine not available, using fallback method');
+                    projectionLines = calculateProjections(historicalPrices, params);
+                    
+                    // Validate with ProjectionValidator if available
+                    if (typeof ProjectionValidator !== 'undefined') {
+                        try {
+                            validationResults = ProjectionValidator.validate(historicalPrices, projectionLines, params);
+                        } catch (e) {
+                            console.warn('Validation error:', e);
+                            validationResults = null;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error in unified projection engine:', error);
+                // Fallback to original method with error handling
+                try {
+                    projectionLines = calculateProjections(historicalPrices, params);
+                    
+                    if (typeof ProjectionValidator !== 'undefined') {
+                        try {
+                            validationResults = ProjectionValidator.validate(historicalPrices, projectionLines, params);
+                        } catch (e) {
+                            console.warn('Validation error:', e);
+                            validationResults = null;
+                        }
+                    }
+                } catch (fallbackError) {
+                    console.error('Fallback projection also failed:', fallbackError);
+                    showError('Failed to generate projections. Please try again.');
+                    return;
+                }
+            }
+            
+            // Ensure we have at least some projection lines
+            if (!projectionLines || projectionLines.length === 0) {
+                console.error('No projection lines generated');
+                showError('Failed to generate projections. Please check your parameters.');
+                return;
+            }
+            
+            // Log projection summary with preset info
+            const currentPreset = document.querySelector('input[name="projection-preset"]:checked');
+            const presetLabel = currentPreset && currentPreset.value !== 'custom' 
+                ? (currentPreset.closest('.param-toggle-item')?.querySelector('.param-toggle-name')?.textContent || currentPreset.value)
+                : 'Custom';
+            
+            console.log('Projection generated:', {
+                preset: presetLabel,
+                steps: params.steps,
+                base: params.base,
+                projectionCount: params.projectionCount,
+                depthPrime: params.depthPrime,
+                projectionLines: projectionLines.length,
+                totalPoints: projectionLines.reduce((sum, line) => sum + (line.points ? line.points.length : 0), 0)
+            });
+            
             renderChart(historicalPrices, historicalLabels, projectionLines, params);
             updateMetrics(historicalPrices, projectionLines, params);
+            
+            // Update validation metrics if available
+            // Always try to validate, even if ensemble wasn't used
+            if (!validationResults && typeof ProjectionValidator !== 'undefined') {
+                try {
+                    validationResults = ProjectionValidator.validate(historicalPrices, projectionLines, params);
+                } catch (e) {
+                    console.warn('Validation failed:', e);
+                }
+            }
+            
+            if (validationResults && !validationResults.error) {
+                updateValidationMetrics(validationResults);
+            } else {
+                // Keep validation section visible but reset to placeholders if no validation data
+                resetValidationMetricsToPlaceholders();
+            }
             
             document.getElementById('projection-refresh-btn').style.display = 'inline-block';
             document.getElementById('reset-zoom-btn').style.display = 'inline-block';
             document.getElementById('save-projection-btn').style.display = 'inline-block';
-            document.getElementById('projections-metrics-section').style.display = 'block';
+            // Metrics sections are now always visible, no need to show them
             
         } catch (error) {
             console.error('Error loading projection data:', error);
             const errorMessage = error.message || 'Failed to load projection data. Please check the symbol and try again.';
             showError(errorMessage);
             
-            // Hide metrics section on error
-            document.getElementById('projections-metrics-section').style.display = 'none';
+            // Reset metrics to placeholders on error (keep sections visible)
+            resetMetricsToPlaceholders();
             document.getElementById('projection-refresh-btn').style.display = 'none';
             document.getElementById('reset-zoom-btn').style.display = 'none';
             document.getElementById('save-projection-btn').style.display = 'none';
@@ -436,22 +641,23 @@ const ProjectionsModule = (function() {
             historicalData.push(null);
         }
         
-        // Build datasets
+        // Build datasets - matching charts.js design exactly
         const datasets = [
             {
                 label: `${currentSymbol} Historical`,
                 data: historicalData,
-                borderColor: 'rgb(59, 130, 246)',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                tension: 0.4,
+                borderColor: chartColors.primary, // Same blue as charts.js
+                backgroundColor: 'transparent',
+                tension: 0.1, // Same as charts.js
                 fill: false,
-                pointRadius: 2,
-                borderWidth: 2
+                pointRadius: 0, // Same as charts.js
+                borderWidth: 2,
+                yAxisID: 'y'
             }
         ];
         
-        // Add projection lines
-        const colors = [
+        // Add projection lines - matching charts.js design style
+        const projectionColors = [
             '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899',
             '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#06b6d4',
             '#a855f7', '#22c55e'
@@ -480,34 +686,73 @@ const ProjectionsModule = (function() {
                 lineData.push(null);
             }
             
+            // Determine if this is ensemble (solid line) or individual (dashed)
+            const isEnsemble = line.isEnsemble || (line.triad && line.triad[0] === 'Ensemble');
+            const isHistorical = line.triad && line.triad[0] === currentSymbol;
+            
             datasets.push({
                 label: `Triad [${line.triad.join('-')}]`,
                 data: lineData,
-                borderColor: colors[idx % colors.length],
+                borderColor: projectionColors[idx % projectionColors.length],
                 backgroundColor: 'transparent',
-                borderWidth: 2,
+                borderWidth: isEnsemble ? 2.5 : 1.5,
                 pointRadius: 0,
-                tension: 0.4,
-                borderDash: [5, 5]
+                tension: 0.1,
+                borderDash: isEnsemble ? [] : [5, 5],
+                yAxisID: 'y' // Same axis as historical data
             });
         });
         
-        // Destroy existing chart
+        // Destroy existing chart and cleanup pan handlers
         if (projectionChart) {
+            // Cleanup pan handlers before destroying
+            if (panState.boundHandlers && projectionChart.canvas) {
+                const canvas = projectionChart.canvas;
+                canvas.removeEventListener('mousedown', panState.boundHandlers.mousedown);
+                document.removeEventListener('mousemove', panState.boundHandlers.mousemove);
+                document.removeEventListener('mouseup', panState.boundHandlers.mouseup);
+                canvas.removeEventListener('touchstart', panState.boundHandlers.touchstart);
+                canvas.removeEventListener('touchmove', panState.boundHandlers.touchmove);
+                canvas.removeEventListener('touchend', panState.boundHandlers.touchend);
+                panState.boundHandlers = null;
+            }
+            
+            // Cleanup keyboard handlers
+            if (projectionChart._keyboardHandlers) {
+                document.removeEventListener('keydown', projectionChart._keyboardHandlers.keydown);
+                document.removeEventListener('keyup', projectionChart._keyboardHandlers.keyup);
+                projectionChart._keyboardHandlers = null;
+            }
+            
             projectionChart.destroy();
+            projectionChart = null;
         }
         
-        // Register zoom plugin if available
-        if (typeof Chart !== 'undefined' && Chart.register) {
+        // Verify zoom plugin is available
+        // The plugin should be registered in index.php
+        const zoomPluginRegistered = Chart.registry && Chart.registry.getPlugin('zoom') !== undefined;
+        
+        if (!zoomPluginRegistered) {
+            console.warn('Zoom plugin not registered - attempting to register now');
             try {
-                // Try to register zoom plugin if it's available
                 if (typeof zoomPlugin !== 'undefined') {
                     Chart.register(zoomPlugin);
+                    console.log('Zoom plugin registered successfully');
+                } else if (window.zoomPlugin) {
+                    Chart.register(window.zoomPlugin);
+                    console.log('Zoom plugin registered from window');
+                } else {
+                    console.error('Zoom plugin not found - zoom/pan features will not work');
                 }
             } catch (e) {
-                console.warn('Zoom plugin not available:', e);
+                console.error('Failed to register zoom plugin:', e);
             }
+        } else {
+            console.log('Zoom plugin is registered and ready');
         }
+        
+        // Create interactive legend checkboxes
+        createInteractiveLegend(datasets);
         
         // Create new chart
         projectionChart = new Chart(ctx, {
@@ -519,62 +764,707 @@ const ProjectionsModule = (function() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                resizeDelay: 100,
+                interaction: {
+                    intersect: false,
+                    mode: 'index',
+                    includeInvisible: true
+                },
+                onResize: function(chart, size) {
+                    // Handle responsive resizing
+                    if (size.width < 768) {
+                        chart.options.plugins.legend.position = 'bottom';
+                    } else {
+                        chart.options.plugins.legend.position = 'top';
+                    }
+                },
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'top'
+                        position: 'top',
+                        align: 'start',
+                        onClick: function(e, legendItem, legend) {
+                            // Toggle dataset visibility
+                            const index = legendItem.datasetIndex;
+                            const chart = legend.chart;
+                            const meta = chart.getDatasetMeta(index);
+                            
+                            meta.hidden = meta.hidden === null ? !chart.data.datasets[index].hidden : null;
+                            chart.update();
+                            
+                            // Update checkbox state
+                            updateLegendCheckbox(index, !meta.hidden);
+                        },
+                        labels: {
+                            color: chartColors.text,
+                            usePointStyle: true,
+                            padding: 12,
+                            boxWidth: 12,
+                            font: {
+                                size: 11
+                            }
+                        },
+                        onHover: function(e) {
+                            e.native.target.style.cursor = 'pointer';
+                        },
+                        onLeave: function(e) {
+                            e.native.target.style.cursor = 'default';
+                        }
                     },
                     tooltip: {
+                        enabled: true,
                         mode: 'index',
-                        intersect: false
+                        intersect: false,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 1,
+                        padding: 12,
+                        callbacks: {
+                            title: function(context) {
+                                return context[0].label || 'Data Point';
+                            },
+                            label: function(context) {
+                                const datasetLabel = context.dataset.label || '';
+                                const value = context.parsed.y;
+                                if (value === null || value === undefined) return '';
+                                return `${datasetLabel}: ${formatPrice(value)}`;
+                            }
+                        },
+                        displayColors: true,
+                        boxPadding: 6,
+                        cornerRadius: 6,
+                        caretSize: 8,
+                        caretPadding: 8
+                    },
+                    // Zoom configuration - enabled for mouse wheel, pinch, and drag selection
+                    zoom: {
+                        wheel: {
+                            enabled: true,
+                            speed: 0.1,
+                            modifierKey: null
+                        },
+                        pinch: {
+                            enabled: true
+                        },
+                        drag: {
+                            enabled: true,
+                            modifierKey: 'shift', // Hold Shift to drag-select zoom area
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderColor: 'rgba(59, 130, 246, 0.3)',
+                            borderWidth: 1
+                        },
+                        mode: 'xy',
+                        limits: {
+                            x: { min: 'original', max: 'original' },
+                            y: { min: 'original', max: 'original' }
+                        }
+                    },
+                    pan: {
+                        enabled: false // Using custom pan implementation (like charts.js) for better control
+                    }
+                },
+                layout: {
+                    padding: {
+                        bottom: 50,
+                        right: 10,
+                        top: 10,
+                        left: 10
                     }
                 },
                 scales: {
                     x: {
                         display: true,
-                        title: {
-                            display: true,
-                            text: 'Time'
+                        grid: {
+                            color: chartColors.grid,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: chartColors.text,
+                            maxRotation: 0,
+                            padding: 8,
+                            font: {
+                                size: 11
+                            }
                         }
                     },
                     y: {
+                        position: 'right', // Same as charts.js
                         display: true,
-                        title: {
-                            display: true,
-                            text: 'Price'
+                        grid: {
+                            color: chartColors.grid,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: chartColors.text,
+                            padding: 8,
+                            font: {
+                                size: 11
+                            },
+                            callback: function(value) {
+                                return formatPrice(value);
+                            }
+                        }
+                    }
+                },
+                onHover: (event, activeElements) => {
+                    // Don't change cursor if currently panning
+                    if (panState.isPanning) return;
+                    
+                    const canvas = event.native?.target;
+                    if (canvas) {
+                        const isShiftPressed = event.native.shiftKey;
+                        const chartWrapper = canvas.closest('.chart-wrapper');
+                        
+                        // Update wrapper class for CSS styling
+                        if (chartWrapper) {
+                            if (isShiftPressed) {
+                                chartWrapper.classList.add('shift-active');
+                            } else {
+                                chartWrapper.classList.remove('shift-active');
+                            }
+                        }
+                        
+                        // Set cursor based on state (matching charts.js)
+                        if (isShiftPressed) {
+                            canvas.style.cursor = 'crosshair';
+                        } else {
+                            canvas.style.cursor = 'grab';
+                        }
+                    }
+                },
+                // Enable animations for smooth interactions
+                animation: {
+                    duration: 300,
+                    easing: 'easeInOutQuart'
+                },
+                // Enable transitions
+                transitions: {
+                    zoom: {
+                        animation: {
+                            duration: 300,
+                            easing: 'easeOutCubic'
+                        }
+                    },
+                    pan: {
+                        animation: {
+                            duration: 300,
+                            easing: 'easeOutCubic'
                         }
                     }
                 }
             }
         });
         
-        // Add zoom plugin options if available
-        if (typeof zoomPlugin !== 'undefined' && projectionChart.options.plugins) {
-            projectionChart.options.plugins.zoom = {
-                zoom: {
-                    wheel: {
-                        enabled: true
-                    },
-                    pinch: {
-                        enabled: true
-                    },
-                    mode: 'xy'
-                },
-                pan: {
-                    enabled: true,
-                    mode: 'xy'
-                }
-            };
-            projectionChart.update();
+        // Update chart title
+        const titleElement = document.getElementById('projection-chart-title');
+        if (titleElement) {
+            titleElement.textContent = `${currentSymbol} - ${currentInterval} - ${steps} Step Projection`;
         }
         
-        // Update chart title
-        document.getElementById('projection-chart-title').textContent = 
-            `${currentSymbol} - ${currentInterval} - ${steps} Step Projection`;
+        // Always show zoom controls (plugin should be available)
+        const resetZoomBtn = document.getElementById('reset-zoom-btn');
+        const zoomInBtn = document.getElementById('zoom-in-btn');
+        const zoomOutBtn = document.getElementById('zoom-out-btn');
+        
+        if (resetZoomBtn) resetZoomBtn.style.display = 'inline-block';
+        if (zoomInBtn) zoomInBtn.style.display = 'inline-block';
+        if (zoomOutBtn) zoomOutBtn.style.display = 'inline-block';
+        
+        // Setup zoom button handlers
+        setupZoomControls();
+        
+        // Setup export functionality
+        setupExportFunctionality();
+        
+        // Setup custom pan functionality (like charts.js)
+        setupChartPan(projectionChart);
+        
+        // Setup keyboard listeners for Shift key detection
+        setupKeyboardListeners();
+        
+        // Log chart creation for debugging
+        console.log('Chart created with zoom/pan/drag enabled');
     }
     
-    // Update metrics
+    /**
+     * Setup keyboard listeners for better cursor feedback
+     */
+    function setupKeyboardListeners() {
+        const chartWrapper = document.querySelector('.chart-wrapper');
+        if (!chartWrapper) return;
+        
+        // Track Shift key state
+        const handleKeyDown = (e) => {
+            if (e.key === 'Shift') {
+                chartWrapper.classList.add('shift-active');
+            }
+        };
+        
+        const handleKeyUp = (e) => {
+            if (e.key === 'Shift') {
+                chartWrapper.classList.remove('shift-active');
+            }
+        };
+        
+        // Add listeners
+        document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('keyup', handleKeyUp);
+        
+        // Cleanup on chart destroy (stored for later cleanup if needed)
+        if (!projectionChart._keyboardHandlers) {
+            projectionChart._keyboardHandlers = {
+                keydown: handleKeyDown,
+                keyup: handleKeyUp
+            };
+        }
+    }
+    
+    /**
+     * Setup custom pan functionality for the chart
+     * Similar to charts.js implementation for consistency
+     */
+    function setupChartPan(chart) {
+        if (!chart || !chart.canvas) {
+            console.warn('Cannot setup pan: chart or canvas not available');
+            return;
+        }
+        
+        const canvas = chart.canvas;
+        
+        // Remove existing handlers if any
+        if (panState.boundHandlers) {
+            canvas.removeEventListener('mousedown', panState.boundHandlers.mousedown);
+            document.removeEventListener('mousemove', panState.boundHandlers.mousemove);
+            document.removeEventListener('mouseup', panState.boundHandlers.mouseup);
+            canvas.removeEventListener('touchstart', panState.boundHandlers.touchstart);
+            canvas.removeEventListener('touchmove', panState.boundHandlers.touchmove);
+            canvas.removeEventListener('touchend', panState.boundHandlers.touchend);
+        }
+        
+        // Ensure canvas has proper styles for interaction
+        canvas.style.cursor = 'grab';
+        canvas.style.touchAction = 'none';
+        canvas.style.userSelect = 'none';
+        canvas.style.webkitUserSelect = 'none';
+        canvas.style.mozUserSelect = 'none';
+        canvas.style.msUserSelect = 'none';
+        
+        // Mouse handlers
+        const handleMouseDown = (e) => {
+            // Only respond to left mouse button
+            // Shift key is reserved for zoom drag selection, so don't pan when Shift is held
+            if (e.button !== 0) return;
+            
+            // Don't pan if Shift is held (that's for zoom selection)
+            if (e.shiftKey) return;
+            
+            panState.isPanning = true;
+            panState.startX = e.clientX;
+            panState.startY = e.clientY;
+            panState.lastX = e.clientX;
+            panState.lastY = e.clientY;
+            
+            canvas.style.cursor = 'grabbing';
+            
+            // Prevent text selection during drag
+            e.preventDefault();
+            e.stopPropagation();
+        };
+        
+        const handleMouseMove = (e) => {
+            if (!panState.isPanning) return;
+            
+            const xScale = chart.scales.x;
+            const yScale = chart.scales.y;
+            
+            if (!xScale || !yScale) return;
+            
+            const deltaX = e.clientX - panState.lastX;
+            const deltaY = e.clientY - panState.lastY;
+            
+            // Skip if no movement
+            if (deltaX === 0 && deltaY === 0) return;
+            
+            // Get the chart area dimensions for accurate scaling
+            const chartArea = chart.chartArea;
+            if (!chartArea) return;
+            
+            const chartWidth = chartArea.right - chartArea.left;
+            const chartHeight = chartArea.bottom - chartArea.top;
+            
+            // Calculate pan distance in data units
+            const xRange = xScale.max - xScale.min;
+            const yRange = yScale.max - yScale.min;
+            
+            const xDelta = -(deltaX / chartWidth) * xRange;
+            const yDelta = (deltaY / chartHeight) * yRange;
+            
+            // Initialize scale options if not already set
+            if (xScale.options.min === undefined || xScale.options.max === undefined) {
+                xScale.options.min = xScale.min;
+                xScale.options.max = xScale.max;
+            }
+            if (yScale.options.min === undefined || yScale.options.max === undefined) {
+                yScale.options.min = yScale.min;
+                yScale.options.max = yScale.max;
+            }
+            
+            // Apply pan
+            xScale.options.min += xDelta;
+            xScale.options.max += xDelta;
+            yScale.options.min += yDelta;
+            yScale.options.max += yDelta;
+            
+            // Update chart without animation for smooth panning
+            chart.update('none');
+            
+            panState.lastX = e.clientX;
+            panState.lastY = e.clientY;
+            
+            e.preventDefault();
+        };
+        
+        const handleMouseUp = () => {
+            if (panState.isPanning) {
+                panState.isPanning = false;
+                canvas.style.cursor = 'grab';
+            }
+        };
+        
+        // Touch handlers for mobile
+        let touchState = { isPanning: false, lastX: 0, lastY: 0 };
+        
+        const handleTouchStart = (e) => {
+            // Only handle single touch (multi-touch is for pinch zoom)
+            if (e.touches.length !== 1) return;
+            
+            const touch = e.touches[0];
+            touchState.isPanning = true;
+            touchState.lastX = touch.clientX;
+            touchState.lastY = touch.clientY;
+            
+            e.preventDefault();
+        };
+        
+        const handleTouchMove = (e) => {
+            if (!touchState.isPanning || e.touches.length !== 1) return;
+            
+            const touch = e.touches[0];
+            const xScale = chart.scales.x;
+            const yScale = chart.scales.y;
+            
+            if (!xScale || !yScale) return;
+            
+            const deltaX = touch.clientX - touchState.lastX;
+            const deltaY = touch.clientY - touchState.lastY;
+            
+            const chartArea = chart.chartArea;
+            if (!chartArea) return;
+            
+            const chartWidth = chartArea.right - chartArea.left;
+            const chartHeight = chartArea.bottom - chartArea.top;
+            
+            const xRange = xScale.max - xScale.min;
+            const yRange = yScale.max - yScale.min;
+            
+            const xDelta = -(deltaX / chartWidth) * xRange;
+            const yDelta = (deltaY / chartHeight) * yRange;
+            
+            if (xScale.options.min === undefined || xScale.options.max === undefined) {
+                xScale.options.min = xScale.min;
+                xScale.options.max = xScale.max;
+            }
+            if (yScale.options.min === undefined || yScale.options.max === undefined) {
+                yScale.options.min = yScale.min;
+                yScale.options.max = yScale.max;
+            }
+            
+            xScale.options.min += xDelta;
+            xScale.options.max += xDelta;
+            yScale.options.min += yDelta;
+            yScale.options.max += yDelta;
+            
+            chart.update('none');
+            
+            touchState.lastX = touch.clientX;
+            touchState.lastY = touch.clientY;
+            
+            e.preventDefault();
+        };
+        
+        const handleTouchEnd = () => {
+            touchState.isPanning = false;
+        };
+        
+        // Store handlers for cleanup
+        panState.boundHandlers = {
+            mousedown: handleMouseDown,
+            mousemove: handleMouseMove,
+            mouseup: handleMouseUp,
+            touchstart: handleTouchStart,
+            touchmove: handleTouchMove,
+            touchend: handleTouchEnd
+        };
+        
+        // Add event listeners
+        canvas.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        
+        // Touch events
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd);
+        
+        // Prevent context menu on right-click
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+    
+    /**
+     * Create interactive legend with checkboxes
+     */
+    function createInteractiveLegend(datasets) {
+        const legendControls = document.getElementById('chart-legend-controls');
+        const checkboxesContainer = document.getElementById('legend-checkboxes');
+        
+        if (!legendControls || !checkboxesContainer) return;
+        
+        // Clear existing checkboxes
+        checkboxesContainer.innerHTML = '';
+        
+        // Create checkbox for each dataset
+        datasets.forEach((dataset, index) => {
+            const checkboxWrapper = document.createElement('div');
+            checkboxWrapper.className = 'legend-checkbox-item';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `legend-checkbox-${index}`;
+            checkbox.checked = true;
+            checkbox.dataset.index = index;
+            checkbox.className = 'legend-checkbox';
+            
+            const label = document.createElement('label');
+            label.htmlFor = `legend-checkbox-${index}`;
+            label.className = 'legend-checkbox-label';
+            
+            const colorBox = document.createElement('span');
+            colorBox.className = 'legend-color-box';
+            colorBox.style.backgroundColor = dataset.borderColor;
+            
+            const text = document.createElement('span');
+            text.textContent = dataset.label;
+            text.className = 'legend-text';
+            
+            label.appendChild(colorBox);
+            label.appendChild(text);
+            
+            checkboxWrapper.appendChild(checkbox);
+            checkboxWrapper.appendChild(label);
+            checkboxesContainer.appendChild(checkboxWrapper);
+            
+            // Add event listener
+            checkbox.addEventListener('change', function() {
+                toggleDatasetVisibility(index, this.checked);
+            });
+        });
+        
+        legendControls.style.display = 'block';
+    }
+    
+    /**
+     * Update legend checkbox state
+     */
+    function updateLegendCheckbox(index, visible) {
+        const checkbox = document.getElementById(`legend-checkbox-${index}`);
+        if (checkbox) {
+            checkbox.checked = visible;
+        }
+    }
+    
+    /**
+     * Toggle dataset visibility
+     */
+    function toggleDatasetVisibility(index, visible) {
+        if (!projectionChart) return;
+        
+        const meta = projectionChart.getDatasetMeta(index);
+        if (meta) {
+            meta.hidden = !visible;
+            projectionChart.update();
+        }
+    }
+    
+    /**
+     * Setup zoom controls
+     */
+    function setupZoomControls() {
+        const zoomInBtn = document.getElementById('zoom-in-btn');
+        const zoomOutBtn = document.getElementById('zoom-out-btn');
+        const resetZoomBtn = document.getElementById('reset-zoom-btn');
+        
+        if (zoomInBtn) {
+            zoomInBtn.addEventListener('click', function() {
+                zoomChart(1.2);
+            });
+        }
+        
+        if (zoomOutBtn) {
+            zoomOutBtn.addEventListener('click', function() {
+                zoomChart(0.8);
+            });
+        }
+        
+        if (resetZoomBtn) {
+            resetZoomBtn.addEventListener('click', resetZoom);
+        }
+    }
+    
+    /**
+     * Zoom chart programmatically
+     * @param {number} factor - Zoom factor (>1 = zoom in, <1 = zoom out)
+     */
+    function zoomChart(factor) {
+        if (!projectionChart) {
+            console.warn('No chart available for zooming');
+            return;
+        }
+        
+        try {
+            const xScale = projectionChart.scales.x;
+            const yScale = projectionChart.scales.y;
+            
+            if (!xScale || !yScale) {
+                console.warn('Chart scales not available');
+                return;
+            }
+            
+            // Get current scale ranges
+            let xMin = xScale.min;
+            let xMax = xScale.max;
+            let yMin = yScale.min;
+            let yMax = yScale.max;
+            
+            // If scales are not limited, get from data
+            if (xMin === undefined || xMax === undefined) {
+                const data = projectionChart.data;
+                if (data && data.labels && data.labels.length > 0) {
+                    xMin = 0;
+                    xMax = data.labels.length - 1;
+                } else {
+                    console.warn('Cannot zoom: no data available');
+                    return;
+                }
+            }
+            
+            if (yMin === undefined || yMax === undefined) {
+                // Get from datasets
+                const datasets = projectionChart.data.datasets;
+                let allValues = [];
+                datasets.forEach(dataset => {
+                    if (dataset.data) {
+                        dataset.data.forEach(point => {
+                            if (point !== null && typeof point === 'number') {
+                                allValues.push(point);
+                            }
+                        });
+                    }
+                });
+                if (allValues.length > 0) {
+                    yMin = Math.min(...allValues) * 0.98;
+                    yMax = Math.max(...allValues) * 1.02;
+                } else {
+                    console.warn('Cannot zoom: no price data available');
+                    return;
+                }
+            }
+            
+            // Calculate centers and ranges
+            const xCenter = (xMin + xMax) / 2;
+            const yCenter = (yMin + yMax) / 2;
+            const xRange = xMax - xMin;
+            const yRange = yMax - yMin;
+            
+            // Calculate new ranges (inverse factor for zoom in/out)
+            const newXRange = xRange / factor;
+            const newYRange = yRange / factor;
+            
+            // Set new scale limits
+            xScale.options.min = xCenter - newXRange / 2;
+            xScale.options.max = xCenter + newXRange / 2;
+            yScale.options.min = yCenter - newYRange / 2;
+            yScale.options.max = yCenter + newYRange / 2;
+            
+            // Update chart
+            projectionChart.update('none');
+        } catch (error) {
+            console.error('Error zooming chart:', error);
+        }
+    }
+    
+    /**
+     * Setup export functionality
+     */
+    function setupExportFunctionality() {
+        const exportBtn = document.getElementById('export-chart-btn');
+        
+        if (exportBtn) {
+            exportBtn.addEventListener('click', function() {
+                exportChart();
+            });
+        }
+    }
+    
+    /**
+     * Export chart as image
+     */
+    function exportChart() {
+        if (!projectionChart) {
+            showError('No chart to export');
+            return;
+        }
+        
+        try {
+            // Get chart canvas
+            const canvas = projectionChart.canvas;
+            
+            // Create download link
+            const link = document.createElement('a');
+            link.download = `${currentSymbol}_projection_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Show success message
+            const exportBtn = document.getElementById('export-chart-btn');
+            if (exportBtn) {
+                const originalHTML = exportBtn.innerHTML;
+                exportBtn.innerHTML = '<i class="fas fa-check"></i> Exported!';
+                exportBtn.style.background = 'var(--success-color)';
+                
+                setTimeout(() => {
+                    exportBtn.innerHTML = originalHTML;
+                    exportBtn.style.background = '';
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('Error exporting chart:', error);
+            showError('Failed to export chart');
+        }
+    }
+    
+    /**
+     * Update price metrics display
+     * Matches the design from the screenshot
+     */
     function updateMetrics(historicalPrices, projectionLines, params) {
+        if (!historicalPrices || historicalPrices.length === 0) return;
+        
         const firstPrice = historicalPrices[0];
         const lastPrice = historicalPrices[historicalPrices.length - 1];
         const change = lastPrice - firstPrice;
@@ -595,24 +1485,49 @@ const ProjectionsModule = (function() {
         const projectedChange = avgProjectedPrice - lastPrice;
         const projectedChangePercent = lastPrice !== 0 ? (projectedChange / lastPrice) * 100 : 0;
         
-        // Update DOM
-        document.getElementById('metric-current-price').textContent = `$${lastPrice.toFixed(2)}`;
+        // Update Current Price
+        const currentPriceEl = document.getElementById('metric-current-price');
+        if (currentPriceEl) {
+            currentPriceEl.textContent = formatPrice(lastPrice);
+            currentPriceEl.className = 'metric-value';
+        }
         
+        // Update Historical Change
         const histChangeEl = document.getElementById('metric-historical-change');
-        histChangeEl.textContent = `${change >= 0 ? '+' : ''}$${Math.abs(change).toFixed(2)}`;
-        histChangeEl.className = 'metric-value ' + (change >= 0 ? 'positive' : 'negative');
+        if (histChangeEl) {
+            const changeSign = change >= 0 ? '+' : '';
+            histChangeEl.textContent = `${changeSign}${formatPrice(Math.abs(change))}`;
+            histChangeEl.className = 'metric-value ' + (change >= 0 ? 'positive' : 'negative');
+        }
         
-        document.getElementById('metric-historical-percent').textContent = 
-            `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
+        const histPercentEl = document.getElementById('metric-historical-percent');
+        if (histPercentEl) {
+            const percentSign = changePercent >= 0 ? '+' : '';
+            histPercentEl.textContent = `${percentSign}${changePercent.toFixed(2)}%`;
+            histPercentEl.className = 'metric-percent ' + (changePercent >= 0 ? 'positive' : 'negative');
+        }
         
-        document.getElementById('metric-projected-price').textContent = `$${avgProjectedPrice.toFixed(2)}`;
+        // Update Projected Price
+        const projectedPriceEl = document.getElementById('metric-projected-price');
+        if (projectedPriceEl) {
+            projectedPriceEl.textContent = formatPrice(avgProjectedPrice);
+            projectedPriceEl.className = 'metric-value';
+        }
         
+        // Update Projected Change
         const projChangeEl = document.getElementById('metric-projected-change');
-        projChangeEl.textContent = `${projectedChange >= 0 ? '+' : ''}$${Math.abs(projectedChange).toFixed(2)}`;
-        projChangeEl.className = 'metric-value ' + (projectedChange >= 0 ? 'positive' : 'negative');
+        if (projChangeEl) {
+            const changeSign = projectedChange >= 0 ? '+' : '';
+            projChangeEl.textContent = `${changeSign}${formatPrice(Math.abs(projectedChange))}`;
+            projChangeEl.className = 'metric-value ' + (projectedChange >= 0 ? 'positive' : 'negative');
+        }
         
-        document.getElementById('metric-projected-percent').textContent = 
-            `${projectedChangePercent >= 0 ? '+' : ''}${projectedChangePercent.toFixed(2)}%`;
+        const projPercentEl = document.getElementById('metric-projected-percent');
+        if (projPercentEl) {
+            const percentSign = projectedChangePercent >= 0 ? '+' : '';
+            projPercentEl.textContent = `${percentSign}${projectedChangePercent.toFixed(2)}%`;
+            projPercentEl.className = 'metric-percent ' + (projectedChangePercent >= 0 ? 'positive' : 'negative');
+        }
     }
     
     // UI helpers
@@ -660,13 +1575,42 @@ const ProjectionsModule = (function() {
         }
     }
     
-    // Reset zoom
+    /**
+     * Reset zoom to original view
+     */
     function resetZoom() {
-        if (projectionChart) {
-            if (projectionChart.resetZoom) {
+        if (!projectionChart) {
+            console.warn('No chart available to reset zoom');
+            return;
+        }
+        
+        try {
+            // Try zoom plugin's resetZoom method first
+            if (typeof projectionChart.resetZoom === 'function') {
                 projectionChart.resetZoom();
-            } else {
-                // Fallback: update chart to reset view
+                console.log('Zoom reset using plugin method');
+                return;
+            }
+            
+            // Fallback: reset scales manually
+            const xScale = projectionChart.scales.x;
+            const yScale = projectionChart.scales.y;
+            
+            if (xScale) {
+                xScale.options.min = undefined;
+                xScale.options.max = undefined;
+            }
+            if (yScale) {
+                yScale.options.min = undefined;
+                yScale.options.max = undefined;
+            }
+            
+            projectionChart.update('none');
+            console.log('Zoom reset using manual method');
+        } catch (error) {
+            console.error('Error resetting zoom:', error);
+            // Fallback: update chart
+            if (projectionChart) {
                 projectionChart.update('none');
             }
         }
@@ -680,12 +1624,25 @@ const ProjectionsModule = (function() {
         }
         
         try {
-            const params = {
-                steps: parseInt(document.getElementById('projection-steps').value) || 20,
-                base: parseFloat(document.getElementById('projection-base').value) || 3,
-                projectionCount: parseInt(document.getElementById('projection-count').value) || 12,
-                depthPrime: parseInt(document.getElementById('projection-depth').value) || 31
-            };
+            // Get parameters (same logic as loadProjectionData)
+            const selectedPreset = document.querySelector('input[name="projection-preset"]:checked');
+            let params;
+            
+            if (selectedPreset && selectedPreset.value === 'custom') {
+                params = {
+                    steps: parseInt(document.getElementById('projection-steps').value) || 20,
+                    base: parseFloat(document.getElementById('projection-base').value) || 3,
+                    projectionCount: parseInt(document.getElementById('projection-count').value) || 12,
+                    depthPrime: parseInt(document.getElementById('projection-depth').value) || 31
+                };
+            } else {
+                params = {
+                    steps: parseInt(document.getElementById('projection-steps-value').value) || 20,
+                    base: parseFloat(document.getElementById('projection-base-value').value) || 3,
+                    projectionCount: parseInt(document.getElementById('projection-count-value').value) || 12,
+                    depthPrime: parseInt(document.getElementById('projection-depth-value').value) || 31
+                };
+            }
             
             const projectionLines = calculateProjections(historicalPrices, params);
             
@@ -736,6 +1693,15 @@ const ProjectionsModule = (function() {
             if (result.success) {
                 // Show success message
                 showSaveSuccess();
+                
+                // Refresh data page if it exists
+                if (typeof DataPageModule !== 'undefined' && DataPageModule.refresh) {
+                    // Check if data page is active
+                    const dataPage = document.getElementById('page-data');
+                    if (dataPage && dataPage.classList.contains('active')) {
+                        DataPageModule.refresh();
+                    }
+                }
             } else {
                 showError(result.message || 'Failed to save projection');
             }
@@ -759,6 +1725,358 @@ const ProjectionsModule = (function() {
                 saveBtn.style.background = '';
                 saveBtn.disabled = false;
             }, 2000);
+        }
+    }
+    
+    // Initialize ensemble with all models
+    function initializeEnsemble() {
+        try {
+            // Check if models are available
+            if (typeof ProjectionEnsemble === 'undefined' || 
+                typeof CrystallineModel === 'undefined') {
+                console.warn('Projection models not loaded, using original method');
+                useEnsemble = false;
+                return;
+            }
+            
+            ensemble = new ProjectionEnsemble.Ensemble();
+            
+            // Add all available models
+            if (typeof CrystallineModel !== 'undefined') {
+                ensemble.addModel(new CrystallineModel());
+            }
+            if (typeof HarmonicModel !== 'undefined') {
+                ensemble.addModel(new HarmonicModel());
+            }
+            if (typeof WaveBasedModel !== 'undefined') {
+                ensemble.addModel(new WaveBasedModel());
+            }
+            if (typeof StatisticalModel !== 'undefined') {
+                ensemble.addModel(new StatisticalModel());
+            }
+            
+            console.log('Ensemble initialized with', ensemble.models.length, 'models');
+        } catch (error) {
+            console.error('Error initializing ensemble:', error);
+            useEnsemble = false;
+        }
+    }
+    
+    // Convert ensemble result to projection lines format
+    function convertEnsembleToProjectionLines(ensembleResult) {
+        const projectionLines = [];
+        
+        // Add ensemble projection as main line
+        projectionLines.push({
+            triad: ['Ensemble'],
+            points: ensembleResult.points,
+            confidence: ensembleResult.confidence,
+            isEnsemble: true
+        });
+        
+        // Add individual model projections if available
+        if (ensembleResult.individualProjections) {
+            ensembleResult.individualProjections.forEach((proj, idx) => {
+                projectionLines.push({
+                    triad: [proj.model],
+                    points: proj.points,
+                    confidence: proj.confidence,
+                    isIndividual: true
+                });
+            });
+        }
+        
+        return projectionLines;
+    }
+    
+    /**
+     * Update validation metrics display
+     * Matches the design of Price Metrics section (same card style)
+     */
+    function updateValidationMetrics(validation) {
+        const validationSection = document.getElementById('validation-metrics-section');
+        if (!validationSection) {
+            console.warn('Validation metrics section not found in DOM');
+            return;
+        }
+        
+        if (!validation || validation.error) {
+            validationSection.style.display = 'none';
+            return;
+        }
+        
+        // Show validation section
+        validationSection.style.display = 'block';
+        
+        // Update MAE (Mean Absolute Error) - lower is better
+        const maeEl = document.getElementById('validation-mae');
+        if (maeEl) {
+            if (validation.mae !== null && validation.mae !== undefined && !isNaN(validation.mae)) {
+                maeEl.textContent = validation.mae.toFixed(4);
+                // Color code: lower MAE = better
+                // < 0.5 = excellent (green), 0.5-1.0 = good (neutral), > 1.0 = poor (red)
+                const maeClass = validation.mae < 0.5 ? 'positive' : validation.mae < 1.0 ? '' : 'negative';
+                maeEl.className = 'metric-value ' + maeClass;
+            } else {
+                maeEl.textContent = 'N/A';
+                maeEl.className = 'metric-value';
+            }
+        }
+        
+        // Update RMSE (Root Mean Squared Error) - lower is better
+        const rmseEl = document.getElementById('validation-rmse');
+        if (rmseEl) {
+            if (validation.rmse !== null && validation.rmse !== undefined && !isNaN(validation.rmse)) {
+                rmseEl.textContent = validation.rmse.toFixed(4);
+                // Color code: lower RMSE = better
+                // < 0.6 = excellent (green), 0.6-1.0 = good (neutral), > 1.0 = poor (red)
+                const rmseClass = validation.rmse < 0.6 ? 'positive' : validation.rmse < 1.0 ? '' : 'negative';
+                rmseEl.className = 'metric-value ' + rmseClass;
+            } else {
+                rmseEl.textContent = 'N/A';
+                rmseEl.className = 'metric-value';
+            }
+        }
+        
+        // Update MAPE (Mean Absolute Percentage Error) - lower is better
+        const mapeEl = document.getElementById('validation-mape');
+        if (mapeEl) {
+            if (validation.mape !== null && validation.mape !== undefined && !isNaN(validation.mape)) {
+                mapeEl.textContent = validation.mape.toFixed(2) + '%';
+                // Color code based on MAPE value (lower is better)
+                // < 1% = excellent (green), 1-5% = good (neutral), > 5% = poor (red)
+                const mapeClass = validation.mape < 1 ? 'positive' : validation.mape < 5 ? '' : 'negative';
+                mapeEl.className = 'metric-value ' + mapeClass;
+            } else {
+                mapeEl.textContent = 'N/A';
+                mapeEl.className = 'metric-value';
+            }
+        }
+        
+        // Update Confidence - higher is better
+        const confidenceEl = document.getElementById('validation-confidence');
+        if (confidenceEl) {
+            let confidenceValue = 0.5; // Default
+            
+            if (validation.errorStdDev !== null && validation.errorStdDev !== undefined && !isNaN(validation.errorStdDev)) {
+                // Calculate confidence: lower error = higher confidence
+                // Normalize errorStdDev to 0-1 range (assuming max reasonable error of 10)
+                const normalizedError = Math.min(validation.errorStdDev / 10, 1);
+                confidenceValue = Math.max(0, Math.min(1, 1 - normalizedError));
+            } else if (validation.confidenceIntervals && validation.confidenceIntervals.length > 0) {
+                // Use confidence from intervals if available
+                confidenceValue = validation.confidenceIntervals[0].confidence || 0.95;
+            } else if (validation.confidence !== null && validation.confidence !== undefined && !isNaN(validation.confidence)) {
+                // Use direct confidence value if available
+                confidenceValue = validation.confidence;
+            }
+            
+            confidenceEl.textContent = confidenceValue.toFixed(2);
+            // Color code: higher confidence = better (green)
+            // >= 0.8 = excellent (green), 0.6-0.8 = good (neutral), < 0.6 = poor (red)
+            const confClass = confidenceValue >= 0.8 ? 'positive' : confidenceValue >= 0.6 ? '' : 'negative';
+            confidenceEl.className = 'metric-value ' + confClass;
+        }
+    }
+    
+    /**
+     * Preset parameter configurations
+     */
+    const PRESET_CONFIGS = {
+        standard: {
+            steps: 20,
+            base: 3,
+            projectionCount: 12,
+            depthPrime: 31
+        },
+        extended: {
+            steps: 40,
+            base: 3.5,
+            projectionCount: 18,
+            depthPrime: 47
+        },
+        deep: {
+            steps: 60,
+            base: 4,
+            projectionCount: 24,
+            depthPrime: 61
+        },
+        quick: {
+            steps: 10,
+            base: 2.5,
+            projectionCount: 6,
+            depthPrime: 17
+        },
+        maximum: {
+            steps: 100,
+            base: 5,
+            projectionCount: 36,
+            depthPrime: 97
+        }
+    };
+    
+    /**
+     * Apply preset configuration
+     */
+    function applyPreset(presetName) {
+        const config = PRESET_CONFIGS[presetName];
+        if (!config) {
+            console.warn(`Preset configuration not found: ${presetName}`);
+            return;
+        }
+        
+        // Update hidden inputs (these are used by non-custom presets)
+        const stepsValueInput = document.getElementById('projection-steps-value');
+        const baseValueInput = document.getElementById('projection-base-value');
+        const countValueInput = document.getElementById('projection-count-value');
+        const depthValueInput = document.getElementById('projection-depth-value');
+        
+        if (stepsValueInput) stepsValueInput.value = config.steps;
+        if (baseValueInput) baseValueInput.value = config.base;
+        if (countValueInput) countValueInput.value = config.projectionCount;
+        if (depthValueInput) depthValueInput.value = config.depthPrime;
+        
+        // If custom panel is visible, also update those inputs for consistency
+        const customPanel = document.getElementById('custom-params-panel');
+        if (customPanel && customPanel.style.display !== 'none') {
+            const stepsInput = document.getElementById('projection-steps');
+            const baseInput = document.getElementById('projection-base');
+            const countInput = document.getElementById('projection-count');
+            const depthSelect = document.getElementById('projection-depth');
+            
+            if (stepsInput) stepsInput.value = config.steps;
+            if (baseInput) baseInput.value = config.base;
+            if (countInput) countInput.value = config.projectionCount;
+            if (depthSelect) depthSelect.value = config.depthPrime;
+        }
+        
+        // Update active parameters display
+        updateActiveParamsDisplay(config);
+        
+        // Log applied configuration
+        console.log(`Applied preset "${presetName}":`, {
+            steps: config.steps,
+            base: config.base,
+            projectionCount: config.projectionCount,
+            depthPrime: config.depthPrime
+        });
+    }
+    
+    /**
+     * Update active parameters display
+     */
+    function updateActiveParamsDisplay(params) {
+        const display = document.getElementById('active-params-display');
+        const stepsEl = document.getElementById('active-steps');
+        const baseEl = document.getElementById('active-base');
+        const countEl = document.getElementById('active-count');
+        const depthEl = document.getElementById('active-depth');
+        
+        if (display && stepsEl && baseEl && countEl && depthEl) {
+            stepsEl.textContent = params.steps || 20;
+            baseEl.textContent = params.base || 3;
+            countEl.textContent = params.projectionCount || 12;
+            depthEl.textContent = params.depthPrime || 31;
+            display.style.display = 'flex';
+        }
+    }
+    
+    /**
+     * Setup parameter toggle switches
+     */
+    function setupParameterToggles() {
+        const presetRadios = document.querySelectorAll('input[name="projection-preset"]');
+        const customPanel = document.getElementById('custom-params-panel');
+        
+        presetRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                const presetName = this.value;
+                
+                // Update active state for visual feedback
+                document.querySelectorAll('.param-toggle-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                const toggleItem = this.closest('.param-toggle-item');
+                if (toggleItem) {
+                    toggleItem.classList.add('active');
+                }
+                
+                if (presetName === 'custom') {
+                    // Show custom parameters panel
+                    if (customPanel) {
+                        customPanel.style.display = 'block';
+                    }
+                } else {
+                    // Hide custom parameters panel
+                    if (customPanel) {
+                        customPanel.style.display = 'none';
+                    }
+                    
+                    // Apply preset configuration
+                    applyPreset(presetName);
+                    
+                    // Log preset change for debugging
+                    console.log(`Preset changed to: ${presetName}`, PRESET_CONFIGS[presetName]);
+                    
+                    // Automatically trigger projection update if data is loaded
+                    const symbolInput = document.getElementById('projection-symbol-input');
+                    if (symbolInput && symbolInput.value.trim() !== '') {
+                        // Check if we have historical data loaded
+                        if (historicalPrices && historicalPrices.length > 0) {
+                            // Trigger projection update automatically with a slight delay
+                            // to ensure DOM updates are complete
+                            setTimeout(() => {
+                                console.log('Auto-updating projection with new preset parameters');
+                                loadProjectionData();
+                            }, 150);
+                        }
+                    }
+                }
+            });
+            
+            // Set initial active state
+            if (radio.checked) {
+                const toggleItem = radio.closest('.param-toggle-item');
+                if (toggleItem) {
+                    toggleItem.classList.add('active');
+                }
+            }
+        });
+        
+        // Setup custom parameter inputs to update hidden values
+        const stepsInput = document.getElementById('projection-steps');
+        const baseInput = document.getElementById('projection-base');
+        const countInput = document.getElementById('projection-count');
+        const depthSelect = document.getElementById('projection-depth');
+        
+        if (stepsInput) {
+            stepsInput.addEventListener('input', function() {
+                document.getElementById('projection-steps-value').value = this.value;
+            });
+        }
+        
+        if (baseInput) {
+            baseInput.addEventListener('input', function() {
+                document.getElementById('projection-base-value').value = this.value;
+            });
+        }
+        
+        if (countInput) {
+            countInput.addEventListener('input', function() {
+                document.getElementById('projection-count-value').value = this.value;
+            });
+        }
+        
+        if (depthSelect) {
+            depthSelect.addEventListener('change', function() {
+                document.getElementById('projection-depth-value').value = this.value;
+            });
+        }
+        
+        // Apply default preset (standard)
+        const defaultPreset = document.querySelector('input[name="projection-preset"]:checked');
+        if (defaultPreset && defaultPreset.value !== 'custom') {
+            applyPreset(defaultPreset.value);
         }
     }
     
@@ -793,6 +2111,9 @@ const ProjectionsModule = (function() {
                 }
             });
         }
+        
+        // Setup parameter toggle switches
+        setupParameterToggles();
         
         // Watch for page activation
         watchPageActivation();
