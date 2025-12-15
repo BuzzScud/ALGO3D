@@ -22,6 +22,7 @@ const ProjectionsModule = (function() {
     let currentInterval = '1d';
     let historicalPrices = [];
     let historicalLabels = [];
+    let historicalCandles = [];
     let validationResults = null;
     // Unified Projection Engine is now the primary method (replaces ensemble)
     
@@ -52,6 +53,94 @@ const ProjectionsModule = (function() {
     function formatPrice(value) {
         if (value === null || value === undefined || isNaN(value)) return '$0.00';
         return '$' + value.toFixed(2);
+    }
+    
+    /**
+     * Convert date to EST timezone
+     * Returns a Date object representing the same moment in EST
+     */
+    function toEST(date) {
+        if (!date) return null;
+        const d = date instanceof Date ? date : new Date(date);
+        
+        // Get the time components in EST timezone
+        const estString = d.toLocaleString('en-US', { 
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        
+        // Parse the EST string back to a Date object
+        // Format: "MM/DD/YYYY, HH:MM:SS"
+        const parts = estString.split(', ');
+        const datePart = parts[0].split('/');
+        const timePart = parts[1].split(':');
+        
+        const estDate = new Date(
+            parseInt(datePart[2]), // year
+            parseInt(datePart[0]) - 1, // month (0-indexed)
+            parseInt(datePart[1]), // day
+            parseInt(timePart[0]), // hour
+            parseInt(timePart[1]), // minute
+            parseInt(timePart[2]) // second
+        );
+        
+        return estDate;
+    }
+    
+    /**
+     * Format date in EST timezone
+     */
+    function formatDateEST(timestamp) {
+        if (!timestamp) return '';
+        const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+        const estDate = toEST(date);
+        return estDate.toLocaleDateString('en-US', { 
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+    
+    /**
+     * Format date and time in EST timezone
+     */
+    function formatDateTimeEST(timestamp) {
+        if (!timestamp) return '';
+        const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+        return date.toLocaleString('en-US', { 
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        }) + ' EST';
+    }
+    
+    /**
+     * Get current time in EST
+     */
+    function getCurrentEST() {
+        return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    }
+    
+    /**
+     * Convert timestamp to EST milliseconds
+     */
+    function toESTTimestamp(timestamp) {
+        if (!timestamp) return null;
+        const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+        const estDate = toEST(date);
+        return estDate.getTime();
     }
     
     // Constants from ALGO-1
@@ -387,8 +476,24 @@ const ProjectionsModule = (function() {
                 throw new Error('No historical data available for this symbol');
             }
             
-            // Extract prices from candles
-            historicalPrices = data.candles.map(c => {
+            // Store candles data for high/low calculations
+            // Convert all timestamps to EST
+            historicalCandles = data.candles.map(c => {
+                const candle = { ...c };
+                // Convert time/timestamp to EST
+                if (candle.time) {
+                    candle.time = toESTTimestamp(candle.time);
+                    candle.originalTime = c.time; // Keep original for reference
+                }
+                if (candle.timestamp) {
+                    candle.timestamp = toESTTimestamp(candle.timestamp);
+                    candle.originalTimestamp = c.timestamp; // Keep original for reference
+                }
+                return candle;
+            });
+            
+            // Extract prices from candles (using EST-adjusted timestamps)
+            historicalPrices = historicalCandles.map(c => {
                 const price = parseFloat(c.close || c.price || 0);
                 if (isNaN(price) || price <= 0) {
                     console.warn('Invalid price data:', c);
@@ -401,14 +506,12 @@ const ProjectionsModule = (function() {
             }
             
             historicalLabels = data.candles.map((c, i) => {
-                // Time is already in milliseconds from the API
+                // Convert time to EST before formatting
                 if (c.time) {
-                    const date = new Date(c.time);
-                    return date.toLocaleDateString();
+                    return formatDateEST(c.time);
                 }
                 if (c.timestamp) {
-                    const date = new Date(c.timestamp);
-                    return date.toLocaleDateString();
+                    return formatDateEST(c.timestamp);
                 }
                 return `Point ${i + 1}`;
             });
@@ -1432,7 +1535,9 @@ const ProjectionsModule = (function() {
             
             // Create download link
             const link = document.createElement('a');
-            link.download = `${currentSymbol}_projection_${Date.now()}.png`;
+            // Use EST timestamp for filename
+            const estNow = getCurrentEST();
+            link.download = `${currentSymbol}_projection_${estNow.getTime()}.png`;
             link.href = canvas.toDataURL('image/png');
             
             // Trigger download
@@ -1469,6 +1574,30 @@ const ProjectionsModule = (function() {
         const lastPrice = historicalPrices[historicalPrices.length - 1];
         const change = lastPrice - firstPrice;
         const changePercent = firstPrice !== 0 ? (change / firstPrice) * 100 : 0;
+        
+        // Calculate Period High and Low from candles data
+        let periodHigh = lastPrice;
+        let periodLow = lastPrice;
+        
+        if (historicalCandles && historicalCandles.length > 0) {
+            const highs = historicalCandles
+                .map(c => parseFloat(c.high || c.close || 0))
+                .filter(h => !isNaN(h) && h > 0);
+            const lows = historicalCandles
+                .map(c => parseFloat(c.low || c.close || 0))
+                .filter(l => !isNaN(l) && l > 0);
+            
+            if (highs.length > 0) {
+                periodHigh = Math.max(...highs);
+            }
+            if (lows.length > 0) {
+                periodLow = Math.min(...lows);
+            }
+        } else {
+            // Fallback to prices if candles not available
+            periodHigh = Math.max(...historicalPrices);
+            periodLow = Math.min(...historicalPrices);
+        }
         
         // Calculate average projected price from all lines
         const allProjectedPrices = [];
@@ -1527,6 +1656,62 @@ const ProjectionsModule = (function() {
             const percentSign = projectedChangePercent >= 0 ? '+' : '';
             projPercentEl.textContent = `${percentSign}${projectedChangePercent.toFixed(2)}%`;
             projPercentEl.className = 'metric-percent ' + (projectedChangePercent >= 0 ? 'positive' : 'negative');
+        }
+        
+        // Update Period High
+        const periodHighEl = document.getElementById('metric-period-high');
+        if (periodHighEl) {
+            periodHighEl.textContent = formatPrice(periodHigh);
+            periodHighEl.className = 'metric-value';
+        }
+        
+        // Update Period Low
+        const periodLowEl = document.getElementById('metric-period-low');
+        if (periodLowEl) {
+            periodLowEl.textContent = formatPrice(periodLow);
+            periodLowEl.className = 'metric-value';
+        }
+        
+        // Format volume with K, M, B suffixes
+        function formatVolume(volume) {
+            if (volume === 0 || isNaN(volume)) return 'N/A';
+            if (volume >= 1000000000) {
+                return (volume / 1000000000).toFixed(2) + 'B';
+            } else if (volume >= 1000000) {
+                return (volume / 1000000).toFixed(2) + 'M';
+            } else if (volume >= 1000) {
+                return (volume / 1000).toFixed(2) + 'K';
+            }
+            return volume.toLocaleString();
+        }
+        
+        // Calculate Average Volume
+        let averageVolume = 0;
+        let actualVolume = 0;
+        if (historicalCandles && historicalCandles.length > 0) {
+            const volumes = historicalCandles
+                .map(c => parseFloat(c.volume || 0))
+                .filter(v => !isNaN(v) && v > 0);
+            
+            if (volumes.length > 0) {
+                averageVolume = volumes.reduce((a, b) => a + b, 0) / volumes.length;
+                // Actual volume is the most recent (last) candle's volume
+                actualVolume = volumes[volumes.length - 1] || 0;
+            }
+        }
+        
+        // Update Average Volume
+        const avgVolumeEl = document.getElementById('metric-average-volume');
+        if (avgVolumeEl) {
+            avgVolumeEl.textContent = formatVolume(averageVolume);
+            avgVolumeEl.className = 'metric-value';
+        }
+        
+        // Update Actual Volume
+        const actualVolumeEl = document.getElementById('metric-actual-volume');
+        if (actualVolumeEl) {
+            actualVolumeEl.textContent = formatVolume(actualVolume);
+            actualVolumeEl.className = 'metric-value';
         }
     }
     
@@ -2119,28 +2304,67 @@ const ProjectionsModule = (function() {
         watchPageActivation();
     }
     
-    // Watch for page activation
+    // Watch for page activation (now watches for tab activation)
     function watchPageActivation() {
-        const pageEl = document.getElementById('page-projections');
-        if (!pageEl) return;
+        const chartsPage = document.getElementById('page-charts');
+        const projectionsTab = document.getElementById('tab-projections');
         
-        const observer = new MutationObserver((mutations) => {
+        if (!chartsPage || !projectionsTab) return;
+        
+        // Check if charts page is active and projections tab is visible
+        function checkAndLoad() {
+            if (chartsPage.classList.contains('active') && projectionsTab.classList.contains('active')) {
+                if (!currentSymbol || currentSymbol === '') {
+                    autoLoadSPY();
+                }
+            }
+        }
+        
+        // Check on init
+        checkAndLoad();
+        
+        // Watch for charts page activation
+        const chartsObserver = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                    if (pageEl.classList.contains('active')) {
-                        // Page is active, ensure chart is ready
-                        if (projectionChart && currentSymbol) {
-                            // Chart already exists, do nothing
-                        }
-                    }
+                    checkAndLoad();
                 }
             });
         });
         
-        observer.observe(pageEl, {
+        chartsObserver.observe(chartsPage, {
             attributes: true,
             attributeFilter: ['class']
         });
+        
+        // Watch for tab activation
+        const tabObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    checkAndLoad();
+                }
+            });
+        });
+        
+        tabObserver.observe(projectionsTab, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
+    
+    // Auto-load SPY on projections page
+    function autoLoadSPY() {
+        const symbolInput = document.getElementById('projection-symbol-input');
+        if (!symbolInput) return;
+        
+        // Only auto-load if input is empty
+        if (!symbolInput.value.trim()) {
+            symbolInput.value = 'SPY';
+            // Small delay to ensure DOM is ready
+            setTimeout(() => {
+                loadProjectionData();
+            }, 100);
+        }
     }
     
     // Initialize when DOM is ready
@@ -2152,7 +2376,8 @@ const ProjectionsModule = (function() {
     
     return {
         init: init,
-        loadProjectionData: loadProjectionData
+        loadProjectionData: loadProjectionData,
+        autoLoadSPY: autoLoadSPY
     };
 })();
 

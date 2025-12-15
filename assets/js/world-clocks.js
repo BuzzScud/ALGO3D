@@ -115,7 +115,12 @@ const availableCities = {
 // Load saved clocks from localStorage
 function loadSavedClocks() {
     const saved = localStorage.getItem('sidebarClocks');
-    return saved ? JSON.parse(saved) : ['New York', 'Tokyo'];
+    if (saved) {
+        return JSON.parse(saved);
+    }
+    // Only return default on first load (when localStorage is empty)
+    // This ensures removed clocks stay removed
+    return ['New York', 'Tokyo'];
 }
 
 // Save clocks to localStorage
@@ -146,7 +151,13 @@ function addClockToSidebar(cityName) {
     const addButton = document.getElementById('add-clock-btn');
     
     // Create new clock HTML - generate ID from city name
-    const clockId = cityName.toLowerCase().replace(/\s+/g, '-');
+    // Handle special cases for existing clocks
+    let clockId = cityName.toLowerCase().replace(/\s+/g, '-');
+    if (cityName === 'New York') {
+        clockId = 'ny';
+    } else if (cityName === 'Tokyo') {
+        clockId = 'tokyo';
+    }
     const clockHTML = `
         <div class="mini-clock-item" data-city="${cityName}">
             <div class="mini-clock-header">
@@ -283,8 +294,99 @@ function updateAllMiniClocks() {
     });
 }
 
+// Add clock to DOM without saving (used for syncing)
+function addClockToDOM(cityName) {
+    const cityData = availableCities[cityName] || {
+        timezone: timezones[cityName.toLowerCase().replace(' ', '')] || 'UTC',
+        country: cityName,
+        label: '5 Change & Adventure',
+        description: 'A time for exploration and new experiences'
+    };
+    
+    const miniClocksContainer = document.querySelector('.sidebar-mini-clocks');
+    if (!miniClocksContainer) return;
+    
+    // Check if clock already exists
+    const existingClock = miniClocksContainer.querySelector(`[data-city="${cityName}"]`);
+    if (existingClock) return;
+    
+    // Get the Add Clock button
+    const addButton = document.getElementById('add-clock-btn');
+    if (!addButton) return;
+    
+    // Create new clock HTML - generate ID from city name
+    // Handle special cases for existing clocks
+    let clockId = cityName.toLowerCase().replace(/\s+/g, '-');
+    if (cityName === 'New York') {
+        clockId = 'ny';
+    } else if (cityName === 'Tokyo') {
+        clockId = 'tokyo';
+    }
+    const clockHTML = `
+        <div class="mini-clock-item" data-city="${cityName}">
+            <div class="mini-clock-header">
+                <span class="mini-clock-city">${cityName}</span>
+                <span class="mini-clock-country">${cityData.country}</span>
+                <button class="mini-clock-remove" data-city="${cityName}" title="Remove clock">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mini-clock-time" id="mini-clock-${clockId}">--:--:--</div>
+            <div class="mini-clock-date" id="mini-clock-${clockId}-date">-- -- ----</div>
+            <div class="mini-clock-label">${cityData.label}</div>
+            <div class="mini-clock-description">${cityData.description}</div>
+        </div>
+    `;
+    
+    // Insert before Add Clock button
+    addButton.insertAdjacentHTML('beforebegin', clockHTML);
+    
+    // Update timezones mapping
+    timezones[clockId] = cityData.timezone;
+    
+    // Add remove button listener
+    const removeBtn = miniClocksContainer.querySelector(`[data-city="${cityName}"] .mini-clock-remove`);
+    if (removeBtn) {
+        removeBtn.addEventListener('click', function() {
+            removeClock(cityName);
+        });
+    }
+    
+    // Update immediately
+    updateMiniClock(clockId, cityData.timezone);
+}
+
+// Sync clocks with localStorage on page load
+function syncClocksWithStorage() {
+    const savedClocks = loadSavedClocks();
+    const miniClocksContainer = document.querySelector('.sidebar-mini-clocks');
+    if (!miniClocksContainer) return;
+    
+    // Get all existing clock elements
+    const existingClocks = miniClocksContainer.querySelectorAll('.mini-clock-item');
+    const existingCities = Array.from(existingClocks).map(clock => clock.dataset.city);
+    
+    // Remove clocks that are not in saved list
+    existingClocks.forEach(clock => {
+        const cityName = clock.dataset.city;
+        if (!savedClocks.includes(cityName)) {
+            clock.remove();
+        }
+    });
+    
+    // Add clocks that are in saved list but not in DOM
+    savedClocks.forEach(cityName => {
+        if (!existingCities.includes(cityName)) {
+            addClockToDOM(cityName);
+        }
+    });
+}
+
 // Initialize clocks
 function initWorldClocks() {
+    // Sync clocks with localStorage first
+    syncClocksWithStorage();
+    
     // Update immediately
     updateAllClocks();
     updateAllMiniClocks();

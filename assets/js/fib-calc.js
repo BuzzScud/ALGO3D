@@ -58,16 +58,12 @@ const FibCalcModule = (function() {
     }
     
     function setupChartTypeToggle() {
-        const lineBtn = document.getElementById('fib-chart-type-line');
-        const candlestickBtn = document.getElementById('fib-chart-type-candlestick');
         const lineBtnInline = document.getElementById('fib-chart-type-line-inline');
         const candlestickBtnInline = document.getElementById('fib-chart-type-candlestick-inline');
         
         function switchToLine() {
             if (currentChartType === 'line') return;
             currentChartType = 'line';
-            lineBtn?.classList.add('active');
-            candlestickBtn?.classList.remove('active');
             lineBtnInline?.classList.add('active');
             candlestickBtnInline?.classList.remove('active');
             if (currentData) {
@@ -78,21 +74,11 @@ const FibCalcModule = (function() {
         function switchToCandlestick() {
             if (currentChartType === 'candlestick') return;
             currentChartType = 'candlestick';
-            candlestickBtn?.classList.add('active');
-            lineBtn?.classList.remove('active');
             candlestickBtnInline?.classList.add('active');
             lineBtnInline?.classList.remove('active');
             if (currentData) {
                 renderChart(currentData);
             }
-        }
-        
-        if (lineBtn) {
-            lineBtn.addEventListener('click', switchToLine);
-        }
-        
-        if (candlestickBtn) {
-            candlestickBtn.addEventListener('click', switchToCandlestick);
         }
         
         if (lineBtnInline) {
@@ -1089,12 +1075,8 @@ const FibCalcModule = (function() {
                 currentChartType = 'line'; // Update state to match reality
                 
                 // Update UI to reflect line chart
-                const lineBtn = document.getElementById('fib-chart-type-line');
-                const candlestickBtn = document.getElementById('fib-chart-type-candlestick');
                 const lineBtnInline = document.getElementById('fib-chart-type-line-inline');
                 const candlestickBtnInline = document.getElementById('fib-chart-type-candlestick-inline');
-                if (lineBtn) lineBtn.classList.add('active');
-                if (candlestickBtn) candlestickBtn.classList.remove('active');
                 if (lineBtnInline) lineBtnInline.classList.add('active');
                 if (candlestickBtnInline) candlestickBtnInline.classList.remove('active');
                 

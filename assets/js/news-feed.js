@@ -2,6 +2,10 @@
 const NewsFeedModule = (function() {
     let currentCategory = 'general';
     let isLoading = false;
+    let allArticles = [];
+    let currentPage = 1;
+    const articlesPerPage = 30;
+    const maxPages = 5;
     
     // Format time ago
     function formatTimeAgo(timestamp) {
@@ -40,30 +44,45 @@ const NewsFeedModule = (function() {
         return text.substring(0, maxLength) + '...';
     }
     
-    // Render news articles
+    // Render news articles with pagination
     function renderNews(newsData) {
         const container = document.getElementById('news-feed-container');
+        const paginationEl = document.getElementById('news-pagination');
         if (!container) return;
         
-        if (!newsData || newsData.length === 0) {
+        // Store all articles
+        allArticles = newsData || [];
+        
+        if (allArticles.length === 0) {
             container.innerHTML = `
                 <div class="news-empty-state">
                     <i class="fas fa-newspaper"></i>
                     <p>No news available at this time.</p>
                 </div>
             `;
+            if (paginationEl) paginationEl.style.display = 'none';
             return;
         }
         
-        const newsHTML = newsData.map((article, index) => {
+        // Calculate pagination
+        const totalPages = Math.min(Math.ceil(allArticles.length / articlesPerPage), maxPages);
+        currentPage = Math.min(currentPage, totalPages);
+        
+        // Get articles for current page
+        const startIndex = (currentPage - 1) * articlesPerPage;
+        const endIndex = startIndex + articlesPerPage;
+        const pageArticles = allArticles.slice(startIndex, endIndex);
+        
+        // Render articles in 4-column grid
+        const newsHTML = pageArticles.map((article, index) => {
             const timeAgo = formatTimeAgo(article.datetime);
             const date = formatDate(article.datetime);
-            const summary = truncateText(article.summary || article.headline, 200);
+            const summary = truncateText(article.summary || article.headline, 150);
             const image = article.image || '';
             const source = article.source || 'Unknown';
             
             return `
-                <div class="news-article" data-index="${index}">
+                <div class="news-article" data-index="${startIndex + index}">
                     ${image ? `
                         <div class="news-article-image">
                             <img src="${image}" alt="${article.headline}" onerror="this.style.display='none'">
@@ -94,6 +113,68 @@ const NewsFeedModule = (function() {
         }).join('');
         
         container.innerHTML = newsHTML;
+        
+        // Render pagination
+        renderPagination(totalPages);
+    }
+    
+    // Render pagination controls
+    function renderPagination(totalPages) {
+        const paginationEl = document.getElementById('news-pagination');
+        const pagesEl = document.getElementById('news-pagination-pages');
+        const prevBtn = document.getElementById('news-prev-btn');
+        const nextBtn = document.getElementById('news-next-btn');
+        
+        if (!paginationEl || !pagesEl || !prevBtn || !nextBtn) return;
+        
+        if (totalPages <= 1) {
+            paginationEl.style.display = 'none';
+            return;
+        }
+        
+        paginationEl.style.display = 'flex';
+        
+        // Update prev/next buttons
+        prevBtn.disabled = currentPage === 1;
+        nextBtn.disabled = currentPage === totalPages;
+        
+        // Render page numbers
+        let pagesHTML = '';
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                pagesHTML += `
+                    <button class="pagination-page ${i === currentPage ? 'active' : ''}" data-page="${i}">
+                        ${i}
+                    </button>
+                `;
+            } else if (i === currentPage - 2 || i === currentPage + 2) {
+                pagesHTML += `<span class="pagination-ellipsis">...</span>`;
+            }
+        }
+        
+        pagesEl.innerHTML = pagesHTML;
+        
+        // Add event listeners
+        pagesEl.querySelectorAll('.pagination-page').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentPage = parseInt(btn.dataset.page);
+                renderNews(allArticles);
+            });
+        });
+        
+        prevBtn.onclick = () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderNews(allArticles);
+            }
+        };
+        
+        nextBtn.onclick = () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderNews(allArticles);
+            }
+        };
     }
     
     // Show loading state
@@ -132,6 +213,7 @@ const NewsFeedModule = (function() {
         
         if (category) {
             currentCategory = category;
+            currentPage = 1; // Reset to first page when category changes
         }
         
         isLoading = true;

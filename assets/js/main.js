@@ -11,6 +11,9 @@ function initPageNavigation() {
             
             const pageName = this.dataset.page;
             
+            // Save current page to localStorage
+            localStorage.setItem('current_page', pageName);
+            
             // Update active sidebar item
             sidebarItems.forEach(i => i.classList.remove('active'));
             this.classList.add('active');
@@ -23,6 +26,9 @@ function initPageNavigation() {
                     
                     // Auto-load QQQ on Charts page
                     if (pageName === 'charts') {
+                        // Initialize tabs
+                        initChartsTabs();
+                        
                         setTimeout(() => {
                             // Try ChartsModule first, then fallback to direct function call
                             const symbolInput = document.getElementById('chart-symbol-input');
@@ -37,6 +43,14 @@ function initPageNavigation() {
                                     if (loadBtn) {
                                         loadBtn.click();
                                     }
+                                }
+                            }
+                            
+                            // Auto-load SPY on Projections tab if it's visible
+                            const projectionsTab = document.getElementById('tab-projections');
+                            if (projectionsTab && projectionsTab.classList.contains('active')) {
+                                if (typeof ProjectionsModule !== 'undefined' && ProjectionsModule.autoLoadSPY) {
+                                    ProjectionsModule.autoLoadSPY();
                                 }
                             }
                         }, 300);
@@ -60,6 +74,56 @@ function initPageNavigation() {
             }
         });
     });
+}
+
+// Charts page tabs
+function initChartsTabs() {
+    const tabButtons = document.querySelectorAll('.chart-tab-btn');
+    const tabContents = document.querySelectorAll('.chart-tab-content');
+    
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const targetTab = this.dataset.tab;
+            
+            // Save current tab to localStorage
+            localStorage.setItem('current_charts_tab', targetTab);
+            
+            // Remove active class from all buttons and contents
+            tabButtons.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            
+            // Add active class to clicked button and corresponding content
+            this.classList.add('active');
+            const targetContent = document.getElementById(`tab-${targetTab}`);
+            if (targetContent) {
+                targetContent.classList.add('active');
+                
+                // Auto-load SPY when projections tab is activated
+                if (targetTab === 'projections') {
+                    setTimeout(() => {
+                        if (typeof ProjectionsModule !== 'undefined' && ProjectionsModule.autoLoadSPY) {
+                            ProjectionsModule.autoLoadSPY();
+                        }
+                    }, 100);
+                }
+            }
+        });
+    });
+    
+    // Restore saved tab on page load
+    const savedTab = localStorage.getItem('current_charts_tab');
+    if (savedTab) {
+        const savedTabBtn = document.querySelector(`.chart-tab-btn[data-tab="${savedTab}"]`);
+        const savedTabContent = document.getElementById(`tab-${savedTab}`);
+        if (savedTabBtn && savedTabContent) {
+            // Remove active from default
+            tabButtons.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            // Activate saved tab
+            savedTabBtn.classList.add('active');
+            savedTabContent.classList.add('active');
+        }
+    }
 }
 
 // Sidebar toggle
@@ -302,8 +366,103 @@ function setupDashboardTodos() {
     }
 }
 
+// Restore saved page on load
+function restoreSavedPage() {
+    // Remove active from all pages and sidebar items first (including default dashboard)
+    document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+    
+    const savedPage = localStorage.getItem('current_page');
+    
+    if (savedPage) {
+        const sidebarItem = document.querySelector(`.sidebar-item[data-page="${savedPage}"]`);
+        const page = document.getElementById(`page-${savedPage}`);
+        
+        if (sidebarItem && page) {
+            // Update active sidebar item
+            sidebarItem.classList.add('active');
+            
+            // Show corresponding page
+            page.classList.add('active');
+            
+            // Handle page-specific initialization
+            if (savedPage === 'charts') {
+                // Initialize charts tabs first
+                initChartsTabs();
+                
+                // Restore charts tab
+                const savedTab = localStorage.getItem('current_charts_tab');
+                if (savedTab) {
+                    const savedTabBtn = document.querySelector(`.chart-tab-btn[data-tab="${savedTab}"]`);
+                    const savedTabContent = document.getElementById(`tab-${savedTab}`);
+                    if (savedTabBtn && savedTabContent) {
+                        document.querySelectorAll('.chart-tab-btn').forEach(b => b.classList.remove('active'));
+                        document.querySelectorAll('.chart-tab-content').forEach(c => c.classList.remove('active'));
+                        savedTabBtn.classList.add('active');
+                        savedTabContent.classList.add('active');
+                    }
+                }
+                
+                setTimeout(() => {
+                    // Try ChartsModule first, then fallback to direct function call
+                    const symbolInput = document.getElementById('chart-symbol-input');
+                    if (symbolInput) {
+                        symbolInput.value = 'QQQ';
+                        
+                        if (typeof ChartsModule !== 'undefined' && ChartsModule.loadChart) {
+                            ChartsModule.loadChart('QQQ');
+                        } else {
+                            // Fallback: trigger the load button click
+                            const loadBtn = document.getElementById('load-chart-btn');
+                            if (loadBtn) {
+                                loadBtn.click();
+                            }
+                        }
+                    }
+                    
+                    // Auto-load SPY on Projections tab if it's visible
+                    const projectionsTab = document.getElementById('tab-projections');
+                    if (projectionsTab && projectionsTab.classList.contains('active')) {
+                        if (typeof ProjectionsModule !== 'undefined' && ProjectionsModule.autoLoadSPY) {
+                            ProjectionsModule.autoLoadSPY();
+                        }
+                    }
+                }, 500);
+            } else if (savedPage === 'news') {
+                setTimeout(() => {
+                    if (typeof NewsFeedModule !== 'undefined' && NewsFeedModule.loadNews) {
+                        NewsFeedModule.loadNews();
+                    }
+                }, 500);
+            }
+        } else {
+            // If saved page doesn't exist, default to dashboard
+            const dashboardItem = document.querySelector('.sidebar-item[data-page="dashboard"]');
+            const dashboardPage = document.getElementById('page-dashboard');
+            if (dashboardItem && dashboardPage) {
+                dashboardItem.classList.add('active');
+                dashboardPage.classList.add('active');
+            }
+        }
+    } else {
+        // No saved page, default to dashboard and save it
+        const dashboardItem = document.querySelector('.sidebar-item[data-page="dashboard"]');
+        const dashboardPage = document.getElementById('page-dashboard');
+        if (dashboardItem && dashboardPage) {
+            dashboardItem.classList.add('active');
+            dashboardPage.classList.add('active');
+            // Save dashboard as current page for future refreshes
+            localStorage.setItem('current_page', 'dashboard');
+        }
+    }
+}
+
 // Initialize all functionality
 function init() {
+    // Restore saved page FIRST, before any other initialization
+    restoreSavedPage();
+    
+    // Then initialize everything else
     initPageNavigation();
     initSidebarToggle();
     initSidebarThemeToggle();
@@ -311,6 +470,13 @@ function init() {
     loadDashboardStats();
     setupDashboardTodos();
     loadDashboardTodos();
+    
+    // Don't call initChartsTabs here if we're restoring charts page - it's called in restoreSavedPage
+    // Only call it if we're not on charts page
+    const currentPage = localStorage.getItem('current_page') || 'dashboard';
+    if (currentPage !== 'charts') {
+        initChartsTabs();
+    }
     
     // Refresh stats periodically
     setInterval(loadDashboardStats, 60000);

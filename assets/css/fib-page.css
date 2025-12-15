@@ -153,11 +153,12 @@
 .fib-info-box {
     background: rgba(59, 130, 246, 0.1);
     border-left: 3px solid var(--primary-color);
-    padding: 0.6rem 0.85rem;
-    border-radius: 0.5rem;
-    margin-top: 0.75rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: 0.4rem;
+    margin-top: 0.5rem;
     display: flex;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    flex-shrink: 0;
 }
 
 .fib-info-box i {
@@ -169,8 +170,8 @@
 
 .fib-info-box p {
     color: var(--text-secondary);
-    line-height: 1.4;
-    font-size: 0.8rem;
+    line-height: 1.3;
+    font-size: 0.75rem;
     margin: 0;
 }
 
@@ -225,61 +226,46 @@
 
 .fib-levels-card {
     height: 100%;
-    overflow-y: auto;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .fib-levels-card h2 {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
     font-size: 1.05rem;
     padding-bottom: 0.5rem;
     flex-shrink: 0;
 }
 
-.fib-levels-card::-webkit-scrollbar {
-    width: 6px;
-}
-
-.fib-levels-card::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.fib-levels-card::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 3px;
-}
-
-.fib-levels-card::-webkit-scrollbar-thumb:hover {
-    background: var(--text-secondary);
-}
-
 .fib-levels-container {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 0.6rem;
-    margin-top: 0.75rem;
+    gap: 0.5rem;
     flex: 1;
     min-height: 0;
+    overflow: hidden;
 }
 
 .fib-levels-column {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    height: 100%;
 }
 
 .fib-levels-column h3 {
     color: var(--text-primary);
-    margin-bottom: 0.4rem;
-    font-size: 0.8rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    padding-bottom: 0.35rem;
+    padding-bottom: 0.3rem;
     border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.3rem;
     flex-shrink: 0;
+    line-height: 1.2;
 }
 
 .fib-levels-col-header-hidden {
@@ -303,24 +289,43 @@
 .fib-levels-list {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 0.25rem;
     overflow-y: auto;
+    overflow-x: hidden;
     flex: 1;
     min-height: 0;
+    padding-right: 0.25rem;
+}
+
+.fib-levels-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.fib-levels-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.fib-levels-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+.fib-levels-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
 }
 
 .fib-level-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.4rem 0.5rem;
-    border-radius: 0.35rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: 0.4rem;
     background: var(--dark-bg);
     border: 1px solid var(--border-color);
     transition: all 0.2s ease;
-    margin-bottom: 0.3rem;
     font-size: 0.8rem;
     flex-shrink: 0;
+    min-height: 36px;
 }
 
 .fib-level-item:hover {
@@ -344,13 +349,16 @@
 .fib-level-label {
     font-weight: 600;
     color: var(--primary-color);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
 }
 
 .fib-level-value {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--text-primary);
     font-weight: 600;
+    white-space: nowrap;
+    margin-left: 0.5rem;
 }
 
 .fib-chart-card {
@@ -470,7 +478,7 @@
 
 .fib-chart-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     margin-bottom: 0.75rem;
 }
@@ -573,13 +581,14 @@
     
     .fib-levels-container {
         grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
     }
     
     .fib-levels-col-header-hidden {
         visibility: visible;
         height: auto;
-        margin-bottom: 0.4rem;
-        padding-bottom: 0.35rem;
+        margin-bottom: 0.35rem;
+        padding-bottom: 0.3rem;
         border-bottom: 1px solid var(--border-color);
     }
 }
@@ -591,13 +600,14 @@
     
     .fib-levels-container {
         grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
     }
     
     .fib-levels-col-header-hidden {
         visibility: visible;
         height: auto;
-        margin-bottom: 0.4rem;
-        padding-bottom: 0.35rem;
+        margin-bottom: 0.35rem;
+        padding-bottom: 0.3rem;
         border-bottom: 1px solid var(--border-color);
     }
     
@@ -636,13 +646,14 @@
     
     .fib-levels-container {
         grid-template-columns: 1fr;
+        gap: 0.5rem;
     }
     
     .fib-levels-col-header-hidden {
         visibility: visible;
         height: auto;
-        margin-bottom: 0.4rem;
-        padding-bottom: 0.35rem;
+        margin-bottom: 0.35rem;
+        padding-bottom: 0.3rem;
         border-bottom: 1px solid var(--border-color);
     }
     

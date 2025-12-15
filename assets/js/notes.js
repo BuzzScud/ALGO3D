@@ -1494,12 +1494,23 @@ function displaySavedProjections(projections) {
 
 // Load projection to projections page
 function loadProjection(id) {
+    console.log('loadProjection called with ID:', id);
+    
+    if (!id || isNaN(id)) {
+        console.error('Invalid projection ID:', id);
+        alert('Invalid projection ID');
+        return;
+    }
+    
+    const projectionId = parseInt(id);
+    console.log('Fetching projection data for ID:', projectionId);
+    
     // Fetch current projections if not passed
     fetch('api/projections.php')
         .then(response => response.json())
         .then(result => {
             const projections = result.success && result.projections ? result.projections : [];
-            const proj = projections.find(p => p.id == id);
+            const proj = projections.find(p => p.id == projectionId || p.id === projectionId);
             if (!proj) {
                 alert('Projection not found');
                 return;
@@ -1524,12 +1535,43 @@ function loadProjection(id) {
                 const countValueInput = document.getElementById('projection-count-value');
                 const depthValueInput = document.getElementById('projection-depth-value');
                 
-                if (symbolInput) symbolInput.value = proj.symbol;
-                if (intervalSelect && proj.projection_data && proj.projection_data.interval) {
-                    intervalSelect.value = proj.projection_data.interval;
+                // Parse projection_data if it's a string
+                let projectionData = null;
+                try {
+                    projectionData = typeof proj.projection_data === 'string' 
+                        ? JSON.parse(proj.projection_data) 
+                        : proj.projection_data;
+                } catch (e) {
+                    console.warn('Error parsing projection_data:', e);
                 }
                 
-                const params = proj.params ? (typeof proj.params === 'string' ? JSON.parse(proj.params) : proj.params) : {};
+                if (symbolInput) {
+                    symbolInput.value = projectionData?.symbol || proj.symbol || '';
+                }
+                
+                if (intervalSelect && projectionData && projectionData.interval) {
+                    intervalSelect.value = projectionData.interval;
+                }
+                
+                // Parse params from projection_data or proj.params
+                let params = {};
+                if (projectionData && projectionData.params) {
+                    try {
+                        params = typeof projectionData.params === 'string' 
+                            ? JSON.parse(projectionData.params) 
+                            : projectionData.params;
+                    } catch (e) {
+                        console.warn('Error parsing params from projection_data:', e);
+                    }
+                } else if (proj.params) {
+                    try {
+                        params = typeof proj.params === 'string' 
+                            ? JSON.parse(proj.params) 
+                            : proj.params;
+                    } catch (e) {
+                        console.warn('Error parsing params:', e);
+                    }
+                }
                 
                 // Set custom mode and update inputs
                 const customPreset = document.getElementById('preset-custom');
@@ -1589,6 +1631,9 @@ async function deleteProjection(id) {
         alert('Failed to delete projection. Please try again.');
     }
 }
+
+// Expose loadProjection globally for use by other modules
+window.loadProjection = loadProjection;
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {

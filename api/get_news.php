@@ -75,9 +75,9 @@ if (json_last_error() !== JSON_ERROR_NONE) {
     exit;
 }
 
-// Limit to 20 most recent articles
+// Limit to 150 most recent articles (30 per page × 5 pages)
 if (is_array($newsData)) {
-    $newsData = array_slice($newsData, 0, 20);
+    $newsData = array_slice($newsData, 0, 150);
     
     // Save to cache
     file_put_contents($cacheFile, json_encode([

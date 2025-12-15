@@ -22,6 +22,33 @@ if (!is_dir($cacheDir)) {
     mkdir($cacheDir, 0755, true);
 }
 
+/**
+ * Convert Unix timestamp to EST timezone
+ * Returns timestamp adjusted to EST/EDT (handles DST automatically)
+ * Note: This converts the timestamp representation to EST, but keeps it as milliseconds
+ */
+function convertToEST($timestampMs) {
+    if (!$timestampMs) return $timestampMs;
+    
+    // Convert milliseconds to seconds for DateTime
+    $timestampSeconds = $timestampMs / 1000;
+    
+    // Create DateTime object from UTC timestamp
+    $utcDate = new DateTime('@' . $timestampSeconds, new DateTimeZone('UTC'));
+    
+    // Convert to EST/EDT timezone
+    $estDate = clone $utcDate;
+    $estDate->setTimezone(new DateTimeZone('America/New_York'));
+    
+    // Get the offset in seconds
+    $offset = $estDate->getOffset();
+    
+    // Adjust the timestamp by the offset (convert to milliseconds)
+    $estTimestampMs = $timestampMs + ($offset * 1000);
+    
+    return $estTimestampMs;
+}
+
 switch ($method) {
     case 'GET':
         switch ($action) {
@@ -361,8 +388,11 @@ function fetchYahooChartData($symbol, $timeframe) {
             continue;
         }
         
+        $originalTime = $timestamps[$i] * 1000; // Convert to milliseconds
+        $estTime = convertToEST($originalTime);
+        
         $candles[] = [
-            'time' => $timestamps[$i] * 1000, // Convert to milliseconds
+            'time' => $estTime, // Convert to EST
             'open' => round($quote['open'][$i], 2),
             'high' => round($quote['high'][$i], 2),
             'low' => round($quote['low'][$i], 2),
@@ -441,8 +471,11 @@ function formatCandleData($data, $symbol, $timeframe) {
     $count = count($data['c']);
     
     for ($i = 0; $i < $count; $i++) {
+        $originalTime = $data['t'][$i] * 1000; // Convert to milliseconds
+        $estTime = convertToEST($originalTime);
+        
         $candles[] = [
-            'time' => $data['t'][$i] * 1000, // Convert to milliseconds
+            'time' => $estTime, // Convert to EST
             'open' => $data['o'][$i],
             'high' => $data['h'][$i],
             'low' => $data['l'][$i],

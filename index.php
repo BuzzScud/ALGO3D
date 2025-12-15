@@ -12,6 +12,7 @@ require_once 'includes/database.php';
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/fib-page.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
     <!-- Sidebar Menu -->
@@ -42,18 +43,6 @@ require_once 'includes/database.php';
                     <a href="#" class="sidebar-link">
                         <i class="fas fa-chart-line"></i>
                         <span>Charts</span>
-                    </a>
-                </li>
-                <li class="sidebar-item" data-page="projections">
-                    <a href="#" class="sidebar-link">
-                        <i class="fas fa-project-diagram"></i>
-                        <span>Projection</span>
-                    </a>
-                </li>
-                <li class="sidebar-item" data-page="fib">
-                    <a href="#" class="sidebar-link">
-                        <i class="fas fa-calculator"></i>
-                        <span>FIB</span>
                     </a>
                 </li>
                 <li class="sidebar-item" data-page="data">
@@ -226,12 +215,6 @@ require_once 'includes/database.php';
 
         <!-- Dashboard Page -->
         <main class="page-content active" id="page-dashboard">
-            <div class="page-header">
-                <div class="page-title-section">
-                    <h1 class="page-title">Dashboard</h1>
-                    <p class="page-subtitle">Real-time market data and world clocks</p>
-                </div>
-            </div>
             <div class="dashboard-container">
                 <!-- World Clocks Section -->
                 <section class="dashboard-section clocks-section clocks-section-top">
@@ -345,12 +328,6 @@ require_once 'includes/database.php';
 
         <!-- News Page -->
         <main class="page-content" id="page-news">
-            <div class="page-header">
-                <h1 class="page-title">
-                    <i class="fas fa-newspaper"></i>
-                    News & Economic Calendar
-                </h1>
-            </div>
             <div class="news-container">
                 <div class="news-widgets-grid">
                     <!-- Top Stories Widget -->
@@ -427,46 +404,39 @@ require_once 'includes/database.php';
                             <span>Loading market news...</span>
                         </div>
                     </div>
+                    <div class="news-pagination" id="news-pagination" style="display: none;">
+                        <button class="pagination-btn" id="news-prev-btn" title="Previous Page">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div class="pagination-pages" id="news-pagination-pages"></div>
+                        <button class="pagination-btn" id="news-next-btn" title="Next Page">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </main>
 
         <!-- Charts Page -->
         <main class="page-content" id="page-charts">
-            <div class="page-header">
-                <h1 class="page-title">
-                    <i class="fas fa-chart-candlestick"></i>
+            <!-- Tab Navigation -->
+            <div class="charts-tabs">
+                <button class="chart-tab-btn active" data-tab="trading-charts">
+                    <i class="fas fa-chart-line"></i>
                     Trading Charts
-                </h1>
-                <div class="charts-header-actions">
-                    <button class="btn btn-secondary" id="save-study-btn">
-                        <i class="fas fa-bookmark"></i>
-                        Save Study
-                    </button>
-                    <div class="saved-studies-dropdown">
-                        <button class="btn btn-secondary" id="toggle-studies-btn">
-                            <i class="fas fa-folder-open"></i>
-                            Saved Studies
-                            <i class="fas fa-chevron-down dropdown-arrow"></i>
-                        </button>
-                        <div class="saved-studies-panel" id="saved-studies-panel">
-                            <div class="studies-panel-header">
-                                <span>Your Saved Studies</span>
-                                <button class="btn btn-sm" id="close-studies-panel">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                            <div class="studies-panel-content" id="studies-panel-content">
-                                <!-- Studies will be loaded here -->
-                            </div>
-                            <div class="studies-panel-empty" id="studies-panel-empty">
-                                <i class="fas fa-folder-open"></i>
-                                <p>No saved studies yet</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </button>
+                <button class="chart-tab-btn" data-tab="fibonacci">
+                    <i class="fas fa-calculator"></i>
+                    Fibonacci Calculator
+                </button>
+                <button class="chart-tab-btn" data-tab="projections">
+                    <i class="fas fa-project-diagram"></i>
+                    Price Projections
+                </button>
             </div>
+            
+            <!-- Trading Charts Tab -->
+            <section class="chart-tab-content active" id="tab-trading-charts">
             <section class="charts-page-content">
                 <!-- Chart Controls -->
                 <div class="chart-controls-panel">
@@ -719,9 +689,598 @@ require_once 'includes/database.php';
                                 </label>
                             </div>
                         </div>
+
+                        <!-- Saved Studies -->
+                        <div class="analysis-section">
+                            <h3 class="analysis-title">
+                                <i class="fas fa-bookmark"></i>
+                                Saved Studies
+                            </h3>
+                            <div class="saved-studies-controls">
+                                <button class="btn btn-secondary btn-sm" id="save-study-btn">
+                                    <i class="fas fa-bookmark"></i>
+                                    Save Study
+                                </button>
+                                <div class="saved-studies-dropdown">
+                                    <button class="btn btn-secondary btn-sm" id="toggle-studies-btn">
+                                        <i class="fas fa-folder-open"></i>
+                                        Saved Studies
+                                        <i class="fas fa-chevron-down dropdown-arrow"></i>
+                                    </button>
+                                    <div class="saved-studies-panel" id="saved-studies-panel">
+                                        <div class="studies-panel-header">
+                                            <span>Your Saved Studies</span>
+                                            <button class="btn btn-sm" id="close-studies-panel">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                        <div class="studies-panel-content" id="studies-panel-content">
+                                            <!-- Studies will be loaded here -->
+                                        </div>
+                                        <div class="studies-panel-empty" id="studies-panel-empty">
+                                            <i class="fas fa-folder-open"></i>
+                                            <p>No saved studies yet</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
+            </section>
+            </section>
+            
+            <!-- Fibonacci Calculator Tab -->
+            <section class="chart-tab-content" id="tab-fibonacci">
+                <div class="fib-container">
+                    <!-- Top Section: Market Data + Fibonacci Levels -->
+                    <div class="fib-top-section">
+                        <!-- Left Column: Market Data Input + Current Market Data -->
+                        <div class="fib-left-column">
+                            <div class="fib-card">
+                                <h2>
+                                    <i class="fas fa-chart-line"></i>
+                                    Market Data Input
+                                </h2>
+                                
+                                <div class="fib-input-group">
+                                    <label for="fib-symbol">Symbol (Stock/Crypto)</label>
+                                    <input type="text" id="fib-symbol" class="fib-input" placeholder="e.g., AAPL, TSLA, BTC-USD" value="AAPL">
+                                    <small class="fib-hint">Enter a stock symbol (e.g., AAPL, GOOGL) or crypto symbol (e.g., BTC-USD, ETH-USD)</small>
+                                </div>
+
+                                <div class="fib-input-group">
+                                    <label>Time Period</label>
+                                    <div class="fib-info-highlight">
+                                        <i class="fas fa-calendar"></i>
+                                        Year to Date (YTD)
+                                    </div>
+                                </div>
+
+                                <div class="fib-input-group">
+                                    <label>Fibonacci Anchor</label>
+                                    <div class="fib-info-highlight">
+                                        <i class="fas fa-anchor"></i>
+                                        First Trading Day of Year
+                                    </div>
+                                </div>
+
+                                <div class="fib-input-group">
+                                    <label>Decimal Precision</label>
+                                    <div class="fib-toggle-group" id="fib-precision-toggle">
+                                        <button class="fib-toggle-btn active" data-value="2">2</button>
+                                        <button class="fib-toggle-btn" data-value="3">3</button>
+                                        <button class="fib-toggle-btn" data-value="4">4</button>
+                                        <button class="fib-toggle-btn" data-value="5">5</button>
+                                    </div>
+                                </div>
+
+                                <button class="btn btn-primary" id="fib-calculate-btn">
+                                    <i class="fas fa-calculator"></i>
+                                    Calculate Fibonacci Levels
+                                </button>
+
+                                <div class="fib-info-box">
+                                    <i class="fas fa-info-circle"></i>
+                                    <p><strong>How to use:</strong> Enter a stock symbol (e.g., AAPL, GOOGL) or crypto symbol (e.g., BTC-USD, ETH-USD) and click calculate. Fibonacci levels will be anchored to the first trading day of the current year.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Fibonacci Extension Levels -->
+                        <div class="fib-right-column" id="fib-levels-container" style="display: none;">
+                            <div class="fib-card fib-levels-card">
+                                <h2>
+                                    <i class="fas fa-layer-group"></i>
+                                    Fibonacci Extension Levels
+                                </h2>
+                                
+                                <div class="fib-levels-container">
+                                    <!-- Positive Levels - Column 1 -->
+                                    <div class="fib-levels-column fib-positive-col-1">
+                                        <h3>
+                                            <i class="fas fa-arrow-up"></i>
+                                            <span>↑ Positive Levels</span>
+                                        </h3>
+                                        <div id="fib-positive-levels-1" class="fib-levels-list"></div>
+                                    </div>
+
+                                    <!-- Positive Levels - Column 2 -->
+                                    <div class="fib-levels-column fib-positive-col-2">
+                                        <h3 class="fib-levels-col-header-hidden">
+                                            <i class="fas fa-arrow-up"></i>
+                                            <span>↑ Positive Levels</span>
+                                        </h3>
+                                        <div id="fib-positive-levels-2" class="fib-levels-list"></div>
+                                    </div>
+
+                                    <!-- Negative Levels - Column 1 -->
+                                    <div class="fib-levels-column fib-negative-col-1">
+                                        <h3>
+                                            <i class="fas fa-arrow-down"></i>
+                                            <span>↓ Negative Levels</span>
+                                        </h3>
+                                        <div id="fib-negative-levels-1" class="fib-levels-list"></div>
+                                    </div>
+
+                                    <!-- Negative Levels - Column 2 -->
+                                    <div class="fib-levels-column fib-negative-col-2">
+                                        <h3 class="fib-levels-col-header-hidden">
+                                            <i class="fas fa-arrow-down"></i>
+                                            <span>↓ Negative Levels</span>
+                                        </h3>
+                                        <div id="fib-negative-levels-2" class="fib-levels-list"></div>
+                                    </div>
+                                </div>
+
+                                <div class="fib-info-box">
+                                    <i class="fas fa-info-circle"></i>
+                                    <p><strong>Fibonacci Anchoring:</strong> BULLISH candle: 0 = Low, 1 = High. BEARISH candle: 0 = High, 1 = Low. Levels extend from these anchor points.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Section: Price Chart (Full Width) -->
+                    <div class="fib-chart-section" id="fib-chart-container" style="display: none;">
+                        <div class="fib-card fib-chart-card">
+                            <!-- Current Market Data - At Top of Chart -->
+                            <div class="fib-market-data-inline" id="fib-market-data" style="display: none;">
+                                <div class="fib-price-info-inline">
+                                    <div class="fib-market-data-header">
+                                        <h3 id="fib-symbol-name">Loading...</h3>
+                                        <div class="fib-market-data-header-right">
+                                            <div class="fib-chart-controls-inline">
+                                                <button class="fib-chart-type-btn active" id="fib-chart-type-line-inline" title="Line Chart">
+                                                    <i class="fas fa-chart-line"></i>
+                                                </button>
+                                                <button class="fib-chart-type-btn" id="fib-chart-type-candlestick-inline" title="Candlestick Chart">
+                                                    <i class="fas fa-chart-bar"></i>
+                                                </button>
+                                            </div>
+                                            <div class="fib-market-data-stats">
+                                                <div class="fib-market-stat">
+                                                    <span class="fib-stat-label">Current Price:</span>
+                                                    <span class="fib-stat-value" id="fib-current-price">-</span>
+                                                </div>
+                                                <div class="fib-market-stat">
+                                                    <span class="fib-stat-label">Period High:</span>
+                                                    <span class="fib-stat-value" id="fib-ytd-high">-</span>
+                                                </div>
+                                                <div class="fib-market-stat">
+                                                    <span class="fib-stat-label">Period Low:</span>
+                                                    <span class="fib-stat-value" id="fib-ytd-low">-</span>
+                                                </div>
+                                                <div class="fib-market-stat">
+                                                    <span class="fib-stat-label">Range:</span>
+                                                    <span class="fib-stat-value" id="fib-range">-</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="fib-anchor-info" class="fib-anchor-info-inline"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="fib-chart-wrapper">
+                                <canvas id="fib-chart"></canvas>
+                                <div id="fib-chart-loading" class="fib-chart-loading" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <span>Loading chart...</span>
+                                </div>
+                                <div id="fib-chart-empty" class="fib-chart-empty">
+                                    <i class="fas fa-chart-line"></i>
+                                    <p>Chart will appear here after calculation</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loading & Error States -->
+                    <div id="fib-loading" class="fib-loading" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>Fetching market data...</span>
+                    </div>
+                    <div id="fib-error" class="fib-error" style="display: none;"></div>
+                </div>
+            </section>
+            
+            <!-- Price Projections Tab -->
+            <section class="chart-tab-content" id="tab-projections">
+                <div class="projections-container">
+                    <!-- Search and Controls Section -->
+                    <div class="projections-controls-panel">
+                        <div class="projections-search-section">
+                            <div class="search-input-group">
+                                <input type="text" id="projection-symbol-input" class="projection-input" placeholder="Enter symbol (e.g., AAPL, TSLA, SPY)" value="">
+                                <button id="projection-search-btn" class="btn btn-primary">
+                                    <i class="fas fa-search"></i>
+                                    Search
+                                </button>
+                                <button id="projection-refresh-btn" class="btn btn-secondary" style="display: none;">
+                                    <i class="fas fa-sync-alt"></i>
+                                    Refresh
+                                </button>
+                            </div>
+                            <div class="projection-interval-selector">
+                                <label>Interval:</label>
+                                <select id="projection-interval-select" class="projection-select">
+                                    <option value="1d">1 Day</option>
+                                    <option value="5d">5 Days</option>
+                                    <option value="1mo">1 Month</option>
+                                    <option value="3mo">3 Months</option>
+                                    <option value="6mo">6 Months</option>
+                                    <option value="1y">1 Year</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Two Column Layout -->
+                        <div class="projections-two-column-layout">
+                            <!-- Column 1: Projection Configuration -->
+                            <div class="projections-column-left">
+                                <div class="projection-config-panel">
+                                    <h3>Projection Configuration</h3>
+                                    
+                                    <!-- Tab Navigation -->
+                                    <div class="projection-tabs">
+                                        <button class="projection-tab-btn active" data-tab="parameters">
+                                            <i class="fas fa-sliders-h"></i>
+                                            Parameters
+                                        </button>
+                                        <button class="projection-tab-btn" data-tab="hyperdimensional">
+                                            <i class="fas fa-cube"></i>
+                                            Hyper-Dimensional
+                                        </button>
+                                        <button class="projection-tab-btn" data-tab="results">
+                                            <i class="fas fa-chart-line"></i>
+                                            Results
+                                        </button>
+                                    </div>
+                            
+                            <!-- Parameters Tab Content -->
+                            <div class="projection-tab-content active" id="projection-tab-parameters">
+                                <div class="projection-parameters-content">
+                                    <div class="params-toggle-grid">
+                                        <!-- Standard Preset -->
+                                        <div class="param-toggle-item">
+                                            <div class="param-toggle-header">
+                                                <label class="param-toggle-label">
+                                                    <span class="param-toggle-name">Standard</span>
+                                                    <span class="param-toggle-desc">Steps: 20, Base: 3, Count: 12, Depth: 31</span>
+                                                </label>
+                                                <label class="toggle-switch">
+                                                    <input type="radio" name="projection-preset" id="preset-standard" value="standard" checked>
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Extended Preset -->
+                                        <div class="param-toggle-item">
+                                            <div class="param-toggle-header">
+                                                <label class="param-toggle-label">
+                                                    <span class="param-toggle-name">Extended</span>
+                                                    <span class="param-toggle-desc">Steps: 40, Base: 3.5, Count: 18, Depth: 47</span>
+                                                </label>
+                                                <label class="toggle-switch">
+                                                    <input type="radio" name="projection-preset" id="preset-extended" value="extended">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Deep Analysis Preset -->
+                                        <div class="param-toggle-item">
+                                            <div class="param-toggle-header">
+                                                <label class="param-toggle-label">
+                                                    <span class="param-toggle-name">Deep Analysis</span>
+                                                    <span class="param-toggle-desc">Steps: 60, Base: 4, Count: 24, Depth: 61</span>
+                                                </label>
+                                                <label class="toggle-switch">
+                                                    <input type="radio" name="projection-preset" id="preset-deep" value="deep">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Quick Preview Preset -->
+                                        <div class="param-toggle-item">
+                                            <div class="param-toggle-header">
+                                                <label class="param-toggle-label">
+                                                    <span class="param-toggle-name">Quick Preview</span>
+                                                    <span class="param-toggle-desc">Steps: 10, Base: 2.5, Count: 6, Depth: 17</span>
+                                                </label>
+                                                <label class="toggle-switch">
+                                                    <input type="radio" name="projection-preset" id="preset-quick" value="quick">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Maximum Precision Preset -->
+                                        <div class="param-toggle-item">
+                                            <div class="param-toggle-header">
+                                                <label class="param-toggle-label">
+                                                    <span class="param-toggle-name">Maximum Precision</span>
+                                                    <span class="param-toggle-desc">Steps: 100, Base: 5, Count: 36, Depth: 97</span>
+                                                </label>
+                                                <label class="toggle-switch">
+                                                    <input type="radio" name="projection-preset" id="preset-maximum" value="maximum">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Custom Preset -->
+                                        <div class="param-toggle-item">
+                                            <div class="param-toggle-header">
+                                                <label class="param-toggle-label">
+                                                    <span class="param-toggle-name">Custom</span>
+                                                    <span class="param-toggle-desc">Set your own parameters</span>
+                                                </label>
+                                                <label class="toggle-switch">
+                                                    <input type="radio" name="projection-preset" id="preset-custom" value="custom">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Custom Parameters (hidden by default, shown when Custom is selected) -->
+                                    <div class="custom-params-panel" id="custom-params-panel" style="display: none;">
+                                        <div class="params-grid">
+                                            <div class="param-group">
+                                                <label for="projection-steps">Projection Steps</label>
+                                                <input type="number" id="projection-steps" class="projection-input" min="1" max="200" value="20">
+                                            </div>
+                                            <div class="param-group">
+                                                <label for="projection-base">Base</label>
+                                                <input type="number" id="projection-base" class="projection-input" min="2" max="10" value="3" step="0.1">
+                                            </div>
+                                            <div class="param-group">
+                                                <label for="projection-count">Projection Count</label>
+                                                <input type="number" id="projection-count" class="projection-input" min="1" max="50" value="12">
+                                            </div>
+                                            <div class="param-group">
+                                                <label for="projection-depth">Prime Depth</label>
+                                                <select id="projection-depth" class="projection-select">
+                                                    <option value="11">11</option>
+                                                    <option value="13">13</option>
+                                                    <option value="17">17</option>
+                                                    <option value="29">29</option>
+                                                    <option value="31" selected>31</option>
+                                                    <option value="47">47</option>
+                                                    <option value="59">59</option>
+                                                    <option value="61">61</option>
+                                                    <option value="97">97</option>
+                                                    <option value="101">101</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Hidden inputs to store current values (for compatibility) -->
+                                    <input type="hidden" id="projection-steps-value" value="20">
+                                    <input type="hidden" id="projection-base-value" value="3">
+                                    <input type="hidden" id="projection-count-value" value="12">
+                                    <input type="hidden" id="projection-depth-value" value="31">
+                                    
+                                    <!-- Active Parameters Display -->
+                                    <div class="active-params-display" id="active-params-display" style="display: none;">
+                                        <div class="active-params-label">Active Parameters:</div>
+                                        <div class="active-params-values">
+                                            <span class="param-badge">Steps: <strong id="active-steps">20</strong></span>
+                                            <span class="param-badge">Base: <strong id="active-base">3</strong></span>
+                                            <span class="param-badge">Count: <strong id="active-count">12</strong></span>
+                                            <span class="param-badge">Depth: <strong id="active-depth">31</strong></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Hyper-Dimensional Tab Content -->
+                            <div class="projection-tab-content" id="projection-tab-hyperdimensional">
+                                <div class="hyperdimensional-content">
+                                    <p class="hd-integration-note">
+                                        <i class="fas fa-info-circle"></i>
+                                        Tetration towers and platonic solids are now fully integrated into each step of the projection calculation, ensuring geometrically consistent models.
+                                    </p>
+                                    <div class="hd-tools-grid">
+                                        <div class="hd-tool-item">
+                                            <label class="hd-tool-label">
+                                                <span class="hd-tool-name">Tetration Towers</span>
+                                                <span class="hd-tool-desc">Generate tetration towers - influences growth factor, theta, and price attractors at each step</span>
+                                            </label>
+                                            <button class="btn btn-small" id="generate-tetration-towers-btn">
+                                                <i class="fas fa-cube"></i>
+                                                Generate
+                                            </button>
+                                        </div>
+                                        <div class="hd-tool-item">
+                                            <label class="hd-tool-label">
+                                                <span class="hd-tool-name">Platonic Solids</span>
+                                                <span class="hd-tool-desc">Generate geometric structures - influences lattice angles and scaling at each step</span>
+                                            </label>
+                                            <button class="btn btn-small" id="generate-platonic-solids-btn">
+                                                <i class="fas fa-shapes"></i>
+                                                Generate
+                                            </button>
+                                        </div>
+                                        <div class="hd-tool-item">
+                                            <label class="hd-tool-label">
+                                                <span class="hd-tool-name">Discover New Solids</span>
+                                                <span class="hd-tool-desc">Use tetration attractors to discover new structures - automatically integrated into step calculations</span>
+                                            </label>
+                                            <button class="btn btn-small" id="discover-solids-btn">
+                                                <i class="fas fa-search"></i>
+                                                Discover
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Results Tab Content -->
+                            <div class="projection-tab-content" id="projection-tab-results">
+                                <div class="hd-results-panel" id="hd-results-panel">
+                                    <div id="hd-results-content">
+                                        <div class="hd-empty-state">
+                                            <i class="fas fa-info-circle"></i>
+                                            <p>No results yet. Generate tetration towers or platonic solids to see results here.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Column 2: Metrics -->
+                            <div class="projections-column-right">
+                                <!-- Metrics Section (Visible by default, shows placeholders until data is loaded) -->
+                                <div class="projections-metrics-section" id="projections-metrics-section">
+                                    <h3>Price Metrics</h3>
+                                    <div class="metrics-grid">
+                                        <div class="metric-card-projection">
+                                            <div class="metric-label">Current Price</div>
+                                            <div class="metric-value" id="metric-current-price">--</div>
+                                        </div>
+                                        <div class="metric-card-projection">
+                                            <div class="metric-label">Historical Change</div>
+                                            <div class="metric-value" id="metric-historical-change">--</div>
+                                            <div class="metric-percent" id="metric-historical-percent">--</div>
+                                        </div>
+                                        <div class="metric-card-projection">
+                                            <div class="metric-label">Projected Price</div>
+                                            <div class="metric-value" id="metric-projected-price">--</div>
+                                        </div>
+                                        <div class="metric-card-projection">
+                                            <div class="metric-label">Projected Change</div>
+                                            <div class="metric-value" id="metric-projected-change">--</div>
+                                            <div class="metric-percent" id="metric-projected-percent">--</div>
+                                        </div>
+                                        <div class="metric-card-projection">
+                                            <div class="metric-label">Period High</div>
+                                            <div class="metric-value" id="metric-period-high">--</div>
+                                        </div>
+                                        <div class="metric-card-projection">
+                                            <div class="metric-label">Period Low</div>
+                                            <div class="metric-value" id="metric-period-low">--</div>
+                                        </div>
+                                        <div class="metric-card-projection">
+                                            <div class="metric-label">Average Volume</div>
+                                            <div class="metric-value" id="metric-average-volume">--</div>
+                                        </div>
+                                        <div class="metric-card-projection">
+                                            <div class="metric-label">Actual Volume</div>
+                                            <div class="metric-value" id="metric-actual-volume">--</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Validation Metrics Section (Visible by default, shows placeholders until data is loaded) -->
+                                    <div class="validation-metrics-section" id="validation-metrics-section">
+                                        <h3>Validation Metrics</h3>
+                                        <div class="metrics-grid">
+                                            <div class="metric-card-projection">
+                                                <div class="metric-label">MAE</div>
+                                                <div class="metric-value" id="validation-mae">--</div>
+                                                <div class="metric-description">Mean Absolute Error</div>
+                                            </div>
+                                            <div class="metric-card-projection">
+                                                <div class="metric-label">RMSE</div>
+                                                <div class="metric-value" id="validation-rmse">--</div>
+                                                <div class="metric-description">Root Mean Squared Error</div>
+                                            </div>
+                                            <div class="metric-card-projection">
+                                                <div class="metric-label">MAPE</div>
+                                                <div class="metric-value" id="validation-mape">--</div>
+                                                <div class="metric-description">Mean Absolute Percentage Error</div>
+                                            </div>
+                                            <div class="metric-card-projection">
+                                                <div class="metric-label">Confidence</div>
+                                                <div class="metric-value" id="validation-confidence">--</div>
+                                                <div class="metric-description">Model Confidence Score</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    
+                    <!-- Chart Section -->
+                    <div class="projections-chart-section">
+                        <div class="projections-chart-container">
+                            <div class="chart-header">
+                                <h3 id="projection-chart-title">Price Projection Chart</h3>
+                                <div class="chart-controls">
+                                    <div class="chart-zoom-controls">
+                                        <button id="zoom-in-btn" class="btn btn-small" title="Zoom In" style="display: none;">
+                                            <i class="fas fa-search-plus"></i>
+                                        </button>
+                                        <button id="zoom-out-btn" class="btn btn-small" title="Zoom Out" style="display: none;">
+                                            <i class="fas fa-search-minus"></i>
+                                        </button>
+                                        <button id="reset-zoom-btn" class="btn btn-small" style="display: none;" title="Reset Zoom">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                    <div class="chart-export-controls">
+                                        <button id="export-chart-btn" class="btn btn-small" title="Export Chart">
+                                            <i class="fas fa-download"></i>
+                                            Export
+                                        </button>
+                                        <button id="save-projection-btn" class="btn btn-primary btn-small" style="display: none;">
+                                            <i class="fas fa-save"></i>
+                                            Save Projection
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-legend-controls" id="chart-legend-controls" style="display: none;">
+                                <div class="legend-header">
+                                    <h4>Toggle Data Series</h4>
+                                    <div class="chart-help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span>Click legend items or checkboxes to show/hide series. Hold Shift and drag to select zoom area.</span>
+                                    </div>
+                                </div>
+                                <div class="legend-checkboxes" id="legend-checkboxes"></div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="projection-chart"></canvas>
+                                <div id="projection-loading" class="projection-loading" style="display: none;">
+                                    <div class="loading-spinner"></div>
+                                    <p>Loading projection data...</p>
+                                </div>
+                                <div id="projection-error" class="projection-error" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <p></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
 
@@ -1206,374 +1765,6 @@ require_once 'includes/database.php';
             </div>
         </main>
 
-        <!-- Projections Page -->
-        <main class="page-content" id="page-projections">
-            <div class="page-header">
-                <h1 class="page-title">
-                    <i class="fas fa-project-diagram"></i>
-                    Price Projections
-                </h1>
-            </div>
-            
-            <div class="projections-container">
-                <!-- Search and Controls Section -->
-                <div class="projections-controls-panel">
-                    <div class="projections-search-section">
-                        <div class="search-input-group">
-                            <input type="text" id="projection-symbol-input" class="projection-input" placeholder="Enter symbol (e.g., AAPL, TSLA, SPY)" value="">
-                            <button id="projection-search-btn" class="btn btn-primary">
-                                <i class="fas fa-search"></i>
-                                Search
-                            </button>
-                            <button id="projection-refresh-btn" class="btn btn-secondary" style="display: none;">
-                                <i class="fas fa-sync-alt"></i>
-                                Refresh
-                            </button>
-                        </div>
-                        <div class="projection-interval-selector">
-                            <label>Interval:</label>
-                            <select id="projection-interval-select" class="projection-select">
-                                <option value="1d">1 Day</option>
-                                <option value="5d">5 Days</option>
-                                <option value="1mo">1 Month</option>
-                                <option value="3mo">3 Months</option>
-                                <option value="6mo">6 Months</option>
-                                <option value="1y">1 Year</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- Two Column Layout -->
-                    <div class="projections-two-column-layout">
-                        <!-- Column 1: Projection Configuration -->
-                        <div class="projections-column-left">
-                            <div class="projection-config-panel">
-                                <h3>Projection Configuration</h3>
-                                
-                                <!-- Tab Navigation -->
-                                <div class="projection-tabs">
-                                    <button class="projection-tab-btn active" data-tab="parameters">
-                                        <i class="fas fa-sliders-h"></i>
-                                        Parameters
-                                    </button>
-                                    <button class="projection-tab-btn" data-tab="hyperdimensional">
-                                        <i class="fas fa-cube"></i>
-                                        Hyper-Dimensional
-                                    </button>
-                                    <button class="projection-tab-btn" data-tab="results">
-                                        <i class="fas fa-chart-line"></i>
-                                        Results
-                                    </button>
-                                </div>
-                        
-                        <!-- Parameters Tab Content -->
-                        <div class="projection-tab-content active" id="projection-tab-parameters">
-                            <div class="projection-parameters-content">
-                                <div class="params-toggle-grid">
-                                    <!-- Standard Preset -->
-                                    <div class="param-toggle-item">
-                                        <div class="param-toggle-header">
-                                            <label class="param-toggle-label">
-                                                <span class="param-toggle-name">Standard</span>
-                                                <span class="param-toggle-desc">Steps: 20, Base: 3, Count: 12, Depth: 31</span>
-                                            </label>
-                                            <label class="toggle-switch">
-                                                <input type="radio" name="projection-preset" id="preset-standard" value="standard" checked>
-                                                <span class="toggle-slider"></span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Extended Preset -->
-                                    <div class="param-toggle-item">
-                                        <div class="param-toggle-header">
-                                            <label class="param-toggle-label">
-                                                <span class="param-toggle-name">Extended</span>
-                                                <span class="param-toggle-desc">Steps: 40, Base: 3.5, Count: 18, Depth: 47</span>
-                                            </label>
-                                            <label class="toggle-switch">
-                                                <input type="radio" name="projection-preset" id="preset-extended" value="extended">
-                                                <span class="toggle-slider"></span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Deep Analysis Preset -->
-                                    <div class="param-toggle-item">
-                                        <div class="param-toggle-header">
-                                            <label class="param-toggle-label">
-                                                <span class="param-toggle-name">Deep Analysis</span>
-                                                <span class="param-toggle-desc">Steps: 60, Base: 4, Count: 24, Depth: 61</span>
-                                            </label>
-                                            <label class="toggle-switch">
-                                                <input type="radio" name="projection-preset" id="preset-deep" value="deep">
-                                                <span class="toggle-slider"></span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Quick Preview Preset -->
-                                    <div class="param-toggle-item">
-                                        <div class="param-toggle-header">
-                                            <label class="param-toggle-label">
-                                                <span class="param-toggle-name">Quick Preview</span>
-                                                <span class="param-toggle-desc">Steps: 10, Base: 2.5, Count: 6, Depth: 17</span>
-                                            </label>
-                                            <label class="toggle-switch">
-                                                <input type="radio" name="projection-preset" id="preset-quick" value="quick">
-                                                <span class="toggle-slider"></span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Maximum Precision Preset -->
-                                    <div class="param-toggle-item">
-                                        <div class="param-toggle-header">
-                                            <label class="param-toggle-label">
-                                                <span class="param-toggle-name">Maximum Precision</span>
-                                                <span class="param-toggle-desc">Steps: 100, Base: 5, Count: 36, Depth: 97</span>
-                                            </label>
-                                            <label class="toggle-switch">
-                                                <input type="radio" name="projection-preset" id="preset-maximum" value="maximum">
-                                                <span class="toggle-slider"></span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Custom Preset -->
-                                    <div class="param-toggle-item">
-                                        <div class="param-toggle-header">
-                                            <label class="param-toggle-label">
-                                                <span class="param-toggle-name">Custom</span>
-                                                <span class="param-toggle-desc">Set your own parameters</span>
-                                            </label>
-                                            <label class="toggle-switch">
-                                                <input type="radio" name="projection-preset" id="preset-custom" value="custom">
-                                                <span class="toggle-slider"></span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Custom Parameters (hidden by default, shown when Custom is selected) -->
-                                <div class="custom-params-panel" id="custom-params-panel" style="display: none;">
-                                    <div class="params-grid">
-                                        <div class="param-group">
-                                            <label for="projection-steps">Projection Steps</label>
-                                            <input type="number" id="projection-steps" class="projection-input" min="1" max="200" value="20">
-                                        </div>
-                                        <div class="param-group">
-                                            <label for="projection-base">Base</label>
-                                            <input type="number" id="projection-base" class="projection-input" min="2" max="10" value="3" step="0.1">
-                                        </div>
-                                        <div class="param-group">
-                                            <label for="projection-count">Projection Count</label>
-                                            <input type="number" id="projection-count" class="projection-input" min="1" max="50" value="12">
-                                        </div>
-                                        <div class="param-group">
-                                            <label for="projection-depth">Prime Depth</label>
-                                            <select id="projection-depth" class="projection-select">
-                                                <option value="11">11</option>
-                                                <option value="13">13</option>
-                                                <option value="17">17</option>
-                                                <option value="29">29</option>
-                                                <option value="31" selected>31</option>
-                                                <option value="47">47</option>
-                                                <option value="59">59</option>
-                                                <option value="61">61</option>
-                                                <option value="97">97</option>
-                                                <option value="101">101</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Hidden inputs to store current values (for compatibility) -->
-                                <input type="hidden" id="projection-steps-value" value="20">
-                                <input type="hidden" id="projection-base-value" value="3">
-                                <input type="hidden" id="projection-count-value" value="12">
-                                <input type="hidden" id="projection-depth-value" value="31">
-                                
-                                <!-- Active Parameters Display -->
-                                <div class="active-params-display" id="active-params-display" style="display: none;">
-                                    <div class="active-params-label">Active Parameters:</div>
-                                    <div class="active-params-values">
-                                        <span class="param-badge">Steps: <strong id="active-steps">20</strong></span>
-                                        <span class="param-badge">Base: <strong id="active-base">3</strong></span>
-                                        <span class="param-badge">Count: <strong id="active-count">12</strong></span>
-                                        <span class="param-badge">Depth: <strong id="active-depth">31</strong></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Hyper-Dimensional Tab Content -->
-                        <div class="projection-tab-content" id="projection-tab-hyperdimensional">
-                            <div class="hyperdimensional-content">
-                                <p class="hd-integration-note">
-                                    <i class="fas fa-info-circle"></i>
-                                    Tetration towers and platonic solids are now fully integrated into each step of the projection calculation, ensuring geometrically consistent models.
-                                </p>
-                                <div class="hd-tools-grid">
-                                    <div class="hd-tool-item">
-                                        <label class="hd-tool-label">
-                                            <span class="hd-tool-name">Tetration Towers</span>
-                                            <span class="hd-tool-desc">Generate tetration towers - influences growth factor, theta, and price attractors at each step</span>
-                                        </label>
-                                        <button class="btn btn-small" id="generate-tetration-towers-btn">
-                                            <i class="fas fa-cube"></i>
-                                            Generate
-                                        </button>
-                                    </div>
-                                    <div class="hd-tool-item">
-                                        <label class="hd-tool-label">
-                                            <span class="hd-tool-name">Platonic Solids</span>
-                                            <span class="hd-tool-desc">Generate geometric structures - influences lattice angles and scaling at each step</span>
-                                        </label>
-                                        <button class="btn btn-small" id="generate-platonic-solids-btn">
-                                            <i class="fas fa-shapes"></i>
-                                            Generate
-                                        </button>
-                                    </div>
-                                    <div class="hd-tool-item">
-                                        <label class="hd-tool-label">
-                                            <span class="hd-tool-name">Discover New Solids</span>
-                                            <span class="hd-tool-desc">Use tetration attractors to discover new structures - automatically integrated into step calculations</span>
-                                        </label>
-                                        <button class="btn btn-small" id="discover-solids-btn">
-                                            <i class="fas fa-search"></i>
-                                            Discover
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Results Tab Content -->
-                        <div class="projection-tab-content" id="projection-tab-results">
-                            <div class="hd-results-panel" id="hd-results-panel">
-                                <div id="hd-results-content">
-                                    <div class="hd-empty-state">
-                                        <i class="fas fa-info-circle"></i>
-                                        <p>No results yet. Generate tetration towers or platonic solids to see results here.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Column 2: Metrics -->
-                        <div class="projections-column-right">
-                            <!-- Metrics Section (Visible by default, shows placeholders until data is loaded) -->
-                            <div class="projections-metrics-section" id="projections-metrics-section">
-                                <h3>Price Metrics</h3>
-                                <div class="metrics-grid">
-                                    <div class="metric-card-projection">
-                                        <div class="metric-label">Current Price</div>
-                                        <div class="metric-value" id="metric-current-price">--</div>
-                                    </div>
-                                    <div class="metric-card-projection">
-                                        <div class="metric-label">Historical Change</div>
-                                        <div class="metric-value" id="metric-historical-change">--</div>
-                                        <div class="metric-percent" id="metric-historical-percent">--</div>
-                                    </div>
-                                    <div class="metric-card-projection">
-                                        <div class="metric-label">Projected Price</div>
-                                        <div class="metric-value" id="metric-projected-price">--</div>
-                                    </div>
-                                    <div class="metric-card-projection">
-                                        <div class="metric-label">Projected Change</div>
-                                        <div class="metric-value" id="metric-projected-change">--</div>
-                                        <div class="metric-percent" id="metric-projected-percent">--</div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Validation Metrics Section (Visible by default, shows placeholders until data is loaded) -->
-                                <div class="validation-metrics-section" id="validation-metrics-section">
-                                    <h3>Validation Metrics</h3>
-                                    <div class="metrics-grid">
-                                        <div class="metric-card-projection">
-                                            <div class="metric-label">MAE</div>
-                                            <div class="metric-value" id="validation-mae">--</div>
-                                            <div class="metric-description">Mean Absolute Error</div>
-                                        </div>
-                                        <div class="metric-card-projection">
-                                            <div class="metric-label">RMSE</div>
-                                            <div class="metric-value" id="validation-rmse">--</div>
-                                            <div class="metric-description">Root Mean Squared Error</div>
-                                        </div>
-                                        <div class="metric-card-projection">
-                                            <div class="metric-label">MAPE</div>
-                                            <div class="metric-value" id="validation-mape">--</div>
-                                            <div class="metric-description">Mean Absolute Percentage Error</div>
-                                        </div>
-                                        <div class="metric-card-projection">
-                                            <div class="metric-label">Confidence</div>
-                                            <div class="metric-value" id="validation-confidence">--</div>
-                                            <div class="metric-description">Model Confidence Score</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                
-                <!-- Chart Section -->
-                <div class="projections-chart-section">
-                    <div class="projections-chart-container">
-                        <div class="chart-header">
-                            <h3 id="projection-chart-title">Price Projection Chart</h3>
-                            <div class="chart-controls">
-                                <div class="chart-zoom-controls">
-                                    <button id="zoom-in-btn" class="btn btn-small" title="Zoom In" style="display: none;">
-                                        <i class="fas fa-search-plus"></i>
-                                    </button>
-                                    <button id="zoom-out-btn" class="btn btn-small" title="Zoom Out" style="display: none;">
-                                        <i class="fas fa-search-minus"></i>
-                                    </button>
-                                    <button id="reset-zoom-btn" class="btn btn-small" style="display: none;" title="Reset Zoom">
-                                        <i class="fas fa-expand"></i>
-                                    </button>
-                                </div>
-                                <div class="chart-export-controls">
-                                    <button id="export-chart-btn" class="btn btn-small" title="Export Chart">
-                                        <i class="fas fa-download"></i>
-                                        Export
-                                    </button>
-                                    <button id="save-projection-btn" class="btn btn-primary btn-small" style="display: none;">
-                                        <i class="fas fa-save"></i>
-                                        Save Projection
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="chart-legend-controls" id="chart-legend-controls" style="display: none;">
-                            <div class="legend-header">
-                                <h4>Toggle Data Series</h4>
-                                <div class="chart-help-text">
-                                    <i class="fas fa-info-circle"></i>
-                                    <span>Click legend items or checkboxes to show/hide series. Hold Shift and drag to select zoom area.</span>
-                                </div>
-                            </div>
-                            <div class="legend-checkboxes" id="legend-checkboxes"></div>
-                        </div>
-                        <div class="chart-wrapper">
-                            <canvas id="projection-chart"></canvas>
-                            <div id="projection-loading" class="projection-loading" style="display: none;">
-                                <div class="loading-spinner"></div>
-                                <p>Loading projection data...</p>
-                            </div>
-                            <div id="projection-error" class="projection-error" style="display: none;">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <p></p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-
         <!-- Data Page -->
         <main class="page-content" id="page-data">
             <div class="page-header">
@@ -1594,6 +1785,29 @@ require_once 'includes/database.php';
             </div>
             
             <div class="data-container">
+                <!-- 3D Visualization Section -->
+                <div class="data-viz-container">
+                    <div class="data-viz-header">
+                        <h3>
+                            <i class="fas fa-cube"></i>
+                            Data Visualization
+                        </h3>
+                        <div class="data-viz-info">
+                            <span id="data-viz-count">0</span> projections
+                            <span class="data-viz-hint" title="Drag to rotate, scroll to zoom">
+                                <i class="fas fa-info-circle"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="data-viz-canvas-wrapper">
+                        <canvas id="data-3d-canvas"></canvas>
+                        <div class="data-viz-loading" id="data-viz-loading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Loading visualization...</span>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Search and Filter Section -->
                 <div class="data-filters">
                     <div class="filter-group">
@@ -1616,241 +1830,32 @@ require_once 'includes/database.php';
                     </div>
                 </div>
                 
-                <!-- Data Table -->
-                <div class="data-table-wrapper">
-                    <table class="data-table" id="projections-data-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Symbol</th>
-                                <th>Title</th>
-                                <th>Steps</th>
-                                <th>Base</th>
-                                <th>Count</th>
-                                <th>Depth</th>
-                                <th>Interval</th>
-                                <th>Last Price</th>
-                                <th>Saved Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="projections-table-body">
-                            <tr>
-                                <td colspan="11" class="table-loading">
-                                    <div class="loading-spinner"></div>
-                                    <span>Loading projections data...</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div class="table-empty" id="table-empty" style="display: none;">
-                        <i class="fas fa-inbox"></i>
-                        <p>No saved projections found</p>
-                        <span>Save a projection from the Projections page to see it here</span>
-                    </div>
-                </div>
-                
-                <!-- Table Info -->
-                <div class="table-info">
-                    <span id="table-count">0</span> projection(s) found
-                </div>
-            </div>
-        </main>
-
-        <!-- Fibonacci Calculator Page -->
-        <main class="page-content" id="page-fib">
-            <div class="page-header">
-                <h1 class="page-title">
-                    <i class="fas fa-calculator"></i>
-                    Fibonacci Retracement Calculator
-                </h1>
-                <p class="page-subtitle">Calculate Fibonacci levels with real-time market data anchored to the first trading day of the year</p>
-            </div>
-            
-            <div class="fib-container">
-                <!-- Top Section: Market Data + Fibonacci Levels -->
-                <div class="fib-top-section">
-                    <!-- Left Column: Market Data Input + Current Market Data -->
-                    <div class="fib-left-column">
-                        <div class="fib-card">
-                            <h2>
-                                <i class="fas fa-chart-line"></i>
-                                Market Data Input
-                            </h2>
-                            
-                            <div class="fib-input-group">
-                                <label for="fib-symbol">Symbol (Stock/Crypto)</label>
-                                <input type="text" id="fib-symbol" class="fib-input" placeholder="e.g., AAPL, TSLA, BTC-USD" value="AAPL">
-                                <small class="fib-hint">Enter a stock symbol (e.g., AAPL, GOOGL) or crypto symbol (e.g., BTC-USD, ETH-USD)</small>
-                            </div>
-
-                            <div class="fib-input-group">
-                                <label>Time Period</label>
-                                <div class="fib-info-highlight">
-                                    <i class="fas fa-calendar"></i>
-                                    Year to Date (YTD)
-                                </div>
-                            </div>
-
-                            <div class="fib-input-group">
-                                <label>Fibonacci Anchor</label>
-                                <div class="fib-info-highlight">
-                                    <i class="fas fa-anchor"></i>
-                                    First Trading Day of Year
-                                </div>
-                            </div>
-
-                            <div class="fib-input-group">
-                                <label>Decimal Precision</label>
-                                <div class="fib-toggle-group" id="fib-precision-toggle">
-                                    <button class="fib-toggle-btn active" data-value="2">2</button>
-                                    <button class="fib-toggle-btn" data-value="3">3</button>
-                                    <button class="fib-toggle-btn" data-value="4">4</button>
-                                    <button class="fib-toggle-btn" data-value="5">5</button>
-                                </div>
-                            </div>
-
-                            <button class="btn btn-primary" id="fib-calculate-btn">
-                                <i class="fas fa-calculator"></i>
-                                Calculate Fibonacci Levels
-                            </button>
-
-                            <div class="fib-info-box">
-                                <i class="fas fa-info-circle"></i>
-                                <p><strong>How to use:</strong> Enter a stock symbol (e.g., AAPL, GOOGL) or crypto symbol (e.g., BTC-USD, ETH-USD) and click calculate. Fibonacci levels will be anchored to the first trading day of the current year.</p>
-                            </div>
+                <!-- Saved Projections Feed Section -->
+                <div class="news-feed-section">
+                    <div class="news-feed-header">
+                        <h2 class="widget-title">Saved Projections Data</h2>
+                        <div class="news-feed-controls">
+                            <p class="text-sm text-gray-600 dark:text-neutral-400">
+                                <span class="font-semibold text-gray-800 dark:text-neutral-200" id="table-count">0</span> projection(s) found
+                            </p>
                         </div>
                     </div>
-
-                    <!-- Right Column: Fibonacci Extension Levels -->
-                    <div class="fib-right-column" id="fib-levels-container" style="display: none;">
-                        <div class="fib-card fib-levels-card">
-                            <h2>
-                                <i class="fas fa-layer-group"></i>
-                                Fibonacci Extension Levels
-                            </h2>
-                            
-                            <div class="fib-levels-container">
-                                <!-- Positive Levels - Column 1 -->
-                                <div class="fib-levels-column fib-positive-col-1">
-                                    <h3>
-                                        <i class="fas fa-arrow-up"></i>
-                                        Positive Levels
-                                    </h3>
-                                    <div id="fib-positive-levels-1" class="fib-levels-list"></div>
-                                </div>
-
-                                <!-- Positive Levels - Column 2 -->
-                                <div class="fib-levels-column fib-positive-col-2">
-                                    <h3 class="fib-levels-col-header-hidden">
-                                        <i class="fas fa-arrow-up"></i>
-                                        Positive Levels
-                                    </h3>
-                                    <div id="fib-positive-levels-2" class="fib-levels-list"></div>
-                                </div>
-
-                                <!-- Negative Levels - Column 1 -->
-                                <div class="fib-levels-column fib-negative-col-1">
-                                    <h3>
-                                        <i class="fas fa-arrow-down"></i>
-                                        Negative Levels
-                                    </h3>
-                                    <div id="fib-negative-levels-1" class="fib-levels-list"></div>
-                                </div>
-
-                                <!-- Negative Levels - Column 2 -->
-                                <div class="fib-levels-column fib-negative-col-2">
-                                    <h3 class="fib-levels-col-header-hidden">
-                                        <i class="fas fa-arrow-down"></i>
-                                        Negative Levels
-                                    </h3>
-                                    <div id="fib-negative-levels-2" class="fib-levels-list"></div>
-                                </div>
-                            </div>
-
-                            <div class="fib-info-box">
-                                <i class="fas fa-info-circle"></i>
-                                <p><strong>Fibonacci Anchoring:</strong> BULLISH candle: 0 = Low, 1 = High. BEARISH candle: 0 = High, 1 = Low. Levels extend from these anchor points.</p>
-                            </div>
+                    <div class="news-feed-container" id="projections-feed-container">
+                        <div class="news-loading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Loading projections data...</span>
                         </div>
                     </div>
-                </div>
-
-                <!-- Bottom Section: Price Chart (Full Width) -->
-                <div class="fib-chart-section" id="fib-chart-container" style="display: none;">
-                    <div class="fib-card fib-chart-card">
-                        <!-- Current Market Data - At Top of Chart -->
-                        <div class="fib-market-data-inline" id="fib-market-data" style="display: none;">
-                            <div class="fib-price-info-inline">
-                                <div class="fib-market-data-header">
-                                    <h3 id="fib-symbol-name">Loading...</h3>
-                                    <div class="fib-market-data-header-right">
-                                        <div class="fib-chart-controls-inline">
-                                            <button class="fib-chart-type-btn active" id="fib-chart-type-line-inline" title="Line Chart">
-                                                <i class="fas fa-chart-line"></i>
-                                            </button>
-                                            <button class="fib-chart-type-btn" id="fib-chart-type-candlestick-inline" title="Candlestick Chart">
-                                                <i class="fas fa-chart-bar"></i>
-                                            </button>
-                                        </div>
-                                        <div class="fib-market-data-stats">
-                                            <div class="fib-market-stat">
-                                                <span class="fib-stat-label">Current Price:</span>
-                                                <span class="fib-stat-value" id="fib-current-price">-</span>
-                                            </div>
-                                            <div class="fib-market-stat">
-                                                <span class="fib-stat-label">Period High:</span>
-                                                <span class="fib-stat-value" id="fib-ytd-high">-</span>
-                                            </div>
-                                            <div class="fib-market-stat">
-                                                <span class="fib-stat-label">Period Low:</span>
-                                                <span class="fib-stat-value" id="fib-ytd-low">-</span>
-                                            </div>
-                                            <div class="fib-market-stat">
-                                                <span class="fib-stat-label">Range:</span>
-                                                <span class="fib-stat-value" id="fib-range">-</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div id="fib-anchor-info" class="fib-anchor-info-inline"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="fib-chart-header">
-                            <h2>
-                                <i class="fas fa-chart-area"></i>
-                                Price Chart
-                            </h2>
-                            <div class="fib-chart-controls">
-                                <button class="fib-chart-type-btn active" id="fib-chart-type-line" title="Line Chart">
-                                    <i class="fas fa-chart-line"></i>
-                                </button>
-                                <button class="fib-chart-type-btn" id="fib-chart-type-candlestick" title="Candlestick Chart">
-                                    <i class="fas fa-chart-bar"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="fib-chart-wrapper">
-                            <canvas id="fib-chart"></canvas>
-                            <div id="fib-chart-loading" class="fib-chart-loading" style="display: none;">
-                                <i class="fas fa-spinner fa-spin"></i>
-                                <span>Loading chart...</span>
-                            </div>
-                            <div id="fib-chart-empty" class="fib-chart-empty">
-                                <i class="fas fa-chart-line"></i>
-                                <p>Chart will appear here after calculation</p>
-                            </div>
-                        </div>
+                    <div class="news-pagination" id="data-pagination" style="display: none;">
+                        <button class="pagination-btn" id="data-prev-btn" title="Previous Page">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div class="pagination-pages" id="data-pagination-pages"></div>
+                        <button class="pagination-btn" id="data-next-btn" title="Next Page">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
                     </div>
                 </div>
-
-                <!-- Loading & Error States -->
-                <div id="fib-loading" class="fib-loading" style="display: none;">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Fetching market data...</span>
-                </div>
-                <div id="fib-error" class="fib-error" style="display: none;"></div>
             </div>
         </main>
 
@@ -2454,6 +2459,70 @@ require_once 'includes/database.php';
                 <div class="empty-studies" id="empty-studies">
                     <i class="fas fa-folder-open"></i>
                     <p>No saved studies yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Projection Modal -->
+    <div class="modal" id="load-projection-modal">
+        <div class="modal-content modal-extra-large">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas fa-chart-line"></i>
+                    Load Projection
+                </h3>
+                <button class="modal-close" id="close-load-projection-modal" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="load-projection-loading" class="loading" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Loading projection data...</span>
+                </div>
+                <div id="load-projection-content" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Symbol</label>
+                        <div class="projection-info-value" id="modal-projection-symbol">--</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Title</label>
+                        <div class="projection-info-value" id="modal-projection-title">--</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Interval</label>
+                        <div class="projection-info-value" id="modal-projection-interval">--</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Parameters</label>
+                        <div class="projection-info-value" id="modal-projection-params">--</div>
+                    </div>
+                    <div class="form-group" id="modal-projection-notes-group" style="display: none;">
+                        <label class="form-label">Notes</label>
+                        <div class="projection-info-value" id="modal-projection-notes">--</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Saved Date</label>
+                        <div class="projection-info-value" id="modal-projection-date">--</div>
+                    </div>
+                    <div class="form-group" style="margin-top: 1.5rem;">
+                        <label class="form-label">Price Projection Chart</label>
+                        <div style="position: relative; height: 400px; width: 100%; margin-top: 0.75rem; background: var(--dark-bg); border-radius: 0.5rem; padding: 1rem; border: 1px solid var(--border-color);">
+                            <canvas id="modal-projection-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div id="load-projection-error" class="error-message" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="load-projection-error-text">Failed to load projection</span>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="cancel-load-projection-btn">Cancel</button>
+                    <button class="btn btn-primary" id="confirm-load-projection-btn">
+                        <i class="fas fa-check"></i>
+                        Load Projection
+                    </button>
                 </div>
             </div>
         </div>
