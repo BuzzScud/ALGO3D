@@ -39,6 +39,12 @@ require_once 'includes/database.php';
                         <span>News</span>
                     </a>
                 </li>
+                <li class="sidebar-item" data-page="notes">
+                    <a href="#" class="sidebar-link">
+                        <i class="fas fa-sticky-note"></i>
+                        <span>Notes</span>
+                    </a>
+                </li>
                 <li class="sidebar-item" data-page="charts">
                     <a href="#" class="sidebar-link">
                         <i class="fas fa-chart-line"></i>
@@ -1224,6 +1230,33 @@ require_once 'includes/database.php';
                                             </div>
                                         </div>
                                     </div>
+                                    
+                                    <!-- Accuracy Metrics Section (Shown when comparing saved projection to actual prices) -->
+                                    <div class="validation-metrics-section" id="accuracy-metrics-section" style="display: none;">
+                                        <h3>Projection Accuracy (vs Actual Price)</h3>
+                                        <div class="metrics-grid">
+                                            <div class="metric-card-projection">
+                                                <div class="metric-label">MAE</div>
+                                                <div class="metric-value" id="accuracy-mae">--</div>
+                                                <div class="metric-description">Mean Absolute Error</div>
+                                            </div>
+                                            <div class="metric-card-projection">
+                                                <div class="metric-label">MAPE</div>
+                                                <div class="metric-value" id="accuracy-mape">--</div>
+                                                <div class="metric-description">Mean Absolute % Error</div>
+                                            </div>
+                                            <div class="metric-card-projection">
+                                                <div class="metric-label">Bias</div>
+                                                <div class="metric-value" id="accuracy-bias">--</div>
+                                                <div class="metric-description">Over/Under Estimate</div>
+                                            </div>
+                                            <div class="metric-card-projection">
+                                                <div class="metric-label">Max Error</div>
+                                                <div class="metric-value" id="accuracy-max-error">--</div>
+                                                <div class="metric-description">Maximum Deviation</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1286,260 +1319,94 @@ require_once 'includes/database.php';
 
         <!-- Notes Page -->
         <main class="page-content" id="page-notes">
-            <div class="page-header">
-                <h1 class="page-title">
-                    <i class="fas fa-chart-line"></i>
-                    Futures Trading Journal
-                </h1>
-            </div>
-            
-            <!-- Trading Performance Dashboard -->
-            <div class="trading-performance-dashboard">
-                <div class="metric-card trading-pnl-card">
-                    <div class="metric-header">
-                        <i class="fas fa-dollar-sign"></i>
-                        <span>Total P&L</span>
+            <div class="notes-page-container">
+                <!-- Search Bar -->
+                <div class="notes-search-bar">
+                    <div class="search-input-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="notes-search-input" class="notes-search-input" placeholder="Search notes...">
+                        <button class="search-clear-btn" id="notes-search-clear" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
-                    <div class="metric-content">
-                        <div class="stat-large" id="trading-total-pnl">$0.00</div>
-                        <div class="stat-label">All Time</div>
-                        <div class="stat-small">
-                            <span id="trading-today-pnl">$0.00</span> today
-                        </div>
+                    <div class="notes-view-toggle">
+                        <button class="view-toggle-btn active" data-view="grid" title="Grid View">
+                            <i class="fas fa-th"></i>
+                        </button>
+                        <button class="view-toggle-btn" data-view="list" title="List View">
+                            <i class="fas fa-list"></i>
+                        </button>
                     </div>
                 </div>
-                
-                <div class="metric-card trading-wins-card">
-                    <div class="metric-header">
-                        <i class="fas fa-trophy"></i>
-                        <span>Win Rate</span>
-                    </div>
-                    <div class="metric-content">
-                        <div class="stat-large" id="trading-win-rate">0%</div>
-                        <div class="stat-label">Success Rate</div>
-                        <div class="stat-small">
-                            <span id="trading-wins">0</span> wins / <span id="trading-losses">0</span> losses
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="metric-card trading-trades-card">
-                    <div class="metric-header">
-                        <i class="fas fa-exchange-alt"></i>
-                        <span>Total Trades</span>
-                    </div>
-                    <div class="metric-content">
-                        <div class="stat-large" id="trading-total-trades">0</div>
-                        <div class="stat-label">All Trades</div>
-                        <div class="stat-small">
-                            <span id="trading-today-trades">0</span> today
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="metric-card trading-avg-card">
-                    <div class="metric-header">
-                        <i class="fas fa-chart-bar"></i>
-                        <span>Avg P&L</span>
-                    </div>
-                    <div class="metric-content">
-                        <div class="stat-large" id="trading-avg-pnl">$0.00</div>
-                        <div class="stat-label">Per Trade</div>
-                        <div class="stat-small">
-                            Best: <span id="trading-best-trade">$0.00</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Main Content Grid -->
-            <div class="notes-page-grid">
-                <!-- Left Column: Trading Notes Management -->
-                <div class="notes-management-panel">
-                    <div class="panel-header">
-                        <h2>
-                            <i class="fas fa-book"></i>
-                            Trading Journal
-                        </h2>
-                        <div class="view-toggle">
-                            <button class="view-btn active" data-view="grid" title="Grid View">
-                                <i class="fas fa-th"></i>
-                            </button>
-                            <button class="view-btn" data-view="list" title="List View">
-                                <i class="fas fa-list"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="notes-filters-enhanced">
-                        <div class="filter-group">
-                            <label>Type</label>
-                            <div class="filter-buttons">
-                                <button class="filter-btn active" data-type="all">All</button>
-                                <button class="filter-btn" data-type="trade">Trades</button>
-                                <button class="filter-btn" data-type="strategy">Strategy</button>
-                                <button class="filter-btn" data-type="journal">Journal</button>
-                            </div>
-                        </div>
-                        <div class="filter-group">
-                            <label>Sort By</label>
-                            <div class="filter-buttons">
-                                <button class="filter-btn active" data-sort="recent">Recent</button>
-                                <button class="filter-btn" data-sort="pnl">P&L</button>
-                                <button class="filter-btn" data-sort="contract">Contract</button>
-                                <button class="filter-btn" data-sort="date">Date</button>
-                            </div>
-                        </div>
-                        <div class="filter-group">
-                            <label>Filter</label>
-                            <div class="filter-buttons">
-                                <button class="filter-btn active" data-filter="all">All</button>
-                                <button class="filter-btn" data-filter="today">Today</button>
-                                <button class="filter-btn" data-filter="week">Week</button>
-                                <button class="filter-btn" data-filter="profitable">Profitable</button>
+
+                <!-- Quick Note Input -->
+                <div class="quick-note-container">
+                    <div class="quick-note-input" id="quick-note-input">
+                        <input type="text" id="quick-note-title" placeholder="Take a note..." class="quick-note-title-input">
+                        <div class="quick-note-expanded" id="quick-note-expanded" style="display: none;">
+                            <textarea id="quick-note-content" placeholder="Note content..." class="quick-note-content-input"></textarea>
+                            <div class="quick-note-actions">
+                                <div class="quick-note-colors">
+                                    <button class="color-btn" data-color="#cfe2ff" style="background-color: #cfe2ff;" title="Blue"></button>
+                                    <button class="color-btn" data-color="#fef3c7" style="background-color: #fef3c7;" title="Yellow"></button>
+                                    <button class="color-btn" data-color="#fecaca" style="background-color: #fecaca;" title="Red"></button>
+                                </div>
+                                <div class="quick-note-buttons">
+                                    <button class="quick-note-save-btn" id="quick-note-save">
+                                        <i class="fas fa-check"></i>
+                                        <span>Save</span>
+                                    </button>
+                                    <button class="quick-note-close-btn" id="quick-note-close">
+                                        <span>Close</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="notes-search-enhanced">
-                        <div class="input-wrapper">
-                            <i class="fas fa-search"></i>
-                            <input type="text" id="notes-search-input" class="notes-search-input" placeholder="Search by contract, strategy, or notes...">
-                            <button class="search-clear-btn" id="notes-search-clear" style="display: none;">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                <button class="btn btn-primary" id="add-note-btn">
-                    <i class="fas fa-plus"></i>
-                            New Trade Note
-                </button>
-            </div>
-                    
-                    <div class="notes-grid-container">
+                </div>
+
+                <!-- Notes Grid -->
+                <div class="notes-grid-wrapper">
                     <div class="notes-grid" id="notes-grid">
-                            <!-- Trading notes will be loaded here -->
+                        <!-- Notes will be loaded here -->
                     </div>
                 </div>
-                </div>
-                
-                <!-- Right Column: 3D Visualization & Analytics -->
-                <div class="notes-visualization-panel">
-                    <div class="panel-header">
-                        <h2>
-                            <i class="fas fa-cube"></i>
-                            3D Trading Analytics
-                        </h2>
-                        <div class="viz-controls">
-                            <button class="viz-btn" id="notes-rotate-toggle" title="Auto Rotate">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                            <button class="viz-btn" id="notes-reset-view" title="Reset View">
-                                <i class="fas fa-home"></i>
-                            </button>
-                        </div>
+            </div>
+
+            <!-- Note Edit Modal -->
+            <div class="note-modal" id="note-modal">
+                <div class="note-modal-content">
+                    <div class="note-modal-header">
+                        <h2 id="note-modal-title">Edit Note</h2>
+                        <button class="note-modal-close" id="close-note-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
-                    
-                    <div class="viz-container-wrapper">
-                        <!-- Tab Navigation -->
-                        <div class="viz-tabs">
-                            <button class="viz-tab active" data-tab="3d-viz">
-                                <i class="fas fa-cube"></i>
-                                <span>3D Analytics</span>
-                            </button>
-                            <button class="viz-tab" data-tab="projections">
-                                <i class="fas fa-project-diagram"></i>
-                                <span>Saved Projections</span>
-                            </button>
-                        </div>
+                    <div class="note-modal-body">
+                        <input type="text" id="note-title-input" class="note-title-input" placeholder="Title">
+                        <textarea id="note-content-input" class="note-content-input" placeholder="Note content..."></textarea>
                         
-                        <!-- 3D Visualization Tab -->
-                        <div class="viz-tab-content active" id="tab-3d-viz">
-                            <div class="notes-3d-container" id="notes-3d-container">
-                                <canvas id="notes-3d-canvas"></canvas>
-                                <div class="viz-loading" id="notes-viz-loading">
-                                    <i class="fas fa-spinner fa-spin"></i>
-                                    <span>Loading 3D visualization...</span>
-                                </div>
-                                <div class="viz-overlay">
-                                    <div class="viz-info">
-                                        <div class="viz-stat">
-                                            <span class="viz-label">Total Trades</span>
-                                            <span class="viz-value" id="viz-total-trades">0</span>
-                                        </div>
-                                        <div class="viz-stat">
-                                            <span class="viz-label">Win Rate</span>
-                                            <span class="viz-value" id="viz-win-rate">0%</span>
-                                        </div>
-                                        <div class="viz-stat">
-                                            <span class="viz-label">Total P&L</span>
-                                            <span class="viz-value" id="viz-total-pnl">$0</span>
-                                        </div>
-                                    </div>
+                        <div class="note-modal-options">
+                            <div class="note-option-group">
+                                <label>Color</label>
+                                <div class="color-options">
+                                    <button class="color-option" data-color="#cfe2ff" style="background-color: #cfe2ff;" title="Blue"></button>
+                                    <button class="color-option" data-color="#fef3c7" style="background-color: #fef3c7;" title="Yellow"></button>
+                                    <button class="color-option" data-color="#fecaca" style="background-color: #fecaca;" title="Red"></button>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- Saved Projections Tab -->
-                        <div class="viz-tab-content" id="tab-projections">
-                            <div class="projections-tab-container">
-                                <div class="saved-projections-list" id="saved-projections-list">
-                                    <!-- Saved projections will be loaded here -->
-                                </div>
-                                <div class="empty-projections" id="empty-projections" style="display: none;">
-                                    <i class="fas fa-inbox"></i>
-                                    <p>No saved projections yet</p>
-                                    <p class="empty-hint">Save projections from the Projections page to view them here</p>
+                            <div class="note-option-group">
+                                <label>Labels</label>
+                                <div class="labels-input-wrapper">
+                                    <input type="text" id="note-labels-input" class="labels-input" placeholder="Add labels (comma separated)">
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="analytics-section">
-                        <h3>
-                            <i class="fas fa-chart-line"></i>
-                            Performance Metrics
-                        </h3>
-                        <div class="analytics-grid">
-                            <div class="analytics-item">
-                                <div class="analytics-icon">
-                                    <i class="fas fa-calendar-week"></i>
-                                </div>
-                                <div class="analytics-content">
-                                    <div class="analytics-value" id="analytics-week-trades">0</div>
-                                    <div class="analytics-label">This Week</div>
-                                </div>
-                            </div>
-                            <div class="analytics-item">
-                                <div class="analytics-icon">
-                                    <i class="fas fa-trophy"></i>
-                                </div>
-                                <div class="analytics-content">
-                                    <div class="analytics-value" id="analytics-streak">0</div>
-                                    <div class="analytics-label">Win Streak</div>
-                                </div>
-                            </div>
-                            <div class="analytics-item">
-                                <div class="analytics-icon">
-                                    <i class="fas fa-dollar-sign"></i>
-                                </div>
-                                <div class="analytics-content">
-                                    <div class="analytics-value" id="analytics-avg-pnl">$0</div>
-                                    <div class="analytics-label">Avg P&L</div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="note-modal-footer">
+                        <button class="btn btn-secondary" id="cancel-note-btn">Cancel</button>
+                        <button class="btn btn-primary" id="save-note-btn">Save</button>
                     </div>
-                    
-                    <div class="analytics-section">
-                        <h3>
-                            <i class="fas fa-tags"></i>
-                            Top Contracts
-                        </h3>
-                        <div class="contracts-list" id="contracts-list">
-                            <!-- Top contracts will be loaded here -->
-                        </div>
-                    </div>
-                    
                 </div>
             </div>
         </main>
@@ -2581,7 +2448,7 @@ require_once 'includes/database.php';
     <script src="assets/js/world-clocks.js"></script>
     <script src="assets/js/market-data.js"></script>
     <script src="assets/js/todo-list.js"></script>
-    <script src="assets/js/notes.js"></script>
+    <script src="assets/js/notes-keep.js"></script>
     <!-- Phase 1 & Phase 2: Enhanced Projection Modules -->
     <!-- Hyper-Dimensional Tools -->
     <script src="assets/js/tetration-towers.js"></script>

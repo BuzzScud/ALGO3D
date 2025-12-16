@@ -24,6 +24,8 @@ const ProjectionsModule = (function() {
     let historicalLabels = [];
     let historicalCandles = [];
     let validationResults = null;
+    let savedProjectionData = null; // Store saved projection when loading
+    let actualPriceData = null; // Store actual price data for comparison
     // Unified Projection Engine is now the primary method (replaces ensemble)
     
     // Pan state management (similar to charts.js)
@@ -58,10 +60,16 @@ const ProjectionsModule = (function() {
     /**
      * Convert date to EST timezone
      * Returns a Date object representing the same moment in EST
+     * This properly handles timezone conversion
      */
     function toEST(date) {
         if (!date) return null;
         const d = date instanceof Date ? date : new Date(date);
+        
+        // If date is invalid, return current EST
+        if (isNaN(d.getTime())) {
+            return getCurrentEST();
+        }
         
         // Get the time components in EST timezone
         const estString = d.toLocaleString('en-US', { 
@@ -78,8 +86,17 @@ const ProjectionsModule = (function() {
         // Parse the EST string back to a Date object
         // Format: "MM/DD/YYYY, HH:MM:SS"
         const parts = estString.split(', ');
+        if (parts.length !== 2) {
+            // Fallback: return the date as-is if parsing fails
+            return d;
+        }
+        
         const datePart = parts[0].split('/');
         const timePart = parts[1].split(':');
+        
+        if (datePart.length !== 3 || timePart.length !== 3) {
+            return d;
+        }
         
         const estDate = new Date(
             parseInt(datePart[2]), // year
@@ -89,6 +106,11 @@ const ProjectionsModule = (function() {
             parseInt(timePart[1]), // minute
             parseInt(timePart[2]) // second
         );
+        
+        // Verify the date is valid
+        if (isNaN(estDate.getTime())) {
+            return d;
+        }
         
         return estDate;
     }
@@ -109,22 +131,155 @@ const ProjectionsModule = (function() {
     }
     
     /**
-     * Format date and time in EST timezone
+     * Format date with time in EST timezone (for intraday intervals)
      */
-    function formatDateTimeEST(timestamp) {
+    function formatDateTimeEST(timestamp, includeTime = false) {
         if (!timestamp) return '';
         const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-        return date.toLocaleString('en-US', { 
+        const estDate = toEST(date);
+        
+        if (includeTime) {
+            return estDate.toLocaleString('en-US', { 
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            }) + ' EST';
+        }
+        
+        return estDate.toLocaleDateString('en-US', { 
             timeZone: 'America/New_York',
             year: 'numeric',
             month: 'short',
-            day: 'numeric',
+            day: 'numeric'
+        });
+    }
+    
+    /**
+     * Generate projection date labels based on interval (EST)
+     */
+    function generateProjectionLabels(steps, interval, historicalLabels) {
+        // Prefer using historical candles for accurate last date
+        let lastDate;
+        
+        if (historicalCandles && historicalCandles.length > 0) {
+            // Use the last candle's timestamp (already converted to EST)
+            const lastCandle = historicalCandles[historicalCandles.length - 1];
+            const timestamp = lastCandle.time || lastCandle.timestamp;
+            if (timestamp) {
+                lastDate = new Date(timestamp);
+                // Verify it's valid
+                if (isNaN(lastDate.getTime())) {
+                    lastDate = null;
+                }
+            }
+        }
+        
+        // Fallback: try to get from last historical price date
+        if (!lastDate || isNaN(lastDate.getTime())) {
+            // Try to extract from the last historical label if it's a date string
+            if (historicalLabels && historicalLabels.length > 0) {
+                const lastLabel = historicalLabels[historicalLabels.length - 1];
+                // Try parsing common date formats
+                try {
+                    // Try parsing as date string
+                    lastDate = new Date(lastLabel);
+                    if (isNaN(lastDate.getTime())) {
+                        // Try parsing with EST timezone
+                        const estDate = new Date(lastLabel + ' EST');
+                        if (!isNaN(estDate.getTime())) {
+                            lastDate = estDate;
+                        } else {
+                            lastDate = null;
+                        }
+                    }
+                } catch (e) {
+                    lastDate = null;
+                }
+            }
+        }
+        
+        // Final fallback: use current EST time
+        if (!lastDate || isNaN(lastDate.getTime())) {
+            lastDate = getCurrentEST();
+        }
+        
+        // Get the date components in EST timezone to ensure accurate date calculation
+        // This ensures we're working with the actual EST date, not a timezone-shifted date
+        const estDateString = lastDate.toLocaleString('en-US', {
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit',
-            hour12: true
-        }) + ' EST';
+            hour12: false
+        });
+        
+        // Parse EST date string to get accurate date components
+        const estParts = estDateString.split(', ');
+        const datePart = estParts[0].split('/');
+        
+        // Extract date components (year, month, day) in EST
+        const estYear = parseInt(datePart[2]);
+        const estMonth = parseInt(datePart[0]) - 1; // Month is 0-indexed
+        const estDay = parseInt(datePart[1]);
+        
+        // For 1d interval, we need to increment by trading days, not calendar days
+        // But for simplicity, we'll use calendar days and let the user see the pattern
+        const intervalMap = {
+            '1d': { days: 1 },
+            '5d': { days: 5 },
+            '1mo': { months: 1 },
+            '3mo': { months: 3 },
+            '6mo': { months: 6 },
+            '1y': { years: 1 }
+        };
+        
+        const intervalConfig = intervalMap[interval] || intervalMap['1d'];
+        const labels = [];
+        
+        for (let i = 1; i <= steps; i++) {
+            // Calculate the projected date by working with EST components
+            // Create a date object from EST components and perform date arithmetic
+            // We'll create it in a way that represents the EST date correctly
+            // Use UTC methods to avoid timezone shifts, then format as EST
+            const baseDate = new Date(Date.UTC(estYear, estMonth, estDay, 12, 0, 0));
+            
+            // Add the interval offset using UTC methods to avoid timezone issues
+            let projectedDate;
+            if (intervalConfig.days) {
+                projectedDate = new Date(baseDate);
+                projectedDate.setUTCDate(projectedDate.getUTCDate() + (intervalConfig.days * i));
+            } else if (intervalConfig.months) {
+                projectedDate = new Date(baseDate);
+                projectedDate.setUTCMonth(projectedDate.getUTCMonth() + (intervalConfig.months * i));
+            } else if (intervalConfig.years) {
+                projectedDate = new Date(baseDate);
+                projectedDate.setUTCFullYear(projectedDate.getUTCFullYear() + (intervalConfig.years * i));
+            } else {
+                projectedDate = baseDate;
+            }
+            
+            // Format the date in EST timezone
+            // Since we used UTC methods, we need to format it as EST to get the correct date
+            const formattedDate = projectedDate.toLocaleDateString('en-US', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+            
+            labels.push(formattedDate);
+        }
+        
+        return labels;
     }
+    
     
     /**
      * Get current time in EST
@@ -135,11 +290,61 @@ const ProjectionsModule = (function() {
     
     /**
      * Convert timestamp to EST milliseconds
+     * Properly converts a timestamp to EST timezone
      */
     function toESTTimestamp(timestamp) {
         if (!timestamp) return null;
-        const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-        const estDate = toEST(date);
+        
+        // Handle both Date objects and numeric timestamps
+        let date;
+        if (timestamp instanceof Date) {
+            date = timestamp;
+        } else if (typeof timestamp === 'number') {
+            date = new Date(timestamp);
+        } else {
+            date = new Date(timestamp);
+        }
+        
+        // If invalid date, return null
+        if (isNaN(date.getTime())) {
+            console.warn('Invalid timestamp:', timestamp);
+            return null;
+        }
+        
+        // Get the date/time components in EST
+        const estComponents = date.toLocaleString('en-US', {
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        
+        // Parse EST components and create new Date
+        const parts = estComponents.split(', ');
+        if (parts.length !== 2) {
+            return date.getTime(); // Fallback
+        }
+        
+        const datePart = parts[0].split('/');
+        const timePart = parts[1].split(':');
+        
+        if (datePart.length !== 3 || timePart.length !== 3) {
+            return date.getTime(); // Fallback
+        }
+        
+        const estDate = new Date(
+            parseInt(datePart[2]),
+            parseInt(datePart[0]) - 1,
+            parseInt(datePart[1]),
+            parseInt(timePart[0]),
+            parseInt(timePart[1]),
+            parseInt(timePart[2])
+        );
+        
         return estDate.getTime();
     }
     
@@ -477,17 +682,17 @@ const ProjectionsModule = (function() {
             }
             
             // Store candles data for high/low calculations
-            // Convert all timestamps to EST
+            // Note: API already returns timestamps in EST, but we'll ensure they're properly formatted
             historicalCandles = data.candles.map(c => {
                 const candle = { ...c };
-                // Convert time/timestamp to EST
-                if (candle.time) {
-                    candle.time = toESTTimestamp(candle.time);
-                    candle.originalTime = c.time; // Keep original for reference
-                }
-                if (candle.timestamp) {
-                    candle.timestamp = toESTTimestamp(candle.timestamp);
-                    candle.originalTimestamp = c.timestamp; // Keep original for reference
+                // Keep original timestamps - API already converts to EST
+                // But ensure we have valid timestamps
+                if (candle.time && typeof candle.time === 'number') {
+                    // Timestamp is already in milliseconds (EST from API)
+                    candle.originalTime = candle.time;
+                } else if (candle.timestamp && typeof candle.timestamp === 'number') {
+                    candle.time = candle.timestamp;
+                    candle.originalTime = candle.timestamp;
                 }
                 return candle;
             });
@@ -505,15 +710,77 @@ const ProjectionsModule = (function() {
                 throw new Error('No valid price data found');
             }
             
-            historicalLabels = data.candles.map((c, i) => {
-                // Convert time to EST before formatting
-                if (c.time) {
-                    return formatDateEST(c.time);
+            // Generate historical labels with proper EST formatting based on interval
+            // Format dates consistently in EST timezone to ensure proper plotting
+            historicalLabels = historicalCandles.map((c, i) => {
+                // Get timestamp from candle
+                let timestamp = c.time || c.timestamp || c.originalTime;
+                if (!timestamp) {
+                    // Fallback to original data
+                    timestamp = data.candles[i]?.time || data.candles[i]?.timestamp;
+                    if (!timestamp) {
+                        return `Point ${i + 1}`;
+                    }
                 }
-                if (c.timestamp) {
-                    return formatDateEST(c.timestamp);
+                
+                // Create Date object from timestamp
+                const date = new Date(timestamp);
+                
+                // Verify date is valid
+                if (isNaN(date.getTime())) {
+                    console.warn('Invalid date for candle', i, timestamp);
+                    return `Point ${i + 1}`;
                 }
-                return `Point ${i + 1}`;
+                
+                // Format date in EST timezone to ensure accurate date display
+                // This ensures dates are properly plotted on the chart
+                const estDateString = date.toLocaleString('en-US', {
+                    timeZone: 'America/New_York',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
+                
+                // Parse the EST date string to extract components
+                const estParts = estDateString.split(', ');
+                if (estParts.length >= 2) {
+                    // Has time component: "Dec 16, 2025, 10:10"
+                    const datePart = estParts[0]; // "Dec 16, 2025"
+                    const timePart = estParts[1]; // "10:10"
+                    
+                    // For 1d interval with many candles, might be intraday - show time if needed
+                    if (currentInterval === '1d' && historicalCandles.length > 50) {
+                        // Likely intraday data - show date and time
+                        return `${datePart} ${timePart} EST`;
+                    }
+                    
+                    // For daily+ intervals, show date only
+                    return datePart;
+                } else {
+                    // Fallback: format date only
+                    const dateOnly = date.toLocaleDateString('en-US', {
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                    
+                    // For 1d interval with many candles, try to include time
+                    if (currentInterval === '1d' && historicalCandles.length > 50) {
+                        const timeOnly = date.toLocaleTimeString('en-US', {
+                            timeZone: 'America/New_York',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                        });
+                        return `${dateOnly} ${timeOnly} EST`;
+                    }
+                    
+                    return dateOnly;
+                }
             });
             
             // Get parameters based on selected preset
@@ -704,8 +971,8 @@ const ProjectionsModule = (function() {
         }
     }
     
-    // Render chart
-    function renderChart(historicalPrices, historicalLabels, projectionLines, params) {
+    // Render chart with optional actual price data for comparison
+    function renderChart(historicalPrices, historicalLabels, projectionLines, params, actualPrices = null, actualLabels = null) {
         const ctx = document.getElementById('projection-chart');
         if (!ctx) {
             console.error('Chart canvas not found');
@@ -730,11 +997,8 @@ const ProjectionsModule = (function() {
         const steps = params.steps || 20;
         const lastPrice = historicalPrices[historicalPrices.length - 1];
         
-        // Generate projection labels
-        const projectedLabels = [];
-        for (let i = 1; i <= steps; i++) {
-            projectedLabels.push(`Step ${i}`);
-        }
+        // Generate projection labels based on interval (EST dates)
+        const projectedLabels = generateProjectionLabels(steps, currentInterval, historicalLabels);
         
         const allLabels = [...historicalLabels, ...projectedLabels];
         
@@ -794,7 +1058,7 @@ const ProjectionsModule = (function() {
             const isHistorical = line.triad && line.triad[0] === currentSymbol;
             
             datasets.push({
-                label: `Triad [${line.triad.join('-')}]`,
+                label: `Projection [${line.triad.join('-')}]`,
                 data: lineData,
                 borderColor: projectionColors[idx % projectionColors.length],
                 backgroundColor: 'transparent',
@@ -805,6 +1069,44 @@ const ProjectionsModule = (function() {
                 yAxisID: 'y' // Same axis as historical data
             });
         });
+        
+        // Add actual price data if available (for comparison with saved projections)
+        if (actualPrices && actualPrices.length > 0 && actualLabels && actualLabels.length > 0) {
+            const actualData = [];
+            // Fill with nulls for historical period
+            for (let i = 0; i < historicalPrices.length; i++) {
+                actualData.push(null);
+            }
+            
+            // Add actual prices starting from where projection begins
+            // Match actual labels to projection labels
+            let actualIdx = 0;
+            for (let i = historicalPrices.length; i < allLabels.length && actualIdx < actualPrices.length; i++) {
+                actualData.push(actualPrices[actualIdx]);
+                actualIdx++;
+            }
+            
+            // Fill remaining with nulls
+            while (actualData.length < allLabels.length) {
+                actualData.push(null);
+            }
+            
+            datasets.push({
+                label: 'Actual Price (Post-Projection)',
+                data: actualData,
+                borderColor: '#22c55e', // Green for actual
+                backgroundColor: 'transparent',
+                borderWidth: 3,
+                pointRadius: 2,
+                pointBackgroundColor: '#22c55e',
+                tension: 0.1,
+                borderDash: [],
+                yAxisID: 'y'
+            });
+            
+            // Calculate and display accuracy metrics
+            calculateAccuracyMetrics(projectionLines, actualPrices, historicalPrices.length);
+        }
         
         // Destroy existing chart and cleanup pan handlers
         if (projectionChart) {
@@ -867,18 +1169,18 @@ const ProjectionsModule = (function() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                resizeDelay: 100,
                 interaction: {
                     intersect: false,
                     mode: 'index',
                     includeInvisible: true
                 },
-                onResize: function(chart, size) {
-                    // Handle responsive resizing
-                    if (size.width < 768) {
-                        chart.options.plugins.legend.position = 'bottom';
-                    } else {
-                        chart.options.plugins.legend.position = 'top';
+                onHover: (event, activeElements) => {
+                    // Don't change cursor if currently panning
+                    if (panState.isPanning) return;
+                    
+                    const canvas = event.native?.target;
+                    if (canvas) {
+                        canvas.style.cursor = 'grab';
                     }
                 },
                 plugins: {
@@ -915,57 +1217,35 @@ const ProjectionsModule = (function() {
                         }
                     },
                     tooltip: {
-                        enabled: true,
-                        mode: 'index',
-                        intersect: false,
                         backgroundColor: 'rgba(0, 0, 0, 0.8)',
                         titleColor: '#fff',
                         bodyColor: '#fff',
                         borderColor: 'rgba(255, 255, 255, 0.1)',
                         borderWidth: 1,
-                        padding: 12,
                         callbacks: {
-                            title: function(context) {
-                                return context[0].label || 'Data Point';
-                            },
                             label: function(context) {
-                                const datasetLabel = context.dataset.label || '';
-                                const value = context.parsed.y;
-                                if (value === null || value === undefined) return '';
-                                return `${datasetLabel}: ${formatPrice(value)}`;
+                                return `${context.dataset.label}: ${formatPrice(context.raw)}`;
                             }
-                        },
-                        displayColors: true,
-                        boxPadding: 6,
-                        cornerRadius: 6,
-                        caretSize: 8,
-                        caretPadding: 8
-                    },
-                    // Zoom configuration - enabled for mouse wheel, pinch, and drag selection
-                    zoom: {
-                        wheel: {
-                            enabled: true,
-                            speed: 0.1,
-                            modifierKey: null
-                        },
-                        pinch: {
-                            enabled: true
-                        },
-                        drag: {
-                            enabled: true,
-                            modifierKey: 'shift', // Hold Shift to drag-select zoom area
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            borderColor: 'rgba(59, 130, 246, 0.3)',
-                            borderWidth: 1
-                        },
-                        mode: 'xy',
-                        limits: {
-                            x: { min: 'original', max: 'original' },
-                            y: { min: 'original', max: 'original' }
                         }
                     },
-                    pan: {
-                        enabled: false // Using custom pan implementation (like charts.js) for better control
+                    zoom: {
+                        zoom: {
+                            wheel: {
+                                enabled: true,
+                                speed: 0.1,
+                                modifierKey: null
+                            },
+                            pinch: {
+                                enabled: true
+                            },
+                            drag: {
+                                enabled: false
+                            },
+                            mode: 'xy'
+                        },
+                        pan: {
+                            enabled: false // Using custom pan implementation
+                        }
                     }
                 },
                 layout: {
@@ -978,7 +1258,7 @@ const ProjectionsModule = (function() {
                 },
                 scales: {
                     x: {
-                        display: true,
+                        display: false,
                         grid: {
                             color: chartColors.grid,
                             drawBorder: false
@@ -986,15 +1266,11 @@ const ProjectionsModule = (function() {
                         ticks: {
                             color: chartColors.text,
                             maxRotation: 0,
-                            padding: 8,
-                            font: {
-                                size: 11
-                            }
+                            padding: 8
                         }
                     },
                     y: {
-                        position: 'right', // Same as charts.js
-                        display: true,
+                        position: 'right',
                         grid: {
                             color: chartColors.grid,
                             drawBorder: false
@@ -1002,68 +1278,38 @@ const ProjectionsModule = (function() {
                         ticks: {
                             color: chartColors.text,
                             padding: 8,
-                            font: {
-                                size: 11
-                            },
                             callback: function(value) {
                                 return formatPrice(value);
                             }
-                        }
-                    }
-                },
-                onHover: (event, activeElements) => {
-                    // Don't change cursor if currently panning
-                    if (panState.isPanning) return;
-                    
-                    const canvas = event.native?.target;
-                    if (canvas) {
-                        const isShiftPressed = event.native.shiftKey;
-                        const chartWrapper = canvas.closest('.chart-wrapper');
-                        
-                        // Update wrapper class for CSS styling
-                        if (chartWrapper) {
-                            if (isShiftPressed) {
-                                chartWrapper.classList.add('shift-active');
-                            } else {
-                                chartWrapper.classList.remove('shift-active');
-                            }
-                        }
-                        
-                        // Set cursor based on state (matching charts.js)
-                        if (isShiftPressed) {
-                            canvas.style.cursor = 'crosshair';
-                        } else {
-                            canvas.style.cursor = 'grab';
-                        }
-                    }
-                },
-                // Enable animations for smooth interactions
-                animation: {
-                    duration: 300,
-                    easing: 'easeInOutQuart'
-                },
-                // Enable transitions
-                transitions: {
-                    zoom: {
-                        animation: {
-                            duration: 300,
-                            easing: 'easeOutCubic'
-                        }
-                    },
-                    pan: {
-                        animation: {
-                            duration: 300,
-                            easing: 'easeOutCubic'
                         }
                     }
                 }
             }
         });
         
-        // Update chart title
+        // Update chart title with EST timezone
         const titleElement = document.getElementById('projection-chart-title');
         if (titleElement) {
-            titleElement.textContent = `${currentSymbol} - ${currentInterval} - ${steps} Step Projection`;
+            const intervalMap = {
+                '1d': '1 Day',
+                '5d': '5 Days',
+                '1mo': '1 Month',
+                '3mo': '3 Months',
+                '6mo': '6 Months',
+                '1y': '1 Year'
+            };
+            const intervalLabel = intervalMap[currentInterval] || currentInterval;
+            const currentEST = getCurrentEST();
+            const estTimeStr = currentEST.toLocaleString('en-US', {
+                timeZone: 'America/New_York',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+            titleElement.textContent = `${currentSymbol} Price Projection - ${intervalLabel} (${steps} Steps) | EST | Last Updated: ${estTimeStr} EST`;
         }
         
         // Always show zoom controls (plugin should be available)
@@ -1567,6 +1813,205 @@ const ProjectionsModule = (function() {
      * Update price metrics display
      * Matches the design from the screenshot
      */
+    // Calculate accuracy metrics comparing projection to actual prices
+    function calculateAccuracyMetrics(projectionLines, actualPrices, historicalLength) {
+        if (!actualPrices || actualPrices.length === 0 || !projectionLines || projectionLines.length === 0) {
+            return;
+        }
+        
+        // Find the ensemble projection (main projection)
+        const ensembleProjection = projectionLines.find(line => 
+            line.isEnsemble || (line.triad && line.triad[0] === 'Ensemble')
+        ) || projectionLines[0];
+        
+        if (!ensembleProjection || !ensembleProjection.points) {
+            return;
+        }
+        
+        const projectedPoints = ensembleProjection.points;
+        const minLength = Math.min(projectedPoints.length, actualPrices.length);
+        
+        if (minLength === 0) return;
+        
+        const lastPrice = historicalPrices[historicalPrices.length - 1] || 1;
+        
+        // Calculate errors
+        let totalError = 0;
+        let totalAbsoluteError = 0;
+        let totalPercentageError = 0;
+        let maxError = 0;
+        
+        for (let i = 0; i < minLength; i++) {
+            const projected = projectedPoints[i];
+            const actual = actualPrices[i];
+            
+            if (projected && actual && !isNaN(projected) && !isNaN(actual)) {
+                const error = projected - actual;
+                const absError = Math.abs(error);
+                const pctError = (absError / actual) * 100;
+                
+                totalError += error;
+                totalAbsoluteError += absError;
+                totalPercentageError += pctError;
+                maxError = Math.max(maxError, absError);
+            }
+        }
+        
+        const mae = totalAbsoluteError / minLength; // Mean Absolute Error
+        const mape = totalPercentageError / minLength; // Mean Absolute Percentage Error
+        const bias = totalError / minLength; // Bias (positive = overestimate, negative = underestimate)
+        
+        // Display accuracy metrics
+        const accuracySection = document.getElementById('accuracy-metrics-section');
+        if (accuracySection) {
+            accuracySection.style.display = 'block';
+            
+            const maeEl = document.getElementById('accuracy-mae');
+            const mapeEl = document.getElementById('accuracy-mape');
+            const biasEl = document.getElementById('accuracy-bias');
+            const maxErrorEl = document.getElementById('accuracy-max-error');
+            
+            if (maeEl) {
+                maeEl.textContent = formatPrice(mae);
+                maeEl.className = 'metric-value ' + (mae < lastPrice * 0.02 ? 'positive' : mae < lastPrice * 0.05 ? '' : 'negative');
+            }
+            
+            if (mapeEl) {
+                mapeEl.textContent = mape.toFixed(2) + '%';
+                mapeEl.className = 'metric-value ' + (mape < 2 ? 'positive' : mape < 5 ? '' : 'negative');
+            }
+            
+            if (biasEl) {
+                const biasPct = (bias / lastPrice) * 100;
+                biasEl.textContent = formatPrice(bias) + ' (' + (biasPct >= 0 ? '+' : '') + biasPct.toFixed(2) + '%)';
+                biasEl.className = 'metric-value ' + (Math.abs(biasPct) < 2 ? 'positive' : Math.abs(biasPct) < 5 ? '' : 'negative');
+            }
+            
+            if (maxErrorEl) {
+                maxErrorEl.textContent = formatPrice(maxError);
+                maxErrorEl.className = 'metric-value ' + (maxError < lastPrice * 0.05 ? 'positive' : maxError < lastPrice * 0.1 ? '' : 'negative');
+            }
+        }
+    }
+    
+    // Load saved projection with actual price comparison
+    async function loadSavedProjectionWithActual(projectionId) {
+        try {
+            // Fetch saved projection
+            const response = await fetch('api/projections.php');
+            if (!response.ok) throw new Error('Failed to fetch projections');
+            
+            const result = await response.json();
+            if (!result.success || !result.projections) {
+                throw new Error('No projections found');
+            }
+            
+            const proj = result.projections.find(p => p.id == projectionId);
+            if (!proj) {
+                throw new Error('Projection not found');
+            }
+            
+            // Parse projection data
+            let projectionData = typeof proj.projection_data === 'string' 
+                ? JSON.parse(proj.projection_data) 
+                : proj.projection_data;
+            
+            if (!projectionData) {
+                throw new Error('Invalid projection data');
+            }
+            
+            savedProjectionData = projectionData;
+            currentSymbol = projectionData.symbol || proj.symbol;
+            currentInterval = projectionData.interval || '1d';
+            
+            // Set symbol and interval in UI
+            const symbolInput = document.getElementById('projection-symbol-input');
+            const intervalSelect = document.getElementById('projection-interval-select');
+            if (symbolInput) symbolInput.value = currentSymbol;
+            if (intervalSelect) intervalSelect.value = currentInterval;
+            
+            // Use saved historical data
+            historicalPrices = projectionData.historicalPrices || [];
+            historicalLabels = projectionData.historicalLabels || [];
+            const savedProjectionLines = projectionData.projectionLines || [];
+            const savedParams = projectionData.params || (typeof proj.params === 'string' ? JSON.parse(proj.params) : proj.params) || {};
+            
+            // Fetch actual price data from saved date to now
+            const savedDate = new Date(proj.saved_at);
+            showLoading(true);
+            
+            try {
+                // Fetch current market data
+                const currentData = await fetchMarketData(currentSymbol, currentInterval);
+                
+                if (currentData && currentData.candles && currentData.candles.length > 0) {
+                    // Convert saved date to EST for comparison
+                    const savedDateEST = toEST(savedDate);
+                    
+                    // Filter candles to only include those after the saved date (using EST)
+                    const actualCandles = currentData.candles.filter(c => {
+                        const candleTimestamp = c.time || c.timestamp;
+                        if (!candleTimestamp) return false;
+                        const candleDateEST = toEST(new Date(candleTimestamp));
+                        return candleDateEST >= savedDateEST;
+                    });
+                    
+                    // Convert all actual candle timestamps to EST
+                    const actualCandlesEST = actualCandles.map(c => {
+                        const candle = { ...c };
+                        if (candle.time) {
+                            candle.time = toESTTimestamp(candle.time);
+                        }
+                        if (candle.timestamp) {
+                            candle.timestamp = toESTTimestamp(candle.timestamp);
+                        }
+                        return candle;
+                    });
+                    
+                    // Extract actual prices
+                    actualPriceData = {
+                        prices: actualCandlesEST.map(c => parseFloat(c.close || c.price || 0)).filter(p => !isNaN(p) && p > 0),
+                        labels: actualCandlesEST.map(c => {
+                            const timestamp = c.time || c.timestamp;
+                            if (!timestamp) return '';
+                            const estDate = new Date(timestamp);
+                            return estDate.toLocaleDateString('en-US', {
+                                timeZone: 'America/New_York',
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                            });
+                        }).filter(l => l)
+                    };
+                }
+            } catch (error) {
+                console.warn('Could not fetch actual price data:', error);
+                actualPriceData = null;
+            }
+            
+            // Render chart with both saved projection and actual data
+            renderChart(
+                historicalPrices, 
+                historicalLabels, 
+                savedProjectionLines, 
+                savedParams,
+                actualPriceData ? actualPriceData.prices : null,
+                actualPriceData ? actualPriceData.labels : null
+            );
+            
+            // Update metrics
+            updateMetrics(historicalPrices, savedProjectionLines, savedParams);
+            
+            showLoading(false);
+            hideError();
+            
+        } catch (error) {
+            console.error('Error loading saved projection:', error);
+            showError(error.message || 'Failed to load saved projection');
+            showLoading(false);
+        }
+    }
+    
     function updateMetrics(historicalPrices, projectionLines, params) {
         if (!historicalPrices || historicalPrices.length === 0) return;
         
@@ -1848,21 +2293,35 @@ const ProjectionsModule = (function() {
                 };
             }
             
+            // Ensure all data is in EST before saving
+            const estTimestamp = getCurrentEST().getTime();
+            const estDateStr = getCurrentEST().toLocaleString('en-US', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            }) + ' EST';
+            
             const saveData = {
                 symbol: currentSymbol,
-                title: `${currentSymbol} - ${currentInterval} Projection`,
+                title: `${currentSymbol} - ${currentInterval} Projection (EST)`,
                 projection_data: {
                     symbol: currentSymbol,
                     interval: currentInterval,
                     historicalPrices: historicalPrices,
-                    historicalLabels: historicalLabels,
+                    historicalLabels: historicalLabels, // Already in EST format
                     projectionLines: projectionLines,
                     params: params,
-                    lastPrice: historicalPrices[historicalPrices.length - 1]
+                    lastPrice: historicalPrices[historicalPrices.length - 1],
+                    timezone: 'EST',
+                    savedAtEST: estDateStr
                 },
                 chart_data: chartData,
                 params: params,
-                notes: `Projection for ${currentSymbol} with ${params.steps} steps, base ${params.base}, depth ${params.depthPrime}`
+                notes: `Projection for ${currentSymbol} with ${params.steps} steps, base ${params.base}, depth ${params.depthPrime} | Timezone: EST | Saved: ${estDateStr}`
             };
             
             const response = await fetch('api/projections.php', {
@@ -2377,7 +2836,8 @@ const ProjectionsModule = (function() {
     return {
         init: init,
         loadProjectionData: loadProjectionData,
-        autoLoadSPY: autoLoadSPY
+        autoLoadSPY: autoLoadSPY,
+        loadSavedProjectionWithActual: loadSavedProjectionWithActual
     };
 })();
 

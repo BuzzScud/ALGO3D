@@ -1591,10 +1591,15 @@ function loadProjection(id) {
                 if (countValueInput && params.projectionCount) countValueInput.value = params.projectionCount;
                 if (depthValueInput && params.depthPrime) depthValueInput.value = params.depthPrime;
                 
-                // Trigger search
-                const searchBtn = document.getElementById('projection-search-btn');
-                if (searchBtn) {
-                    searchBtn.click();
+                // Load saved projection with actual price comparison
+                if (typeof ProjectionsModule !== 'undefined' && ProjectionsModule.loadSavedProjectionWithActual) {
+                    ProjectionsModule.loadSavedProjectionWithActual(projectionId);
+                } else {
+                    // Fallback: trigger search
+                    const searchBtn = document.getElementById('projection-search-btn');
+                    if (searchBtn) {
+                        searchBtn.click();
+                    }
                 }
             }, 500);
         })

@@ -45,7 +45,9 @@ try {
         'strategy' => "ALTER TABLE notes ADD COLUMN strategy TEXT",
         'timeframe' => "ALTER TABLE notes ADD COLUMN timeframe TEXT",
         'notes_type' => "ALTER TABLE notes ADD COLUMN notes_type TEXT DEFAULT 'trade'",
-            'category' => "ALTER TABLE notes ADD COLUMN category TEXT"
+        'category' => "ALTER TABLE notes ADD COLUMN category TEXT",
+        'pinned' => "ALTER TABLE notes ADD COLUMN pinned INTEGER DEFAULT 0",
+        'labels' => "ALTER TABLE notes ADD COLUMN labels TEXT"
     ];
     
     foreach ($tradingColumns as $col => $sql) {
@@ -69,15 +71,24 @@ try {
             $search = $_GET['search'] ?? '';
             
             if (!empty($search)) {
-                $stmt = $conn->prepare("SELECT * FROM notes WHERE title LIKE ? OR content LIKE ? ORDER BY updated_at DESC");
+                $stmt = $conn->prepare("SELECT * FROM notes WHERE title LIKE ? OR content LIKE ? ORDER BY pinned DESC, updated_at DESC");
                 $searchTerm = '%' . $search . '%';
                 $stmt->execute([$searchTerm, $searchTerm]);
             } else {
-                $stmt = $conn->prepare("SELECT * FROM notes ORDER BY updated_at DESC");
+                $stmt = $conn->prepare("SELECT * FROM notes ORDER BY pinned DESC, updated_at DESC");
                 $stmt->execute();
             }
             
             $notes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Parse labels JSON
+            foreach ($notes as &$note) {
+                if (!empty($note['labels'])) {
+                    $note['labels'] = json_decode($note['labels'], true) ?: [];
+                } else {
+                    $note['labels'] = [];
+                }
+                $note['pinned'] = (bool)($note['pinned'] ?? 0);
+            }
             echo json_encode($notes);
             break;
             
@@ -85,7 +96,9 @@ try {
             $input = json_decode(file_get_contents('php://input'), true);
             $title = trim($input['title'] ?? 'Untitled Note');
             $content = $input['content'] ?? '';
-            $color = $input['color'] ?? '#1e293b';
+            $color = $input['color'] ?? '#cfe2ff';
+            $pinned = isset($input['pinned']) ? intval($input['pinned']) : 0;
+            $labels = isset($input['labels']) && is_array($input['labels']) ? json_encode($input['labels']) : null;
             
             // Trading fields
             $contractSymbol = $input['contract_symbol'] ?? null;
@@ -102,11 +115,11 @@ try {
             $takeProfit = isset($input['take_profit']) ? floatval($input['take_profit']) : null;
             $strategy = $input['strategy'] ?? null;
             $timeframe = $input['timeframe'] ?? null;
-            $notesType = $input['notes_type'] ?? 'trade';
+            $notesType = $input['notes_type'] ?? 'note';
             $category = $input['category'] ?? null;
             
-            $stmt = $conn->prepare("INSERT INTO notes (title, content, color, contract_symbol, contract_type, entry_price, exit_price, quantity, direction, pnl, pnl_percent, entry_time, exit_time, stop_loss, take_profit, strategy, timeframe, notes_type, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$title, $content, $color, $contractSymbol, $contractType, $entryPrice, $exitPrice, $quantity, $direction, $pnl, $pnlPercent, $entryTime, $exitTime, $stopLoss, $takeProfit, $strategy, $timeframe, $notesType, $category]);
+            $stmt = $conn->prepare("INSERT INTO notes (title, content, color, pinned, labels, contract_symbol, contract_type, entry_price, exit_price, quantity, direction, pnl, pnl_percent, entry_time, exit_time, stop_loss, take_profit, strategy, timeframe, notes_type, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$title, $content, $color, $pinned, $labels, $contractSymbol, $contractType, $entryPrice, $exitPrice, $quantity, $direction, $pnl, $pnlPercent, $entryTime, $exitTime, $stopLoss, $takeProfit, $strategy, $timeframe, $notesType, $category]);
             
             echo json_encode(['success' => true, 'id' => $conn->lastInsertId()]);
             break;
@@ -116,7 +129,9 @@ try {
             $id = intval($input['id'] ?? 0);
             $title = trim($input['title'] ?? 'Untitled Note');
             $content = $input['content'] ?? '';
-            $color = $input['color'] ?? '#1e293b';
+            $color = $input['color'] ?? '#cfe2ff';
+            $pinned = isset($input['pinned']) ? intval($input['pinned']) : 0;
+            $labels = isset($input['labels']) && is_array($input['labels']) ? json_encode($input['labels']) : null;
             
             // Trading fields
             $contractSymbol = $input['contract_symbol'] ?? null;
@@ -133,12 +148,12 @@ try {
             $takeProfit = isset($input['take_profit']) ? floatval($input['take_profit']) : null;
             $strategy = $input['strategy'] ?? null;
             $timeframe = $input['timeframe'] ?? null;
-            $notesType = $input['notes_type'] ?? 'trade';
+            $notesType = $input['notes_type'] ?? 'note';
             $category = $input['category'] ?? null;
             
             if ($id > 0) {
-                $stmt = $conn->prepare("UPDATE notes SET title = ?, content = ?, color = ?, contract_symbol = ?, contract_type = ?, entry_price = ?, exit_price = ?, quantity = ?, direction = ?, pnl = ?, pnl_percent = ?, entry_time = ?, exit_time = ?, stop_loss = ?, take_profit = ?, strategy = ?, timeframe = ?, notes_type = ?, category = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                $stmt->execute([$title, $content, $color, $contractSymbol, $contractType, $entryPrice, $exitPrice, $quantity, $direction, $pnl, $pnlPercent, $entryTime, $exitTime, $stopLoss, $takeProfit, $strategy, $timeframe, $notesType, $category, $id]);
+                $stmt = $conn->prepare("UPDATE notes SET title = ?, content = ?, color = ?, pinned = ?, labels = ?, contract_symbol = ?, contract_type = ?, entry_price = ?, exit_price = ?, quantity = ?, direction = ?, pnl = ?, pnl_percent = ?, entry_time = ?, exit_time = ?, stop_loss = ?, take_profit = ?, strategy = ?, timeframe = ?, notes_type = ?, category = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                $stmt->execute([$title, $content, $color, $pinned, $labels, $contractSymbol, $contractType, $entryPrice, $exitPrice, $quantity, $direction, $pnl, $pnlPercent, $entryTime, $exitTime, $stopLoss, $takeProfit, $strategy, $timeframe, $notesType, $category, $id]);
                 echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Invalid ID']);
