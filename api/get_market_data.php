@@ -3,6 +3,7 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 require_once '../includes/config.php';
 require_once '../includes/database.php';
+require_once 'track_api_usage.php';
 
 // Get API source from request (default to config)
 $apiSource = $_GET['source'] ?? DEFAULT_API_SOURCE;
@@ -129,6 +130,7 @@ echo json_encode([
 
 // Fetch from Finnhub API
 function fetchFromFinnhub($symbol) {
+    $startTime = microtime(true);
     $url = FINNHUB_BASE_URL . "/quote?symbol=" . urlencode($symbol) . "&token=" . FINNHUB_API_KEY;
     
     $ch = curl_init();
@@ -138,28 +140,42 @@ function fetchFromFinnhub($symbol) {
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    $endTime = microtime(true);
+    $responseTime = round(($endTime - $startTime) * 1000);
+    curl_close($ch);
     
     updateRateLimit('finnhub');
     
-    if ($httpCode === 200 && $response) {
+    $success = ($httpCode === 200 && $response);
+    $data = null;
+    
+    if ($success) {
         $data = json_decode($response, true);
-        
-        // Check for valid response (c = current price)
-        if (isset($data['c']) && $data['c'] > 0) {
-            return [
-                'symbol' => $symbol,
-                'price' => floatval($data['c']),
-                'change' => floatval($data['d'] ?? 0),
-                'changePercent' => floatval($data['dp'] ?? 0),
-                'high' => floatval($data['h'] ?? 0),
-                'low' => floatval($data['l'] ?? 0),
-                'open' => floatval($data['o'] ?? 0),
-                'previousClose' => floatval($data['pc'] ?? 0),
-                'volume' => 0, // Finnhub quote doesn't include volume
-                'timestamp' => date('Y-m-d H:i:s'),
-                'source' => 'finnhub'
-            ];
-        }
+        $success = isset($data['c']) && $data['c'] > 0;
+    }
+    
+    // Track API usage (non-blocking)
+    try {
+        trackApiUsage('finnhub', 'Finnhub', $success, $responseTime, $success ? null : "HTTP $httpCode: $error");
+    } catch (Exception $e) {
+        error_log("Failed to track API usage: " . $e->getMessage());
+    }
+    
+    if ($success && $data) {
+        return [
+            'symbol' => $symbol,
+            'price' => floatval($data['c']),
+            'change' => floatval($data['d'] ?? 0),
+            'changePercent' => floatval($data['dp'] ?? 0),
+            'high' => floatval($data['h'] ?? 0),
+            'low' => floatval($data['l'] ?? 0),
+            'open' => floatval($data['o'] ?? 0),
+            'previousClose' => floatval($data['pc'] ?? 0),
+            'volume' => 0, // Finnhub quote doesn't include volume
+            'timestamp' => date('Y-m-d H:i:s'),
+            'source' => 'finnhub'
+        ];
     }
     
     return null;
@@ -167,6 +183,7 @@ function fetchFromFinnhub($symbol) {
 
 // Fetch from Yahoo Finance API
 function fetchFromYahoo($symbol) {
+    $startTime = microtime(true);
     // Handle special symbols
     $yahooSymbol = $symbol;
     if ($symbol === 'VIX') {
@@ -185,13 +202,29 @@ function fetchFromYahoo($symbol) {
     curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    $endTime = microtime(true);
+    $responseTime = round(($endTime - $startTime) * 1000);
+    curl_close($ch);
     
     updateRateLimit('yahoo');
     
-    if ($httpCode === 200 && $response) {
+    $success = ($httpCode === 200 && $response);
+    $data = null;
+    
+    if ($success) {
         $data = json_decode($response, true);
-        
-        if (isset($data['chart']['result'][0])) {
+        $success = isset($data['chart']['result'][0]);
+    }
+    
+    // Track API usage (non-blocking)
+    try {
+        trackApiUsage('yahoo', 'Yahoo Finance', $success, $responseTime, $success ? null : "HTTP $httpCode: $error");
+    } catch (Exception $e) {
+        error_log("Failed to track API usage: " . $e->getMessage());
+    }
+    
+    if ($success && $data && isset($data['chart']['result'][0])) {
             $result = $data['chart']['result'][0];
             $meta = $result['meta'] ?? [];
             $quote = $result['indicators']['quote'][0] ?? [];

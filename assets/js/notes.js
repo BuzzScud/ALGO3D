@@ -1525,7 +1525,6 @@ function loadProjection(id) {
             // Wait for page to load, then populate
             setTimeout(() => {
                 const symbolInput = document.getElementById('projection-symbol-input');
-                const intervalSelect = document.getElementById('projection-interval-select');
                 const stepsInput = document.getElementById('projection-steps');
                 const baseInput = document.getElementById('projection-base');
                 const countInput = document.getElementById('projection-count');
@@ -1549,8 +1548,27 @@ function loadProjection(id) {
                     symbolInput.value = projectionData?.symbol || proj.symbol || '';
                 }
                 
-                if (intervalSelect && projectionData && projectionData.interval) {
-                    intervalSelect.value = projectionData.interval;
+                // Update timeframe button instead of dropdown
+                if (projectionData && projectionData.interval) {
+                    const savedInterval = projectionData.interval;
+                    // Map legacy intervals to new timeframes
+                    const intervalToTimeframeMap = {
+                        '1d': '1D',
+                        '5d': '5D',
+                        '1mo': '1M',
+                        '3mo': '3M',
+                        '6mo': '6M',
+                        '1y': '1Y'
+                    };
+                    const timeframe = intervalToTimeframeMap[savedInterval] || savedInterval;
+                    
+                    const timeframeBtns = document.querySelectorAll('.projection-timeframe-selector .timeframe-btn');
+                    timeframeBtns.forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.timeframe === timeframe) {
+                            btn.classList.add('active');
+                        }
+                    });
                 }
                 
                 // Parse params from projection_data or proj.params

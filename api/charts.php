@@ -9,6 +9,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 require_once '../includes/config.php';
 require_once '../includes/database.php';
+require_once 'track_api_usage.php';
 
 $database = new Database();
 $conn = $database->getConnection();
@@ -167,17 +168,20 @@ function getChartData() {
     // Determine resolution and date range based on timeframe
     $params = getTimeframeParams($timeframe);
     
-    // Check cache
+    // Check for cache bypass parameter for real-time data
+    $forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] === 'true';
+    
+    // Check cache (only if not forcing refresh)
     $cacheKey = $symbol . '_' . $timeframe;
     $cacheFile = $cacheDir . '/chart_' . $cacheKey . '.json';
-    // Shorter cache for intraday timeframes for more real-time data
-    $cacheTime = in_array($timeframe, ['15MIN', '1H', '4H', '1D']) ? 60 : 300; // 1 min for intraday, 5 min for others
+    // Reduced cache time for real-time data: 30 seconds for intraday, 2 minutes for others
+    $cacheTime = in_array($timeframe, ['15MIN', '1H', '4H', '1D']) ? 30 : 120;
     
-    if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTime) {
+    if (!$forceRefresh && file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTime) {
         $cachedData = file_get_contents($cacheFile);
         $decoded = json_decode($cachedData, true);
         // Only use cache if it's real data (not demo)
-        if ($decoded && !isset($decoded['demo'])) {
+        if ($decoded && !isset($decoded['demo']) && isset($decoded['success']) && $decoded['success'] === true) {
             echo $cachedData;
             return;
         }
@@ -232,13 +236,13 @@ function getTimeframeParams($timeframe) {
             $from = $now - (60 * 86400); // Last 60 days for 4 hour view (showing hourly bars)
             break;
         case '1D':
-            $resolution = '5';
-            $from = strtotime('today 09:30', $now);
+            $resolution = 'D'; // Daily bars
+            $from = $now - (10 * 86400); // Last 10 days to ensure at least 5 trading days (accounting for weekends/holidays)
             break;
         default:
             // Default to 1D if invalid timeframe
-            $resolution = '5';
-            $from = strtotime('today 09:30', $now);
+            $resolution = 'D'; // Daily bars
+            $from = $now - (10 * 86400); // Last 10 days to ensure at least 5 trading days (accounting for weekends/holidays)
             break;
     }
     
@@ -250,6 +254,7 @@ function getTimeframeParams($timeframe) {
 }
 
 function fetchFinnhubQuote($symbol) {
+    $startTime = microtime(true);
     $apiKey = FINNHUB_API_KEY;
     $url = "https://finnhub.io/api/v1/quote?symbol={$symbol}&token={$apiKey}";
     
@@ -262,9 +267,20 @@ function fetchFinnhubQuote($symbol) {
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
+    $endTime = microtime(true);
+    $responseTime = round(($endTime - $startTime) * 1000);
     curl_close($ch);
     
-    if ($httpCode !== 200 || $error) {
+    $success = ($httpCode === 200 && !$error);
+    
+    // Track API usage (non-blocking)
+    try {
+        trackApiUsage('finnhub', 'Finnhub', $success, $responseTime, $success ? null : "HTTP $httpCode: $error");
+    } catch (Exception $e) {
+        error_log("Failed to track API usage: " . $e->getMessage());
+    }
+    
+    if (!$success) {
         error_log("Finnhub quote error: HTTP $httpCode, Error: $error");
         return null;
     }
@@ -273,6 +289,11 @@ function fetchFinnhubQuote($symbol) {
     
     // Check if we got valid data (Finnhub returns all zeros for invalid symbols)
     if (!$data || (isset($data['c']) && $data['c'] == 0)) {
+        try {
+            trackApiUsage('finnhub', 'Finnhub', false, $responseTime, 'Invalid or empty data');
+        } catch (Exception $e) {
+            error_log("Failed to track API usage: " . $e->getMessage());
+        }
         return null;
     }
     
@@ -280,6 +301,7 @@ function fetchFinnhubQuote($symbol) {
 }
 
 function fetchFinnhubCandles($symbol, $resolution, $from, $to) {
+    $startTime = microtime(true);
     $apiKey = FINNHUB_API_KEY;
     $url = "https://finnhub.io/api/v1/stock/candle?symbol={$symbol}&resolution={$resolution}&from={$from}&to={$to}&token={$apiKey}";
     
@@ -292,9 +314,20 @@ function fetchFinnhubCandles($symbol, $resolution, $from, $to) {
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
+    $endTime = microtime(true);
+    $responseTime = round(($endTime - $startTime) * 1000);
     curl_close($ch);
     
-    if ($httpCode !== 200 || $error) {
+    $success = ($httpCode === 200 && !$error);
+    
+    // Track API usage (non-blocking)
+    try {
+        trackApiUsage('finnhub', 'Finnhub', $success, $responseTime, $success ? null : "HTTP $httpCode: $error");
+    } catch (Exception $e) {
+        error_log("Failed to track API usage: " . $e->getMessage());
+    }
+    
+    if (!$success) {
         error_log("Finnhub candles error: HTTP $httpCode, Error: $error, URL: $url");
         return null;
     }
@@ -303,6 +336,11 @@ function fetchFinnhubCandles($symbol, $resolution, $from, $to) {
     
     // Check for valid response (Finnhub returns 's' => 'no_data' when no data available)
     if (!$data || (isset($data['s']) && $data['s'] === 'no_data')) {
+        try {
+            trackApiUsage('finnhub', 'Finnhub', false, $responseTime, 'No data available');
+        } catch (Exception $e) {
+            error_log("Failed to track API usage: " . $e->getMessage());
+        }
         error_log("Finnhub candles: No data available for $symbol");
         return null;
     }
@@ -311,6 +349,7 @@ function fetchFinnhubCandles($symbol, $resolution, $from, $to) {
 }
 
 function fetchYahooQuote($symbol) {
+    $startTime = microtime(true);
     $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?interval=1d&range=1d";
     
     $ch = curl_init();
@@ -320,11 +359,23 @@ function fetchYahooQuote($symbol) {
     curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    $endTime = microtime(true);
+    $responseTime = round(($endTime - $startTime) * 1000);
     curl_close($ch);
     
     $data = json_decode($response, true);
+    $success = ($httpCode === 200 && isset($data['chart']['result'][0]['meta']));
     
-    if (isset($data['chart']['result'][0]['meta'])) {
+    // Track API usage (non-blocking)
+    try {
+        trackApiUsage('yahoo', 'Yahoo Finance', $success, $responseTime, $success ? null : "HTTP $httpCode: $error");
+    } catch (Exception $e) {
+        error_log("Failed to track API usage: " . $e->getMessage());
+    }
+    
+    if ($success) {
         $meta = $data['chart']['result'][0]['meta'];
         return [
             'success' => true,
@@ -344,6 +395,7 @@ function fetchYahooQuote($symbol) {
 }
 
 function fetchYahooChartData($symbol, $timeframe) {
+    $startTime = microtime(true);
     // Map timeframe to Yahoo Finance parameters
     $yahooParams = getYahooTimeframeParams($timeframe);
     
@@ -358,9 +410,21 @@ function fetchYahooChartData($symbol, $timeframe) {
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    $endTime = microtime(true);
+    $responseTime = round(($endTime - $startTime) * 1000);
     curl_close($ch);
     
-    if ($httpCode !== 200 || empty($response)) {
+    $success = ($httpCode === 200 && !empty($response));
+    
+    // Track API usage (non-blocking)
+    try {
+        trackApiUsage('yahoo', 'Yahoo Finance', $success, $responseTime, $success ? null : "HTTP $httpCode: $error");
+    } catch (Exception $e) {
+        error_log("Failed to track API usage: " . $e->getMessage());
+    }
+    
+    if (!$success) {
         return null;
     }
     
@@ -459,10 +523,10 @@ function getYahooTimeframeParams($timeframe) {
         case '4H':
             return ['interval' => '15m', 'range' => '1mo'];
         case '1D':
-            return ['interval' => '5m', 'range' => '1d'];
+            return ['interval' => '1d', 'range' => '10d']; // Daily bars, 10 days range to ensure at least 5 trading days
         default:
             // Default to 1D if invalid timeframe
-            return ['interval' => '5m', 'range' => '1d'];
+            return ['interval' => '1d', 'range' => '10d']; // Daily bars, 10 days range to ensure at least 5 trading days
     }
 }
 

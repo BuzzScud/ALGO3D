@@ -403,7 +403,9 @@ const UnifiedProjectionEngine = (function() {
                     const lambda = LAMBDA_DEFAULT[i % LAMBDA_DEFAULT.length];
                     
                     // Calculate theta with tetration influence
-                    let theta_i = this.calculateTheta(i, psi, lambda, omegaHz, depthPrime);
+                    // Parameters: (n, k, lambda, omega, psi, depthPrime)
+                    // n and k are both step index i for this calculation
+                    let theta_i = this.calculateTheta(i, i, lambda, omegaHz, psi, depthPrime);
                     
                     // Apply tetration attractor to theta if available
                     if (tetrationTowers.length > 0 && i > 0) {
@@ -731,5 +733,6 @@ const UnifiedProjectionEngine = (function() {
 if (typeof window !== 'undefined') {
     window.UnifiedProjectionEngine = UnifiedProjectionEngine;
 }
+
 
 

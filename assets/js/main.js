@@ -64,6 +64,23 @@ function initPageNavigation() {
                             }
                         }, 300);
                     }
+                    
+                    // Initialize API management on API page
+                    if (pageName === 'api') {
+                        setTimeout(() => {
+                            if (typeof ApiManagementModule !== 'undefined') {
+                                // Module will auto-initialize, but ensure it's loaded
+                                if (!ApiManagementModule._initialized) {
+                                    ApiManagementModule.init();
+                                    ApiManagementModule._initialized = true;
+                                } else {
+                                    // Refresh data if already initialized
+                                    ApiManagementModule.loadApiStatus();
+                                    ApiManagementModule.loadApiConfigurations();
+                                }
+                            }
+                        }, 300);
+                    }
                 }
             });
             

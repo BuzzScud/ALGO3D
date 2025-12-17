@@ -19,13 +19,15 @@
 const ProjectionsModule = (function() {
     let projectionChart = null;
     let currentSymbol = '';
-    let currentInterval = '1d';
+    let currentInterval = '1D'; // Changed to match timeframe format (15MIN, 1H, 4H, 1D)
     let historicalPrices = [];
     let historicalLabels = [];
     let historicalCandles = [];
     let validationResults = null;
     let savedProjectionData = null; // Store saved projection when loading
     let actualPriceData = null; // Store actual price data for comparison
+    let refreshInterval = null; // Auto-refresh interval
+    let isRefreshing = false; // Prevent concurrent refreshes
     // Unified Projection Engine is now the primary method (replaces ensemble)
     
     // Pan state management (similar to charts.js)
@@ -229,9 +231,14 @@ const ProjectionsModule = (function() {
         const estMonth = parseInt(datePart[0]) - 1; // Month is 0-indexed
         const estDay = parseInt(datePart[1]);
         
-        // For 1d interval, we need to increment by trading days, not calendar days
-        // But for simplicity, we'll use calendar days and let the user see the pattern
-        const intervalMap = {
+        // Map timeframe to interval configuration for projection labels
+        // Timeframes: 15MIN, 1H, 4H, 1D
+        const timeframeMap = {
+            '15MIN': { minutes: 15 },
+            '1H': { hours: 1 },
+            '4H': { hours: 4 },
+            '1D': { days: 1 },
+            // Legacy support for old interval format
             '1d': { days: 1 },
             '5d': { days: 5 },
             '1mo': { months: 1 },
@@ -240,39 +247,50 @@ const ProjectionsModule = (function() {
             '1y': { years: 1 }
         };
         
-        const intervalConfig = intervalMap[interval] || intervalMap['1d'];
+        const intervalConfig = timeframeMap[interval] || timeframeMap['1D'];
         const labels = [];
         
         for (let i = 1; i <= steps; i++) {
             // Calculate the projected date by working with EST components
             // Create a date object from EST components and perform date arithmetic
-            // We'll create it in a way that represents the EST date correctly
-            // Use UTC methods to avoid timezone shifts, then format as EST
             const baseDate = new Date(Date.UTC(estYear, estMonth, estDay, 12, 0, 0));
             
             // Add the interval offset using UTC methods to avoid timezone issues
-            let projectedDate;
-            if (intervalConfig.days) {
-                projectedDate = new Date(baseDate);
+            let projectedDate = new Date(baseDate);
+            
+            if (intervalConfig.minutes) {
+                projectedDate.setUTCMinutes(projectedDate.getUTCMinutes() + (intervalConfig.minutes * i));
+            } else if (intervalConfig.hours) {
+                projectedDate.setUTCHours(projectedDate.getUTCHours() + (intervalConfig.hours * i));
+            } else if (intervalConfig.days) {
                 projectedDate.setUTCDate(projectedDate.getUTCDate() + (intervalConfig.days * i));
             } else if (intervalConfig.months) {
-                projectedDate = new Date(baseDate);
                 projectedDate.setUTCMonth(projectedDate.getUTCMonth() + (intervalConfig.months * i));
             } else if (intervalConfig.years) {
-                projectedDate = new Date(baseDate);
                 projectedDate.setUTCFullYear(projectedDate.getUTCFullYear() + (intervalConfig.years * i));
-            } else {
-                projectedDate = baseDate;
             }
             
             // Format the date in EST timezone
-            // Since we used UTC methods, we need to format it as EST to get the correct date
-            const formattedDate = projectedDate.toLocaleDateString('en-US', {
-                timeZone: 'America/New_York',
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            });
+            // For intraday timeframes (15MIN, 1H, 4H), include time in the label
+            let formattedDate;
+            if (interval === '15MIN' || interval === '1H' || interval === '4H') {
+                formattedDate = projectedDate.toLocaleString('en-US', {
+                    timeZone: 'America/New_York',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                }) + ' EST';
+            } else {
+                formattedDate = projectedDate.toLocaleDateString('en-US', {
+                    timeZone: 'America/New_York',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
             
             labels.push(formattedDate);
         }
@@ -519,6 +537,7 @@ const ProjectionsModule = (function() {
         
         let g = 1 + 0.01 * tau + 0.001 * (depthPrime % 7);
         const points = [];
+        let currentPrice = lastPrice; // Start with last price and update cumulatively
         
         for (let i = 0; i < N; i++) {
             const lambda = lambdaSchedule[i % lambdaSchedule.length];
@@ -547,8 +566,9 @@ const ProjectionsModule = (function() {
             const depthScale = Math.log(depthPrime) / Math.log(2);
             const triScale = Math.max(1, tau);
             const delta = trunc(latticeSum * depthScale * 0.5 * triScale, decimals);
-            const pricePoint = trunc(lastPrice + delta, decimals);
+            const pricePoint = Math.max(0.01, trunc(currentPrice + delta, decimals));
             points.push(pricePoint);
+            currentPrice = pricePoint; // Update for next iteration (cumulative projection)
         }
         
         return points;
@@ -586,35 +606,51 @@ const ProjectionsModule = (function() {
         return projectionLines;
     }
     
-    // Fetch market data
-    async function fetchMarketData(symbol, interval) {
+    // Fetch market data with real-time support
+    async function fetchMarketData(symbol, interval, forceRefresh = false) {
         try {
-            // Map interval to timeframe
-            const timeframeMap = {
-                '1d': '1D',
-                '5d': '5D',
-                '1mo': '1M',
-                '3mo': '3M',
-                '6mo': '6M',
-                '1y': '1Y'
-            };
-            const timeframe = timeframeMap[interval] || '1D';
+            // Validate inputs
+            if (!symbol || typeof symbol !== 'string' || symbol.trim() === '') {
+                throw new Error('Invalid symbol provided');
+            }
             
-            const response = await fetch(`api/charts.php?action=chart&symbol=${symbol}&timeframe=${timeframe}`);
+            // Interval is now already in timeframe format (15MIN, 1H, 4H, 1D)
+            const timeframe = interval || '1D';
+            
+            // Build URL with cache-busting parameter for real-time data
+            const url = `api/charts.php?action=chart&symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}${forceRefresh ? '&refresh=true' : ''}`;
+            
+            console.log('Fetching market data:', { symbol, timeframe, forceRefresh, url });
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': forceRefresh ? 'no-cache' : 'max-age=30'
+                }
+            });
             
             if (!response.ok) {
                 const errorText = await response.text();
-                let errorMessage = 'Failed to fetch market data';
+                let errorMessage = `HTTP ${response.status}: Failed to fetch market data`;
                 try {
                     const errorData = JSON.parse(errorText);
                     errorMessage = errorData.message || errorMessage;
                 } catch (e) {
                     // Not JSON, use default message
+                    if (errorText) {
+                        errorMessage = errorText.substring(0, 200);
+                    }
                 }
                 throw new Error(errorMessage);
             }
             
             const data = await response.json();
+            
+            // Validate response structure
+            if (!data || typeof data !== 'object') {
+                throw new Error('Invalid response format from server');
+            }
             
             // Log the response for debugging
             console.log('Chart API response:', {
@@ -622,6 +658,8 @@ const ProjectionsModule = (function() {
                 hasCandles: !!data.candles,
                 candlesCount: data.candles ? data.candles.length : 0,
                 symbol: data.symbol,
+                timeframe: data.timeframe,
+                source: data.source,
                 message: data.message
             });
             
@@ -633,13 +671,42 @@ const ProjectionsModule = (function() {
             }
             
             // Check if we have candles data
-            if (!data.candles || !Array.isArray(data.candles) || data.candles.length === 0) {
+            if (!data.candles || !Array.isArray(data.candles)) {
+                const errorMsg = data.message || 'Invalid candles data format received from server.';
+                console.error('Invalid candles data structure:', data);
+                throw new Error(errorMsg);
+            }
+            
+            if (data.candles.length === 0) {
                 const errorMsg = data.message || 'No historical data available for this symbol. Please try a different symbol or timeframe.';
                 console.error('No candles data:', errorMsg);
                 throw new Error(errorMsg);
             }
             
-            console.log('Successfully fetched', data.candles.length, 'candles for', symbol);
+            // Validate candle data structure
+            const invalidCandles = data.candles.filter(c => {
+                return !c || 
+                       (c.close === undefined && c.price === undefined) ||
+                       (c.time === undefined && c.timestamp === undefined);
+            });
+            
+            if (invalidCandles.length > 0) {
+                console.warn(`Found ${invalidCandles.length} invalid candles out of ${data.candles.length}`);
+            }
+            
+            // Filter out invalid candles
+            data.candles = data.candles.filter(c => {
+                if (!c) return false;
+                const hasPrice = c.close !== undefined || c.price !== undefined;
+                const hasTime = c.time !== undefined || c.timestamp !== undefined;
+                return hasPrice && hasTime;
+            });
+            
+            if (data.candles.length === 0) {
+                throw new Error('No valid candle data after validation. Please try again.');
+            }
+            
+            console.log(`Successfully fetched ${data.candles.length} valid candles for ${symbol} (${timeframe})`);
             return data;
         } catch (error) {
             console.error('Error fetching market data:', error);
@@ -647,8 +714,71 @@ const ProjectionsModule = (function() {
         }
     }
     
+    // Fetch real-time market quote
+    async function fetchRealTimeQuote(symbol) {
+        try {
+            if (!symbol || typeof symbol !== 'string' || symbol.trim() === '') {
+                throw new Error('Invalid symbol provided');
+            }
+            
+            const url = `api/charts.php?action=quote&symbol=${encodeURIComponent(symbol)}`;
+            
+            console.log('Fetching real-time quote:', { symbol, url });
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage = `HTTP ${response.status}: Failed to fetch real-time quote`;
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorMessage;
+                } catch (e) {
+                    if (errorText) {
+                        errorMessage = errorText.substring(0, 200);
+                    }
+                }
+                throw new Error(errorMessage);
+            }
+            
+            const data = await response.json();
+            
+            if (!data || typeof data !== 'object') {
+                throw new Error('Invalid response format from server');
+            }
+            
+            if (data.success === false) {
+                const errorMsg = data.message || 'Unable to fetch real-time quote data';
+                console.error('Quote API returned error:', errorMsg);
+                throw new Error(errorMsg);
+            }
+            
+            if (!data.current || data.current <= 0) {
+                throw new Error('Invalid quote data: current price is missing or invalid');
+            }
+            
+            console.log(`Successfully fetched real-time quote for ${symbol}: $${data.current}`);
+            return data;
+        } catch (error) {
+            console.error('Error fetching real-time quote:', error);
+            throw error;
+        }
+    }
+    
     // Load chart data and calculate projections
-    async function loadProjectionData() {
+    async function loadProjectionData(forceRefresh = false) {
+        // Prevent concurrent refreshes
+        if (isRefreshing) {
+            console.log('Refresh already in progress, skipping...');
+            return;
+        }
+        
         const symbolInput = document.getElementById('projection-symbol-input');
         const symbol = symbolInput.value.trim().toUpperCase();
         
@@ -658,13 +788,16 @@ const ProjectionsModule = (function() {
         }
         
         currentSymbol = symbol;
-        currentInterval = document.getElementById('projection-interval-select').value;
+        // Get timeframe from active button
+        const activeTimeframeBtn = document.querySelector('.projection-timeframe-selector .timeframe-btn.active');
+        currentInterval = activeTimeframeBtn ? activeTimeframeBtn.dataset.timeframe : '1D';
         
+        isRefreshing = true;
         showLoading(true);
         hideError();
         
         try {
-            const data = await fetchMarketData(symbol, currentInterval);
+            const data = await fetchMarketData(symbol, currentInterval, forceRefresh);
             
             // Check if data is valid
             if (!data) {
@@ -685,6 +818,20 @@ const ProjectionsModule = (function() {
             // Note: API already returns timestamps in EST, but we'll ensure they're properly formatted
             historicalCandles = data.candles.map(c => {
                 const candle = { ...c };
+                
+                // Ensure we have valid price data
+                const close = parseFloat(candle.close || candle.price || 0);
+                const open = parseFloat(candle.open || close);
+                const high = parseFloat(candle.high || close);
+                const low = parseFloat(candle.low || close);
+                
+                // Validate and set prices
+                candle.close = !isNaN(close) && close > 0 ? close : null;
+                candle.open = !isNaN(open) && open > 0 ? open : close;
+                candle.high = !isNaN(high) && high > 0 ? high : close;
+                candle.low = !isNaN(low) && low > 0 ? low : close;
+                candle.volume = parseInt(candle.volume || 0) || 0;
+                
                 // Keep original timestamps - API already converts to EST
                 // But ensure we have valid timestamps
                 if (candle.time && typeof candle.time === 'number') {
@@ -693,22 +840,52 @@ const ProjectionsModule = (function() {
                 } else if (candle.timestamp && typeof candle.timestamp === 'number') {
                     candle.time = candle.timestamp;
                     candle.originalTime = candle.timestamp;
+                } else {
+                    // Generate timestamp if missing (shouldn't happen, but handle gracefully)
+                    console.warn('Missing timestamp in candle data:', candle);
+                    candle.time = Date.now();
+                    candle.originalTime = candle.time;
                 }
+                
                 return candle;
-            });
+            }).filter(c => c.close !== null && c.close > 0); // Filter out invalid candles
+            
+            if (historicalCandles.length === 0) {
+                throw new Error('No valid candle data found after processing');
+            }
+            
+            // Validate we have at least 5 days of data
+            if (historicalCandles.length > 0) {
+                const firstCandle = historicalCandles[0];
+                const lastCandle = historicalCandles[historicalCandles.length - 1];
+                const firstTime = firstCandle.time || firstCandle.timestamp || firstCandle.originalTime;
+                const lastTime = lastCandle.time || lastCandle.timestamp || lastCandle.originalTime;
+                
+                if (firstTime && lastTime) {
+                    const daysDiff = (lastTime - firstTime) / (1000 * 60 * 60 * 24);
+                    if (daysDiff < 5) {
+                        console.warn(`Only ${daysDiff.toFixed(1)} days of data available. Minimum 5 days recommended for accurate projections.`);
+                    } else {
+                        console.log(`✓ Validated: ${daysDiff.toFixed(1)} days of historical data available`);
+                    }
+                }
+            }
             
             // Extract prices from candles (using EST-adjusted timestamps)
             historicalPrices = historicalCandles.map(c => {
-                const price = parseFloat(c.close || c.price || 0);
+                const price = parseFloat(c.close);
                 if (isNaN(price) || price <= 0) {
-                    console.warn('Invalid price data:', c);
+                    console.warn('Invalid price in processed candle:', c);
+                    return null;
                 }
                 return price;
-            }).filter(price => !isNaN(price) && price > 0);
+            }).filter(price => price !== null && !isNaN(price) && price > 0);
             
             if (historicalPrices.length === 0) {
-                throw new Error('No valid price data found');
+                throw new Error('No valid price data found after extraction');
             }
+            
+            console.log(`Processed ${historicalPrices.length} valid price points from ${data.candles.length} candles`);
             
             // Generate historical labels with proper EST formatting based on interval
             // Format dates consistently in EST timezone to ensure proper plotting
@@ -751,8 +928,13 @@ const ProjectionsModule = (function() {
                     const datePart = estParts[0]; // "Dec 16, 2025"
                     const timePart = estParts[1]; // "10:10"
                     
-                    // For 1d interval with many candles, might be intraday - show time if needed
-                    if (currentInterval === '1d' && historicalCandles.length > 50) {
+                    // For intraday timeframes (15MIN, 1H, 4H), always show time
+                    if (currentInterval === '15MIN' || currentInterval === '1H' || currentInterval === '4H') {
+                        return `${datePart} ${timePart} EST`;
+                    }
+                    
+                    // For 1D timeframe with many candles, might be intraday - show time if needed
+                    if (currentInterval === '1D' && historicalCandles.length > 50) {
                         // Likely intraday data - show date and time
                         return `${datePart} ${timePart} EST`;
                     }
@@ -782,6 +964,75 @@ const ProjectionsModule = (function() {
                     return dateOnly;
                 }
             });
+            
+            // Fetch real-time quote and update last price
+            try {
+                console.log('Fetching real-time quote to update projection starting point...');
+                const quoteData = await fetchRealTimeQuote(symbol);
+                
+                if (quoteData && quoteData.current && quoteData.current > 0) {
+                    const realTimePrice = parseFloat(quoteData.current);
+                    const lastHistoricalPrice = historicalPrices[historicalPrices.length - 1];
+                    
+                    // Validate real-time price is reasonable (within 50% of last historical price)
+                    const priceDiff = Math.abs(realTimePrice - lastHistoricalPrice) / lastHistoricalPrice;
+                    if (priceDiff > 0.5) {
+                        console.warn(`Real-time price ($${realTimePrice.toFixed(2)}) differs significantly from last historical price ($${lastHistoricalPrice.toFixed(2)}). Using historical price.`);
+                    } else {
+                        // Update the last price with real-time quote
+                        if (historicalPrices.length > 0) {
+                            historicalPrices[historicalPrices.length - 1] = realTimePrice;
+                            console.log(`✓ Updated last price from $${lastHistoricalPrice.toFixed(2)} to real-time price $${realTimePrice.toFixed(2)}`);
+                        } else {
+                            // If no historical prices, add the real-time price
+                            historicalPrices.push(realTimePrice);
+                            console.log(`✓ Added real-time price $${realTimePrice.toFixed(2)} as starting point`);
+                        }
+                    }
+                    
+                    // Update the last label with current time
+                    const currentTime = new Date();
+                    const estTimeString = currentTime.toLocaleString('en-US', {
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                    });
+                    
+                    if (historicalLabels.length > 0) {
+                        // For intraday timeframes, show time
+                        if (currentInterval === '15MIN' || currentInterval === '1H' || currentInterval === '4H') {
+                            historicalLabels[historicalLabels.length - 1] = `${estTimeString} EST (Live)`;
+                        } else {
+                            historicalLabels[historicalLabels.length - 1] = `${estTimeString} EST (Live)`;
+                        }
+                    } else {
+                        historicalLabels.push(`${estTimeString} EST (Live)`);
+                    }
+                    
+                    // Update the last candle with real-time data
+                    if (historicalCandles.length > 0) {
+                        const lastCandle = historicalCandles[historicalCandles.length - 1];
+                        lastCandle.close = realTimePrice;
+                        lastCandle.price = realTimePrice;
+                        if (quoteData.high && quoteData.high > realTimePrice) {
+                            lastCandle.high = quoteData.high;
+                        }
+                        if (quoteData.low && quoteData.low < realTimePrice) {
+                            lastCandle.low = quoteData.low;
+                        }
+                        lastCandle.time = quoteData.timestamp ? quoteData.timestamp * 1000 : Date.now();
+                    }
+                } else {
+                    console.warn('Real-time quote data is invalid, using last historical price');
+                }
+            } catch (quoteError) {
+                console.warn('Failed to fetch real-time quote, using last historical price:', quoteError.message);
+                // Continue with historical data if quote fetch fails
+            }
             
             // Get parameters based on selected preset
             const selectedPreset = document.querySelector('input[name="projection-preset"]:checked');
@@ -956,6 +1207,9 @@ const ProjectionsModule = (function() {
             document.getElementById('save-projection-btn').style.display = 'inline-block';
             // Metrics sections are now always visible, no need to show them
             
+            // Setup auto-refresh for real-time data
+            setupAutoRefresh();
+            
         } catch (error) {
             console.error('Error loading projection data:', error);
             const errorMessage = error.message || 'Failed to load projection data. Please check the symbol and try again.';
@@ -966,8 +1220,58 @@ const ProjectionsModule = (function() {
             document.getElementById('projection-refresh-btn').style.display = 'none';
             document.getElementById('reset-zoom-btn').style.display = 'none';
             document.getElementById('save-projection-btn').style.display = 'none';
+            
+            // Stop auto-refresh on error
+            stopAutoRefresh();
         } finally {
+            isRefreshing = false;
             showLoading(false);
+        }
+    }
+    
+    // Setup auto-refresh for real-time data updates
+    function setupAutoRefresh() {
+        // Clear existing interval
+        stopAutoRefresh();
+        
+        // Determine refresh interval based on timeframe
+        // More frequent for intraday, less frequent for daily
+        let refreshIntervalMs = 60000; // Default: 1 minute
+        
+        if (currentInterval === '15MIN') {
+            refreshIntervalMs = 30000; // 30 seconds for 15-minute bars
+        } else if (currentInterval === '1H' || currentInterval === '4H') {
+            refreshIntervalMs = 60000; // 1 minute for hourly bars
+        } else if (currentInterval === '1D') {
+            refreshIntervalMs = 120000; // 2 minutes for daily bars
+        }
+        
+        // Only refresh if we have a valid symbol
+        if (currentSymbol && currentSymbol.trim() !== '') {
+            refreshInterval = setInterval(() => {
+                // Only refresh if not already refreshing and chart is visible
+                if (!isRefreshing && projectionChart) {
+                    const chartsPage = document.getElementById('page-charts');
+                    const projectionsTab = document.getElementById('tab-projections');
+                    
+                    if (chartsPage && chartsPage.classList.contains('active') &&
+                        projectionsTab && projectionsTab.classList.contains('active')) {
+                        console.log('Auto-refreshing projection data...');
+                        loadProjectionData(true); // Force refresh
+                    }
+                }
+            }, refreshIntervalMs);
+            
+            console.log(`Auto-refresh enabled: ${refreshIntervalMs / 1000} seconds`);
+        }
+    }
+    
+    // Stop auto-refresh
+    function stopAutoRefresh() {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+            console.log('Auto-refresh stopped');
         }
     }
     
@@ -1002,15 +1306,226 @@ const ProjectionsModule = (function() {
         
         const allLabels = [...historicalLabels, ...projectedLabels];
         
-        // Historical data
-        const historicalData = [...historicalPrices];
-        for (let i = 0; i < steps; i++) {
-            historicalData.push(null);
+        // Calculate Y-axis min/max from all data points (historical + projections)
+        // For candlestick charts, use high/low prices; for line charts, use close prices
+        let minPrice, maxPrice;
+        
+        if (historicalCandles && historicalCandles.length > 0 && 
+            historicalCandles[0].high !== undefined && historicalCandles[0].low !== undefined) {
+            // Use high/low from candlesticks for better range
+            const allHighs = historicalCandles.map(c => parseFloat(c.high)).filter(p => !isNaN(p) && p > 0);
+            const allLows = historicalCandles.map(c => parseFloat(c.low)).filter(p => !isNaN(p) && p > 0);
+            
+            if (allHighs.length > 0 && allLows.length > 0) {
+                maxPrice = Math.max(...allHighs);
+                minPrice = Math.min(...allLows);
+            } else {
+                // Fallback to close prices
+                const validHistoricalPrices = historicalPrices.filter(p => p !== null && !isNaN(p) && p > 0);
+                minPrice = validHistoricalPrices.length > 0 ? Math.min(...validHistoricalPrices) : 0;
+                maxPrice = validHistoricalPrices.length > 0 ? Math.max(...validHistoricalPrices) : 100;
+            }
+        } else {
+            // Fallback to close prices for line chart
+            const validHistoricalPrices = historicalPrices.filter(p => p !== null && !isNaN(p) && p > 0);
+            minPrice = validHistoricalPrices.length > 0 ? Math.min(...validHistoricalPrices) : 0;
+            maxPrice = validHistoricalPrices.length > 0 ? Math.max(...validHistoricalPrices) : 100;
         }
         
-        // Build datasets - matching charts.js design exactly
-        const datasets = [
-            {
+        // Include projection points in min/max calculation
+        if (projectionLines && projectionLines.length > 0) {
+            projectionLines.forEach(line => {
+                if (line.points && line.points.length > 0) {
+                    const validPoints = line.points.filter(p => p !== null && !isNaN(p) && p > 0);
+                    if (validPoints.length > 0) {
+                        const lineMin = Math.min(...validPoints);
+                        const lineMax = Math.max(...validPoints);
+                        minPrice = Math.min(minPrice, lineMin);
+                        maxPrice = Math.max(maxPrice, lineMax);
+                    }
+                }
+            });
+        }
+        
+        // Include actual prices if available
+        if (actualPrices && actualPrices.length > 0) {
+            const validActualPrices = actualPrices.filter(p => p !== null && !isNaN(p) && p > 0);
+            if (validActualPrices.length > 0) {
+                const actualMin = Math.min(...validActualPrices);
+                const actualMax = Math.max(...validActualPrices);
+                minPrice = Math.min(minPrice, actualMin);
+                maxPrice = Math.max(maxPrice, actualMax);
+            }
+        }
+        
+        // Add padding to Y-axis range (5% on each side)
+        const priceRange = maxPrice - minPrice;
+        const padding = priceRange > 0 ? priceRange * 0.05 : Math.max(minPrice * 0.05, 1);
+        const yAxisMin = Math.max(0, minPrice - padding);
+        const yAxisMax = maxPrice + padding;
+        
+        // Check if candlestick controller is available
+        let chartType = 'line';
+        let useCandlestick = false;
+        
+        if (typeof Chart !== 'undefined' && Chart.registry) {
+            try {
+                const candlestickController = Chart.registry.getController('candlestick');
+                if (candlestickController) {
+                    // Check if we have candlestick data available
+                    const hasCandlestickData = historicalCandles && historicalCandles.length > 0 && 
+                                               historicalCandles[0].open !== undefined && 
+                                               historicalCandles[0].high !== undefined &&
+                                               historicalCandles[0].low !== undefined &&
+                                               historicalCandles[0].close !== undefined;
+                    
+                    if (hasCandlestickData) {
+                        useCandlestick = true;
+                        // Use 'line' chart type to allow mixing candlestick dataset with line datasets (projections)
+                        // The candlestick dataset will be rendered via its type: 'candlestick'
+                        chartType = 'line';
+                    }
+                }
+            } catch (e) {
+                console.warn('Candlestick controller not available, falling back to line chart');
+            }
+        }
+        
+        // Build datasets
+        const datasets = [];
+        
+        if (useCandlestick) {
+            // Create candlestick dataset with OHLC data
+            const candlestickData = [];
+            
+            // Add historical candles with proper validation
+            for (let i = 0; i < historicalCandles.length; i++) {
+                const c = historicalCandles[i];
+                const open = parseFloat(c.open);
+                const high = parseFloat(c.high);
+                const low = parseFloat(c.low);
+                const close = parseFloat(c.close);
+                const time = c.time || c.timestamp;
+                
+                // Validate all required fields
+                if (!isNaN(open) && !isNaN(high) && !isNaN(low) && !isNaN(close) && 
+                    open > 0 && high > 0 && low > 0 && close > 0 &&
+                    time && typeof time === 'number' && time > 0 &&
+                    high >= low && high >= open && high >= close &&
+                    low <= open && low <= close) {
+                    candlestickData.push({
+                        x: time,
+                        o: open,
+                        h: high,
+                        l: low,
+                        c: close
+                    });
+                } else {
+                    console.warn(`Invalid candlestick data at index ${i}:`, c);
+                }
+            }
+            
+            if (candlestickData.length === 0) {
+                console.warn('No valid candlestick data, falling back to line chart');
+                useCandlestick = false;
+            }
+            
+            // For projection period, extend with last candle to match labels array length
+            // This is required because candlestick datasets cannot have null/undefined values
+            if (candlestickData.length > 0 && steps > 0) {
+                const lastCandle = candlestickData[candlestickData.length - 1];
+                const lastTime = lastCandle.x;
+                
+                // Calculate time increment based on interval
+                let timeIncrement = 86400000; // Default: 1 day in milliseconds
+                if (currentInterval === '15MIN') {
+                    timeIncrement = 15 * 60 * 1000; // 15 minutes
+                } else if (currentInterval === '1H') {
+                    timeIncrement = 60 * 60 * 1000; // 1 hour
+                } else if (currentInterval === '4H') {
+                    timeIncrement = 4 * 60 * 60 * 1000; // 4 hours
+                } else if (currentInterval === '1D') {
+                    timeIncrement = 24 * 60 * 60 * 1000; // 1 day
+                }
+                
+                for (let i = 0; i < steps; i++) {
+                    // Use last candle's values to create valid candlestick objects
+                    // The projection lines will overlay on top, so these won't be visible
+                    let projectionTime;
+                    if (projectedLabels[i]) {
+                        // Try to parse the label as a date
+                        const parsedDate = new Date(projectedLabels[i]);
+                        if (!isNaN(parsedDate.getTime())) {
+                            projectionTime = parsedDate.getTime();
+                        } else {
+                            projectionTime = lastTime + ((i + 1) * timeIncrement);
+                        }
+                    } else {
+                        projectionTime = lastTime + ((i + 1) * timeIncrement);
+                    }
+                    
+                    candlestickData.push({
+                        x: projectionTime,
+                        o: lastCandle.c, // Use close as open
+                        h: lastCandle.c, // Use close as high
+                        l: lastCandle.c, // Use close as low
+                        c: lastCandle.c  // Use close as close (flat line)
+                    });
+                }
+            }
+            
+            // Only add candlestick dataset if we have valid data
+            if (candlestickData.length > 0) {
+                // Ensure data length matches labels (or is close enough)
+                if (Math.abs(candlestickData.length - allLabels.length) <= 1) {
+                    datasets.push({
+                        label: `${currentSymbol} Historical`,
+                        type: 'candlestick',
+                        data: candlestickData,
+                        color: {
+                            up: chartColors.bullish,
+                            down: chartColors.bearish,
+                            unchanged: '#6b7280'
+                        },
+                        yAxisID: 'y',
+                        order: 1 // Render behind projections
+                    });
+                } else {
+                    // Fallback if data doesn't match
+                    console.warn(`Candlestick data length mismatch: ${candlestickData.length} vs ${allLabels.length}, falling back to line chart`);
+                    useCandlestick = false;
+                }
+            } else {
+                useCandlestick = false;
+            }
+        }
+        
+        // If not using candlestick (or fallback), use line chart
+        if (!useCandlestick) {
+            // Use close prices from candles if available, otherwise use historicalPrices
+            let historicalData = [];
+            
+            if (historicalCandles && historicalCandles.length > 0 && historicalCandles[0].close !== undefined) {
+                historicalData = historicalCandles.map(c => {
+                    const close = parseFloat(c.close);
+                    return (!isNaN(close) && close > 0) ? close : null;
+                }).filter(p => p !== null);
+            } else {
+                historicalData = historicalPrices.filter(p => p !== null && !isNaN(p) && p > 0);
+            }
+            
+            // Ensure we have data
+            if (historicalData.length === 0) {
+                console.error('No valid historical data for line chart');
+                showError('No valid price data to display');
+                return;
+            }
+            
+            // Add nulls for projection period to match labels array
+            const projectionNulls = new Array(steps).fill(null);
+            historicalData = [...historicalData, ...projectionNulls];
+            
+            datasets.push({
                 label: `${currentSymbol} Historical`,
                 data: historicalData,
                 borderColor: chartColors.primary, // Same blue as charts.js
@@ -1019,9 +1534,10 @@ const ProjectionsModule = (function() {
                 fill: false,
                 pointRadius: 0, // Same as charts.js
                 borderWidth: 2,
-                yAxisID: 'y'
-            }
-        ];
+                yAxisID: 'y',
+                order: 1 // Render behind projections
+            });
+        }
         
         // Add projection lines - matching charts.js design style
         const projectionColors = [
@@ -1031,26 +1547,50 @@ const ProjectionsModule = (function() {
         ];
         
         projectionLines.forEach((line, idx) => {
+            if (!line || !line.points || !Array.isArray(line.points) || line.points.length === 0) {
+                console.warn(`Skipping invalid projection line at index ${idx}:`, line);
+                return;
+            }
+            
             const lineData = [];
+            
+            // Fill historical period with nulls
             for (let i = 0; i < historicalPrices.length; i++) {
                 lineData.push(null);
             }
             
-            // First point connects to last historical
-            if (line.points.length > 0) {
-                const firstProjected = line.points[0];
+            // Validate and add projection points
+            const validPoints = line.points.filter(p => p !== null && !isNaN(p) && p > 0);
+            
+            if (validPoints.length === 0) {
+                console.warn(`No valid points in projection line at index ${idx}`);
+                return;
+            }
+            
+            // First point connects to last historical price
+            const firstProjected = validPoints[0];
+            if (lastPrice > 0 && firstProjected > 0) {
+                // Smooth transition: 80% last price, 20% first projected
                 const connectionPrice = lastPrice * 0.8 + firstProjected * 0.2;
                 lineData.push(connectionPrice);
+            } else {
+                // Fallback: use first projected point directly
+                lineData.push(firstProjected);
             }
             
-            // Rest of projection points
-            for (let i = 1; i < line.points.length; i++) {
-                lineData.push(line.points[i]);
+            // Add rest of projection points
+            for (let i = 1; i < validPoints.length; i++) {
+                lineData.push(validPoints[i]);
             }
             
-            // Fill remaining with nulls if needed
+            // Fill remaining with nulls to match labels array length
             while (lineData.length < allLabels.length) {
                 lineData.push(null);
+            }
+            
+            // Trim if too long (shouldn't happen, but handle gracefully)
+            if (lineData.length > allLabels.length) {
+                lineData.splice(allLabels.length);
             }
             
             // Determine if this is ensemble (solid line) or individual (dashed)
@@ -1073,39 +1613,76 @@ const ProjectionsModule = (function() {
         // Add actual price data if available (for comparison with saved projections)
         if (actualPrices && actualPrices.length > 0 && actualLabels && actualLabels.length > 0) {
             const actualData = [];
+            
+            // Create a map of actual prices by label for matching
+            const actualPriceMap = new Map();
+            for (let i = 0; i < actualLabels.length; i++) {
+                if (actualPrices[i] !== null && !isNaN(actualPrices[i])) {
+                    actualPriceMap.set(actualLabels[i], actualPrices[i]);
+                }
+            }
+            
             // Fill with nulls for historical period
             for (let i = 0; i < historicalPrices.length; i++) {
                 actualData.push(null);
             }
             
-            // Add actual prices starting from where projection begins
-            // Match actual labels to projection labels
-            let actualIdx = 0;
-            for (let i = historicalPrices.length; i < allLabels.length && actualIdx < actualPrices.length; i++) {
-                actualData.push(actualPrices[actualIdx]);
-                actualIdx++;
+            // Match actual prices to projection labels by comparing label strings
+            for (let i = historicalPrices.length; i < allLabels.length; i++) {
+                const projectionLabel = allLabels[i];
+                // Try exact match first
+                let matchedPrice = actualPriceMap.get(projectionLabel);
+                
+                // If no exact match, try fuzzy matching (check if labels are similar)
+                if (matchedPrice === undefined) {
+                    // Find closest matching label
+                    for (const [label, price] of actualPriceMap.entries()) {
+                        // Check if labels are similar (same date, ignore time differences)
+                        const labelDate = projectionLabel.split(',')[0]; // Get date part
+                        const actualLabelDate = label.split(',')[0];
+                        if (labelDate === actualLabelDate) {
+                            matchedPrice = price;
+                            break;
+                        }
+                    }
+                }
+                
+                actualData.push(matchedPrice !== undefined ? matchedPrice : null);
             }
             
-            // Fill remaining with nulls
+            // Ensure array length matches labels
             while (actualData.length < allLabels.length) {
                 actualData.push(null);
             }
             
-            datasets.push({
-                label: 'Actual Price (Post-Projection)',
-                data: actualData,
-                borderColor: '#22c55e', // Green for actual
-                backgroundColor: 'transparent',
-                borderWidth: 3,
-                pointRadius: 2,
-                pointBackgroundColor: '#22c55e',
-                tension: 0.1,
-                borderDash: [],
-                yAxisID: 'y'
-            });
+            // Filter out leading/trailing nulls for cleaner display, but keep alignment
+            const hasActualData = actualData.some((val, idx) => idx >= historicalPrices.length && val !== null);
             
-            // Calculate and display accuracy metrics
-            calculateAccuracyMetrics(projectionLines, actualPrices, historicalPrices.length);
+            if (hasActualData) {
+                datasets.push({
+                    label: 'Actual Price (Post-Projection)',
+                    data: actualData,
+                    borderColor: '#22c55e', // Green for actual
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)', // Light green fill
+                    borderWidth: 3,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#22c55e',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 1,
+                    tension: 0.1,
+                    borderDash: [],
+                    fill: false,
+                    yAxisID: 'y',
+                    order: 0 // Render on top
+                });
+                
+                // Calculate and display accuracy metrics
+                // Extract only non-null actual prices for comparison
+                const validActualPrices = actualPrices.filter(p => p !== null && !isNaN(p) && p > 0);
+                if (validActualPrices.length > 0) {
+                    calculateAccuracyMetrics(projectionLines, validActualPrices, historicalPrices.length);
+                }
+            }
         }
         
         // Destroy existing chart and cleanup pan handlers
@@ -1129,9 +1706,18 @@ const ProjectionsModule = (function() {
                 projectionChart._keyboardHandlers = null;
             }
             
+            // Clear title update interval if exists
+            if (projectionChart._titleUpdateInterval) {
+                clearInterval(projectionChart._titleUpdateInterval);
+                projectionChart._titleUpdateInterval = null;
+            }
+            
             projectionChart.destroy();
             projectionChart = null;
         }
+        
+        // Stop auto-refresh when destroying chart (will restart after new chart is created)
+        stopAutoRefresh();
         
         // Verify zoom plugin is available
         // The plugin should be registered in index.php
@@ -1161,7 +1747,7 @@ const ProjectionsModule = (function() {
         
         // Create new chart
         projectionChart = new Chart(ctx, {
-            type: 'line',
+            type: chartType,
             data: {
                 labels: allLabels,
                 datasets: datasets
@@ -1223,8 +1809,34 @@ const ProjectionsModule = (function() {
                         borderColor: 'rgba(255, 255, 255, 0.1)',
                         borderWidth: 1,
                         callbacks: {
+                            title: function(context) {
+                                if (context.length > 0) {
+                                    const index = context[0].dataIndex;
+                                    const label = allLabels[index];
+                                    return label || `Point ${index + 1}`;
+                                }
+                                return '';
+                            },
                             label: function(context) {
-                                return `${context.dataset.label}: ${formatPrice(context.raw)}`;
+                                // Handle candlestick data
+                                if (context.dataset.type === 'candlestick' && context.raw) {
+                                    const raw = context.raw;
+                                    if (typeof raw === 'object' && raw.o !== undefined) {
+                                        return [
+                                            `Open: ${formatPrice(raw.o)}`,
+                                            `High: ${formatPrice(raw.h)}`,
+                                            `Low: ${formatPrice(raw.l)}`,
+                                            `Close: ${formatPrice(raw.c)}`
+                                        ];
+                                    }
+                                }
+                                
+                                // Handle line data
+                                const value = context.raw;
+                                if (value === null || value === undefined || isNaN(value)) {
+                                    return `${context.dataset.label}: N/A`;
+                                }
+                                return `${context.dataset.label}: ${formatPrice(value)}`;
                             }
                         }
                     },
@@ -1250,38 +1862,89 @@ const ProjectionsModule = (function() {
                 },
                 layout: {
                     padding: {
-                        bottom: 50,
-                        right: 10,
-                        top: 10,
-                        left: 10
+                        bottom: 60,
+                        right: 20,
+                        top: 20,
+                        left: 20
                     }
                 },
                 scales: {
                     x: {
                         display: false,
+                        title: {
+                            display: false,
+                            text: 'Date/Time (EST)',
+                            color: chartColors.text,
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 5
+                            }
+                        },
                         grid: {
                             color: chartColors.grid,
-                            drawBorder: false
+                            drawBorder: true,
+                            borderColor: chartColors.grid
                         },
                         ticks: {
                             color: chartColors.text,
-                            maxRotation: 0,
-                            padding: 8
+                            maxRotation: 45,
+                            minRotation: 0,
+                            padding: 8,
+                            maxTicksLimit: 15,
+                            callback: function(value, index, ticks) {
+                                // Access labels from chart data
+                                const chart = this.chart;
+                                if (chart && chart.data && chart.data.labels) {
+                                    const label = chart.data.labels[index];
+                                    if (label) {
+                                        return label;
+                                    }
+                                }
+                                // Fallback: return empty string
+                                return '';
+                            },
+                            autoSkip: true,
+                            autoSkipPadding: 10
                         }
                     },
                     y: {
                         position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Price ($)',
+                            color: chartColors.text,
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                top: 5,
+                                right: 10
+                            }
+                        },
                         grid: {
                             color: chartColors.grid,
-                            drawBorder: false
+                            drawBorder: true,
+                            borderColor: chartColors.grid
                         },
                         ticks: {
                             color: chartColors.text,
                             padding: 8,
                             callback: function(value) {
+                                if (value === null || value === undefined || isNaN(value)) {
+                                    return '';
+                                }
                                 return formatPrice(value);
-                            }
-                        }
+                            },
+                            precision: 2
+                        },
+                        beginAtZero: false,
+                        min: yAxisMin,
+                        max: yAxisMax
                     }
                 }
             }
@@ -1291,6 +1954,11 @@ const ProjectionsModule = (function() {
         const titleElement = document.getElementById('projection-chart-title');
         if (titleElement) {
             const intervalMap = {
+                '15MIN': '15 Minutes',
+                '1H': '1 Hour',
+                '4H': '4 Hours',
+                '1D': '1 Day',
+                // Legacy support
                 '1d': '1 Day',
                 '5d': '5 Days',
                 '1mo': '1 Month',
@@ -1309,7 +1977,50 @@ const ProjectionsModule = (function() {
                 minute: '2-digit',
                 hour12: true
             });
-            titleElement.textContent = `${currentSymbol} Price Projection - ${intervalLabel} (${steps} Steps) | EST | Last Updated: ${estTimeStr} EST`;
+            const refreshIndicator = refreshInterval ? '🟢 LIVE' : '';
+            titleElement.textContent = `${currentSymbol} Price Projection - ${intervalLabel} (${steps} Steps) | EST | Last Updated: ${estTimeStr} EST ${refreshIndicator}`;
+        }
+        
+        // Update last update time in title periodically
+        if (refreshInterval) {
+            // Update title every 10 seconds to show current time
+            const titleUpdateInterval = setInterval(() => {
+                const titleElement = document.getElementById('projection-chart-title');
+                if (titleElement && projectionChart) {
+                    const currentEST = getCurrentEST();
+                    const estTimeStr = currentEST.toLocaleString('en-US', {
+                        timeZone: 'America/New_York',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                    const intervalMap = {
+                        '15MIN': '15 Minutes',
+                        '1H': '1 Hour',
+                        '4H': '4 Hours',
+                        '1D': '1 Day',
+                        '1d': '1 Day',
+                        '5d': '5 Days',
+                        '1mo': '1 Month',
+                        '3mo': '3 Months',
+                        '6mo': '6 Months',
+                        '1y': '1 Year'
+                    };
+                    const intervalLabel = intervalMap[currentInterval] || currentInterval;
+                    const steps = params.steps || 20;
+                    titleElement.textContent = `${currentSymbol} Price Projection - ${intervalLabel} (${steps} Steps) | EST | Last Updated: ${estTimeStr} EST 🟢 LIVE`;
+                } else {
+                    clearInterval(titleUpdateInterval);
+                }
+            }, 10000);
+            
+            // Store interval ID for cleanup
+            if (!projectionChart._titleUpdateInterval) {
+                projectionChart._titleUpdateInterval = titleUpdateInterval;
+            }
         }
         
         // Always show zoom controls (plugin should be available)
@@ -1922,13 +2633,42 @@ const ProjectionsModule = (function() {
             
             savedProjectionData = projectionData;
             currentSymbol = projectionData.symbol || proj.symbol;
-            currentInterval = projectionData.interval || '1d';
+            
+            // Handle both new timeframe format (15MIN, 1H, 4H, 1D) and legacy format (1d, 5d, etc.)
+            const savedInterval = projectionData.interval || '1D';
+            // Map legacy intervals to new timeframes
+            const intervalToTimeframeMap = {
+                '1d': '1D',
+                '5d': '5D',
+                '1mo': '1M',
+                '3mo': '3M',
+                '6mo': '6M',
+                '1y': '1Y'
+            };
+            currentInterval = intervalToTimeframeMap[savedInterval] || savedInterval;
             
             // Set symbol and interval in UI
             const symbolInput = document.getElementById('projection-symbol-input');
-            const intervalSelect = document.getElementById('projection-interval-select');
             if (symbolInput) symbolInput.value = currentSymbol;
-            if (intervalSelect) intervalSelect.value = currentInterval;
+            
+            // Update active timeframe button
+            const timeframeBtns = document.querySelectorAll('.projection-timeframe-selector .timeframe-btn');
+            timeframeBtns.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.timeframe === currentInterval) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // If no matching button found, default to 1D
+            const activeBtn = document.querySelector('.projection-timeframe-selector .timeframe-btn.active');
+            if (!activeBtn) {
+                currentInterval = '1D';
+                const defaultBtn = document.querySelector('.projection-timeframe-selector .timeframe-btn[data-timeframe="1D"]');
+                if (defaultBtn) {
+                    defaultBtn.classList.add('active');
+                }
+            }
             
             // Use saved historical data
             historicalPrices = projectionData.historicalPrices || [];
@@ -1936,53 +2676,123 @@ const ProjectionsModule = (function() {
             const savedProjectionLines = projectionData.projectionLines || [];
             const savedParams = projectionData.params || (typeof proj.params === 'string' ? JSON.parse(proj.params) : proj.params) || {};
             
+            // Use saved projection labels if available, otherwise generate them
+            let projectionLabels = projectionData.projectionLabels || [];
+            const savedTimestamp = projectionData.savedTimestamp || new Date(proj.saved_at).getTime();
+            
             // Fetch actual price data from saved date to now
-            const savedDate = new Date(proj.saved_at);
+            const savedDate = new Date(savedTimestamp);
             showLoading(true);
             
+            // Generate projection labels if not saved
+            const steps = savedParams.steps || 20;
+            const projectionStartDate = new Date(savedDate);
+            
+            if (projectionLabels.length === 0) {
+                // Calculate time increment based on interval
+                let timeIncrementMs = 24 * 60 * 60 * 1000; // Default: 1 day
+                if (currentInterval === '15MIN') {
+                    timeIncrementMs = 15 * 60 * 1000; // 15 minutes
+                } else if (currentInterval === '1H') {
+                    timeIncrementMs = 60 * 60 * 1000; // 1 hour
+                } else if (currentInterval === '4H') {
+                    timeIncrementMs = 4 * 60 * 60 * 1000; // 4 hours
+                } else if (currentInterval === '1D') {
+                    timeIncrementMs = 24 * 60 * 60 * 1000; // 1 day
+                }
+                
+                // Generate projection labels starting from saved date
+                for (let i = 0; i < steps; i++) {
+                    const projectionDate = new Date(projectionStartDate.getTime() + (i + 1) * timeIncrementMs);
+                    const estDateString = projectionDate.toLocaleString('en-US', {
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: (currentInterval === '15MIN' || currentInterval === '1H' || currentInterval === '4H') ? '2-digit' : undefined,
+                        minute: (currentInterval === '15MIN' || currentInterval === '1H' || currentInterval === '4H') ? '2-digit' : undefined,
+                        hour12: false
+                    });
+                    projectionLabels.push(estDateString);
+                }
+            }
+            
+            // Combine historical and projection labels
+            const allLabels = [...historicalLabels, ...projectionLabels];
+            
             try {
-                // Fetch current market data
-                const currentData = await fetchMarketData(currentSymbol, currentInterval);
+                // Fetch current market data with force refresh to get latest
+                const currentData = await fetchMarketData(currentSymbol, currentInterval, true);
                 
                 if (currentData && currentData.candles && currentData.candles.length > 0) {
-                    // Convert saved date to EST for comparison
-                    const savedDateEST = toEST(savedDate);
+                    // Convert saved date to timestamp for comparison
+                    const savedTimestamp = savedDate.getTime();
                     
-                    // Filter candles to only include those after the saved date (using EST)
+                    // Filter candles to only include those after the saved date
                     const actualCandles = currentData.candles.filter(c => {
                         const candleTimestamp = c.time || c.timestamp;
                         if (!candleTimestamp) return false;
-                        const candleDateEST = toEST(new Date(candleTimestamp));
-                        return candleDateEST >= savedDateEST;
+                        // Compare timestamps directly
+                        return candleTimestamp >= savedTimestamp;
                     });
                     
-                    // Convert all actual candle timestamps to EST
-                    const actualCandlesEST = actualCandles.map(c => {
-                        const candle = { ...c };
-                        if (candle.time) {
-                            candle.time = toESTTimestamp(candle.time);
+                    // Map actual prices to projection timeline
+                    const actualPrices = [];
+                    const actualLabels = [];
+                    
+                    // Create a map of actual prices by timestamp for quick lookup
+                    const priceMap = new Map();
+                    actualCandles.forEach(c => {
+                        const timestamp = c.time || c.timestamp;
+                        if (timestamp) {
+                            priceMap.set(timestamp, parseFloat(c.close || c.price || 0));
                         }
-                        if (candle.timestamp) {
-                            candle.timestamp = toESTTimestamp(candle.timestamp);
-                        }
-                        return candle;
                     });
                     
-                    // Extract actual prices
+                    // Match actual prices to projection labels
+                    for (let i = 0; i < projectionLabels.length; i++) {
+                        const projectionLabel = projectionLabels[i];
+                        const projectionDate = new Date(projectionStartDate.getTime() + (i + 1) * timeIncrementMs);
+                        
+                        // Find closest actual price within a reasonable window (e.g., ±50% of interval)
+                        let closestPrice = null;
+                        let closestTimestamp = null;
+                        let minDiff = Infinity;
+                        
+                        priceMap.forEach((price, timestamp) => {
+                            const diff = Math.abs(timestamp - projectionDate.getTime());
+                            // Allow matching within 50% of interval
+                            const window = timeIncrementMs * 0.5;
+                            if (diff < window && diff < minDiff) {
+                                minDiff = diff;
+                                closestPrice = price;
+                                closestTimestamp = timestamp;
+                            }
+                        });
+                        
+                        if (closestPrice && !isNaN(closestPrice) && closestPrice > 0) {
+                            actualPrices.push(closestPrice);
+                            actualLabels.push(projectionLabel);
+                            // Remove matched price to avoid duplicates
+                            priceMap.delete(closestTimestamp);
+                        } else {
+                            // No match found, use null to maintain alignment
+                            actualPrices.push(null);
+                            actualLabels.push(projectionLabel);
+                        }
+                    }
+                    
+                    // Filter out nulls but keep alignment info
                     actualPriceData = {
-                        prices: actualCandlesEST.map(c => parseFloat(c.close || c.price || 0)).filter(p => !isNaN(p) && p > 0),
-                        labels: actualCandlesEST.map(c => {
-                            const timestamp = c.time || c.timestamp;
-                            if (!timestamp) return '';
-                            const estDate = new Date(timestamp);
-                            return estDate.toLocaleDateString('en-US', {
-                                timeZone: 'America/New_York',
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                            });
-                        }).filter(l => l)
+                        prices: actualPrices,
+                        labels: actualLabels,
+                        projectionLabels: projectionLabels
                     };
+                    
+                    console.log(`✓ Fetched ${actualPrices.filter(p => p !== null).length} actual price points for comparison`);
+                } else {
+                    console.warn('No current market data available for comparison');
+                    actualPriceData = null;
                 }
             } catch (error) {
                 console.warn('Could not fetch actual price data:', error);
@@ -1992,7 +2802,7 @@ const ProjectionsModule = (function() {
             // Render chart with both saved projection and actual data
             renderChart(
                 historicalPrices, 
-                historicalLabels, 
+                allLabels, // Use combined labels
                 savedProjectionLines, 
                 savedParams,
                 actualPriceData ? actualPriceData.prices : null,
@@ -2305,19 +3115,25 @@ const ProjectionsModule = (function() {
                 hour12: true
             }) + ' EST';
             
+            // Generate projection labels for saving (so we can match actual prices later)
+            const steps = params.steps || 20;
+            const projectionLabels = generateProjectionLabels(steps, currentInterval, historicalLabels);
+            
             const saveData = {
                 symbol: currentSymbol,
-                title: `${currentSymbol} - ${currentInterval} Projection (EST)`,
+                title: `${currentSymbol} - ${currentInterval} Projection (Saved ${estDateStr})`,
                 projection_data: {
                     symbol: currentSymbol,
                     interval: currentInterval,
                     historicalPrices: historicalPrices,
                     historicalLabels: historicalLabels, // Already in EST format
                     projectionLines: projectionLines,
+                    projectionLabels: projectionLabels, // Save projection labels for alignment
                     params: params,
                     lastPrice: historicalPrices[historicalPrices.length - 1],
                     timezone: 'EST',
-                    savedAtEST: estDateStr
+                    savedAtEST: estDateStr,
+                    savedTimestamp: estTimestamp // Save timestamp for accurate date matching
                 },
                 chart_data: chartData,
                 params: params,
@@ -2737,7 +3553,10 @@ const ProjectionsModule = (function() {
         }
         
         if (refreshBtn) {
-            refreshBtn.addEventListener('click', loadProjectionData);
+            refreshBtn.addEventListener('click', () => {
+                // Force refresh with cache bypass
+                loadProjectionData(true);
+            });
         }
         
         if (resetZoomBtn) {
@@ -2756,6 +3575,22 @@ const ProjectionsModule = (function() {
             });
         }
         
+        // Setup timeframe buttons (matching Trading Charts tab)
+        document.querySelectorAll('.projection-timeframe-selector .timeframe-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active class from all timeframe buttons
+                document.querySelectorAll('.projection-timeframe-selector .timeframe-btn').forEach(b => b.classList.remove('active'));
+                // Add active class to clicked button
+                btn.classList.add('active');
+                // Update current interval
+                currentInterval = btn.dataset.timeframe;
+                // Reload projection data if we have a symbol loaded
+                if (currentSymbol) {
+                    loadProjectionData();
+                }
+            });
+        });
+        
         // Setup parameter toggle switches
         setupParameterToggles();
         
@@ -2763,53 +3598,73 @@ const ProjectionsModule = (function() {
         watchPageActivation();
     }
     
-    // Watch for page activation (now watches for tab activation)
-    function watchPageActivation() {
-        const chartsPage = document.getElementById('page-charts');
-        const projectionsTab = document.getElementById('tab-projections');
-        
-        if (!chartsPage || !projectionsTab) return;
-        
-        // Check if charts page is active and projections tab is visible
-        function checkAndLoad() {
-            if (chartsPage.classList.contains('active') && projectionsTab.classList.contains('active')) {
-                if (!currentSymbol || currentSymbol === '') {
-                    autoLoadSPY();
+        // Watch for page activation (now watches for tab activation)
+        function watchPageActivation() {
+            const chartsPage = document.getElementById('page-charts');
+            const projectionsTab = document.getElementById('tab-projections');
+            
+            if (!chartsPage || !projectionsTab) return;
+            
+            // Check if charts page is active and projections tab is visible
+            function checkAndLoad() {
+                const isActive = chartsPage.classList.contains('active') && projectionsTab.classList.contains('active');
+                
+                if (isActive) {
+                    if (!currentSymbol || currentSymbol === '') {
+                        autoLoadSPY();
+                    } else {
+                        // Restart auto-refresh if we have a symbol and chart
+                        if (projectionChart) {
+                            setupAutoRefresh();
+                        }
+                    }
+                } else {
+                    // Stop auto-refresh when tab is not active
+                    stopAutoRefresh();
                 }
             }
+            
+            // Check on init
+            checkAndLoad();
+            
+            // Watch for charts page activation
+            const chartsObserver = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                        checkAndLoad();
+                    }
+                });
+            });
+            
+            chartsObserver.observe(chartsPage, {
+                attributes: true,
+                attributeFilter: ['class']
+            });
+            
+            // Watch for tab activation
+            const tabObserver = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                        checkAndLoad();
+                    }
+                });
+            });
+            
+            tabObserver.observe(projectionsTab, {
+                attributes: true,
+                attributeFilter: ['class']
+            });
+            
+            // Stop auto-refresh when page is hidden (browser tab switch)
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    stopAutoRefresh();
+                } else {
+                    // Restart if tab is active
+                    checkAndLoad();
+                }
+            });
         }
-        
-        // Check on init
-        checkAndLoad();
-        
-        // Watch for charts page activation
-        const chartsObserver = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                    checkAndLoad();
-                }
-            });
-        });
-        
-        chartsObserver.observe(chartsPage, {
-            attributes: true,
-            attributeFilter: ['class']
-        });
-        
-        // Watch for tab activation
-        const tabObserver = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                    checkAndLoad();
-                }
-            });
-        });
-        
-        tabObserver.observe(projectionsTab, {
-            attributes: true,
-            attributeFilter: ['class']
-        });
-    }
     
     // Auto-load SPY on projections page
     function autoLoadSPY() {
