@@ -1,12 +1,13 @@
 /**
- * @file cllm_88d_integration.c
- * @brief CLLM Integration with 88D Unified Threading System - Implementation
+ * @file cllm_threading.c
+ * @brief CLLM Threading System - Core Implementation
  * 
- * UPDATED FOR THREAD-CENTRIC ARCHITECTURE:
- * - threads is now a direct field in CLLMModel (not in threading struct)
- * - Threading is MANDATORY (not optional)
- * - Token assignments are permanent (in token_assignments array)
- * - All parameters stored in thread CrystallineAbacus
+ * THREAD-CENTRIC ARCHITECTURE (88D):
+ * - Threading is MANDATORY and initialized in cllm_create_model()
+ * - 96 threads: 8 layers × 12 threads per layer (88 workers + 8 control)
+ * - Token assignments are permanent (deterministic mapping)
+ * - All parameters stored in thread-local CrystallineAbacus
+ * - No separate initialization required
  */
 
 #include "ai/cllm_threading.h"
