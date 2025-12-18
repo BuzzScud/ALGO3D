@@ -194,7 +194,7 @@ void cllm_optimizer_step(CLLMTraining* training);
 void cllm_optimizer_step_adam(CLLMTraining* training);  // Adam optimizer with gradient accumulation
 // PRECISION FIX: Changed from double to double for consistency
 double cllm_train_epoch(CLLMTraining* training);
-int cllm_train(CLLMTraining* training);
+int cllm_train_legacy(CLLMTraining* training);
 int cllm_save_checkpoint(CLLMTraining* training, const char* filename);
 int cllm_load_checkpoint(CLLMTraining* training, const char* filename);
 void cllm_training_cleanup(CLLMTraining* training);

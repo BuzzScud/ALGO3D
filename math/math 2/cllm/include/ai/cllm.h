@@ -49,7 +49,7 @@ extern "C" {
 // Convenient aliases for commonly used types
 // Note: ClockPosition is defined in math/clock.h
 // ClockPosition is now defined in math/clock.h
-typedef struct SphereThreadingModel SphereThreadingModel;
+// SphereThreadingModel defined in algorithms/include/sphere_threading.h
 typedef struct Sphere SphereThread;
 
 // ============================================================================

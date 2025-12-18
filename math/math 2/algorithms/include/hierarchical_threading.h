@@ -430,7 +430,7 @@ typedef struct {
  * @param numa_aware Use NUMA-aware allocation
  * @return Allocated thread pool, or NULL on error
  */
-HierarchicalThreadPool* hierarchical_thread_pool_create(
+HierarchicalThreadPool* hierarchical_thread_pool_create_general(
     uint32_t num_threads,
     uint32_t symmetry_fold,
     uint32_t num_dimensions,

@@ -117,7 +117,7 @@ int cllm_threading_optimize_cache(CLLMModel* model);
  * @param gradient_size Size of gradient buffer
  */
 void cllm_threading_process_point(
-    CLLMLatticePoint* point,
+    LatticePoint* point,
     CLLMModel* model,
     float* local_gradients,
     size_t gradient_size
@@ -177,7 +177,7 @@ static inline void cllm_optimize_neighbor_cache_locality(CLLMModel* model) {
 }
 
 static inline void cllm_process_kissing_spheres(
-    CLLMLatticePoint* point,
+    LatticePoint* point,
     CLLMModel* model,
     float* local_gradients,
     size_t gradient_size

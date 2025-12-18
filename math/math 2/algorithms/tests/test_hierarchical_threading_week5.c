@@ -100,7 +100,7 @@ bool test_thread_pool_creation() {
 bool test_thread_creation() {
     printf("Creating individual threads...\n");
     
-    HierarchicalThreadPool* pool = hierarchical_thread_pool_create(4, 12, 13, false);
+    HierarchicalThreadPool* pool = hierarchical_thread_pool_create_general(4, 12, 13, false);
     if (!pool) {
         return false;
     }
@@ -182,7 +182,7 @@ bool test_thread_creation() {
 bool test_geometric_positioning() {
     printf("Testing geometric positioning of threads...\n");
     
-    HierarchicalThreadPool* pool = hierarchical_thread_pool_create(12, 12, 13, false);
+    HierarchicalThreadPool* pool = hierarchical_thread_pool_create_general(12, 12, 13, false);
     if (!pool) {
         return false;
     }
@@ -240,7 +240,7 @@ bool test_geometric_positioning() {
 bool test_neighbor_operations() {
     printf("Testing neighbor operations...\n");
     
-    HierarchicalThreadPool* pool = hierarchical_thread_pool_create(4, 12, 13, false);
+    HierarchicalThreadPool* pool = hierarchical_thread_pool_create_general(4, 12, 13, false);
     if (!pool) {
         return false;
     }
@@ -328,7 +328,7 @@ bool test_neighbor_operations() {
 bool test_state_management() {
     printf("Testing state management integration...\n");
     
-    HierarchicalThreadPool* pool = hierarchical_thread_pool_create(2, 12, 13, false);
+    HierarchicalThreadPool* pool = hierarchical_thread_pool_create_general(2, 12, 13, false);
     if (!pool) {
         return false;
     }
@@ -393,7 +393,7 @@ bool test_state_management() {
 bool test_memory_operations() {
     printf("Testing memory operations...\n");
     
-    HierarchicalThreadPool* pool = hierarchical_thread_pool_create(2, 12, 13, false);
+    HierarchicalThreadPool* pool = hierarchical_thread_pool_create_general(2, 12, 13, false);
     if (!pool) {
         return false;
     }
@@ -432,7 +432,7 @@ bool test_memory_operations() {
 bool test_statistics() {
     printf("Testing statistics collection...\n");
     
-    HierarchicalThreadPool* pool = hierarchical_thread_pool_create(4, 12, 13, false);
+    HierarchicalThreadPool* pool = hierarchical_thread_pool_create_general(4, 12, 13, false);
     if (!pool) {
         return false;
     }
@@ -500,7 +500,7 @@ bool test_statistics() {
 bool test_find_nearest_neighbors() {
     printf("Testing nearest neighbor finding...\n");
     
-    HierarchicalThreadPool* pool = hierarchical_thread_pool_create(12, 12, 13, false);
+    HierarchicalThreadPool* pool = hierarchical_thread_pool_create_general(12, 12, 13, false);
     if (!pool) {
         return false;
     }
@@ -558,7 +558,7 @@ bool test_complete_integration() {
     printf("Testing complete system integration...\n");
     
     // Create a pool with 12 threads (dodecahedron symmetry)
-    HierarchicalThreadPool* pool = hierarchical_thread_pool_create(12, 12, 13, false);
+    HierarchicalThreadPool* pool = hierarchical_thread_pool_create_general(12, 12, 13, false);
     if (!pool) {
         return false;
     }

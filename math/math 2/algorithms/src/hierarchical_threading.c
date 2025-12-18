@@ -47,7 +47,7 @@ static double calculate_distance(const double* pos1, const double* pos2, uint32_
 // THREAD POOL OPERATIONS
 // ============================================================================
 
-HierarchicalThreadPool* hierarchical_thread_pool_create(
+HierarchicalThreadPool* hierarchical_thread_pool_create_general(
     uint32_t num_threads,
     uint32_t symmetry_fold,
     uint32_t num_dimensions,
@@ -1142,7 +1142,7 @@ uint32_t hierarchical_thread_find_nearest_neighbors(
 
 HierarchicalThreadPool* hierarchical_thread_pool_create(uint32_t base) {
     // Create pool with 88D configuration
-    HierarchicalThreadPool* pool = hierarchical_thread_pool_create(
+    HierarchicalThreadPool* pool = hierarchical_thread_pool_create_general(
         HIERARCHICAL_88D_TOTAL_THREADS,   // 96 threads
         HIERARCHICAL_88D_CLOCK_POSITIONS, // 12-fold symmetry
         HIERARCHICAL_88D_TOTAL_DIMENSIONS, // 88 dimensions
