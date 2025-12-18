@@ -1,0 +1,885 @@
+AUTOMATICALLY DISCOVERED INTERFERENCE PATTERNS
+==============================================
+
+These patterns show the EXACT magnitude modulo value where
+each prime creates interference at each clock position.
+
+
+// Position 3 (Base 5) Interference Patterns
+InterferencePattern pos3_patterns[] = {
+    {5, 0},  // Prime 5 interferes at mag ≡ 0 (mod 5) - 100.0% (99/99)
+    {7, 6},  // Prime 7 interferes at mag ≡ 6 (mod 7) - 100.0% (71/71)
+    {11, 6},  // Prime 11 interferes at mag ≡ 6 (mod 11) - 100.0% (45/45)
+    {13, 5},  // Prime 13 interferes at mag ≡ 5 (mod 13) - 100.0% (39/39)
+    {17, 1},  // Prime 17 interferes at mag ≡ 1 (mod 17) - 100.0% (29/29)
+    {19, 17},  // Prime 19 interferes at mag ≡ 17 (mod 19) - 100.0% (26/26)
+    {23, 13},  // Prime 23 interferes at mag ≡ 13 (mod 23) - 100.0% (22/22)
+    {29, 2},  // Prime 29 interferes at mag ≡ 2 (mod 29) - 100.0% (17/17)
+    {31, 28},  // Prime 31 interferes at mag ≡ 28 (mod 31) - 100.0% (16/16)
+    {37, 15},  // Prime 37 interferes at mag ≡ 15 (mod 37) - 100.0% (14/14)
+    {41, 3},  // Prime 41 interferes at mag ≡ 3 (mod 41) - 100.0% (12/12)
+    {43, 39},  // Prime 43 interferes at mag ≡ 39 (mod 43) - 100.0% (11/11)
+    {47, 27},  // Prime 47 interferes at mag ≡ 27 (mod 47) - 100.0% (11/11)
+    {53, 4},  // Prime 53 interferes at mag ≡ 4 (mod 53) - 100.0% (9/9)
+    {59, 34},  // Prime 59 interferes at mag ≡ 34 (mod 59) - 100.0% (8/8)
+    {61, 25},  // Prime 61 interferes at mag ≡ 25 (mod 61) - 100.0% (8/8)
+    {67, 61},  // Prime 67 interferes at mag ≡ 61 (mod 67) - 100.0% (7/7)
+    {71, 41},  // Prime 71 interferes at mag ≡ 41 (mod 71) - 100.0% (7/7)
+    {73, 30},  // Prime 73 interferes at mag ≡ 30 (mod 73) - 100.0% (7/7)
+    {79, 72},  // Prime 79 interferes at mag ≡ 72 (mod 79) - 100.0% (6/6)
+    {83, 48},  // Prime 83 interferes at mag ≡ 48 (mod 83) - 100.0% (6/6)
+    {89, 7},  // Prime 89 interferes at mag ≡ 7 (mod 89) - 100.0% (5/5)
+    {97, 40},  // Prime 97 interferes at mag ≡ 40 (mod 97) - 100.0% (5/5)
+    {101, 8},  // Prime 101 interferes at mag ≡ 8 (mod 101) - 100.0% (4/4)
+    {103, 94},  // Prime 103 interferes at mag ≡ 94 (mod 103) - 100.0% (4/4)
+    {107, 62},  // Prime 107 interferes at mag ≡ 62 (mod 107) - 100.0% (5/5)
+    {109, 45},  // Prime 109 interferes at mag ≡ 45 (mod 109) - 100.0% (5/5)
+    {113, 9},  // Prime 113 interferes at mag ≡ 9 (mod 113) - 100.0% (4/4)
+    {127, 116},  // Prime 127 interferes at mag ≡ 116 (mod 127) - 100.0% (4/4)
+    {131, 76},  // Prime 131 interferes at mag ≡ 76 (mod 131) - 100.0% (4/4)
+    {137, 11},  // Prime 137 interferes at mag ≡ 11 (mod 137) - 100.0% (3/3)
+    {139, 127},  // Prime 139 interferes at mag ≡ 127 (mod 139) - 100.0% (3/3)
+    {149, 12},  // Prime 149 interferes at mag ≡ 12 (mod 149) - 100.0% (3/3)
+    {151, 138},  // Prime 151 interferes at mag ≡ 138 (mod 151) - 100.0% (3/3)
+    {157, 65},  // Prime 157 interferes at mag ≡ 65 (mod 157) - 100.0% (3/3)
+    {163, 149},  // Prime 163 interferes at mag ≡ 149 (mod 163) - 100.0% (3/3)
+    {167, 97},  // Prime 167 interferes at mag ≡ 97 (mod 167) - 100.0% (3/3)
+    {173, 14},  // Prime 173 interferes at mag ≡ 14 (mod 173) - 100.0% (2/2)
+    {179, 104},  // Prime 179 interferes at mag ≡ 104 (mod 179) - 100.0% (3/3)
+    {181, 75},  // Prime 181 interferes at mag ≡ 75 (mod 181) - 100.0% (3/3)
+    {191, 111},  // Prime 191 interferes at mag ≡ 111 (mod 191) - 100.0% (3/3)
+    {193, 80},  // Prime 193 interferes at mag ≡ 80 (mod 193) - 100.0% (3/3)
+    {197, 16},  // Prime 197 interferes at mag ≡ 16 (mod 197) - 100.0% (2/2)
+    {199, 182},  // Prime 199 interferes at mag ≡ 182 (mod 199) - 100.0% (2/2)
+    {0, 0}  // Sentinel
+};
+
+// Position 6 (Base 7) Interference Patterns
+InterferencePattern pos6_patterns[] = {
+    {5, 4},  // Prime 5 interferes at mag ≡ 4 (mod 5) - 100.0% (100/100)
+    {7, 0},  // Prime 7 interferes at mag ≡ 0 (mod 7) - 100.0% (71/71)
+    {11, 4},  // Prime 11 interferes at mag ≡ 4 (mod 11) - 100.0% (46/46)
+    {13, 7},  // Prime 13 interferes at mag ≡ 7 (mod 13) - 100.0% (38/38)
+    {17, 15},  // Prime 17 interferes at mag ≡ 15 (mod 17) - 100.0% (29/29)
+    {19, 1},  // Prime 19 interferes at mag ≡ 1 (mod 19) - 100.0% (26/26)
+    {23, 9},  // Prime 23 interferes at mag ≡ 9 (mod 23) - 100.0% (22/22)
+    {29, 26},  // Prime 29 interferes at mag ≡ 26 (mod 29) - 100.0% (17/17)
+    {31, 2},  // Prime 31 interferes at mag ≡ 2 (mod 31) - 100.0% (16/16)
+    {37, 21},  // Prime 37 interferes at mag ≡ 21 (mod 37) - 100.0% (13/13)
+    {41, 37},  // Prime 41 interferes at mag ≡ 37 (mod 41) - 100.0% (12/12)
+    {43, 3},  // Prime 43 interferes at mag ≡ 3 (mod 43) - 100.0% (11/11)
+    {47, 19},  // Prime 47 interferes at mag ≡ 19 (mod 47) - 100.0% (11/11)
+    {53, 48},  // Prime 53 interferes at mag ≡ 48 (mod 53) - 100.0% (9/9)
+    {59, 24},  // Prime 59 interferes at mag ≡ 24 (mod 59) - 100.0% (9/9)
+    {61, 35},  // Prime 61 interferes at mag ≡ 35 (mod 61) - 100.0% (8/8)
+    {67, 5},  // Prime 67 interferes at mag ≡ 5 (mod 67) - 100.0% (7/7)
+    {71, 29},  // Prime 71 interferes at mag ≡ 29 (mod 71) - 100.0% (7/7)
+    {73, 42},  // Prime 73 interferes at mag ≡ 42 (mod 73) - 100.0% (7/7)
+    {79, 6},  // Prime 79 interferes at mag ≡ 6 (mod 79) - 100.0% (6/6)
+    {83, 34},  // Prime 83 interferes at mag ≡ 34 (mod 83) - 100.0% (6/6)
+    {89, 81},  // Prime 89 interferes at mag ≡ 81 (mod 89) - 100.0% (5/5)
+    {97, 56},  // Prime 97 interferes at mag ≡ 56 (mod 97) - 100.0% (5/5)
+    {101, 92},  // Prime 101 interferes at mag ≡ 92 (mod 101) - 100.0% (5/5)
+    {103, 8},  // Prime 103 interferes at mag ≡ 8 (mod 103) - 100.0% (4/4)
+    {107, 44},  // Prime 107 interferes at mag ≡ 44 (mod 107) - 100.0% (5/5)
+    {109, 63},  // Prime 109 interferes at mag ≡ 63 (mod 109) - 100.0% (5/5)
+    {113, 103},  // Prime 113 interferes at mag ≡ 103 (mod 113) - 100.0% (4/4)
+    {127, 10},  // Prime 127 interferes at mag ≡ 10 (mod 127) - 100.0% (3/3)
+    {131, 54},  // Prime 131 interferes at mag ≡ 54 (mod 131) - 100.0% (4/4)
+    {137, 125},  // Prime 137 interferes at mag ≡ 125 (mod 137) - 100.0% (3/3)
+    {139, 11},  // Prime 139 interferes at mag ≡ 11 (mod 139) - 100.0% (3/3)
+    {149, 136},  // Prime 149 interferes at mag ≡ 136 (mod 149) - 100.0% (3/3)
+    {151, 12},  // Prime 151 interferes at mag ≡ 12 (mod 151) - 100.0% (3/3)
+    {157, 91},  // Prime 157 interferes at mag ≡ 91 (mod 157) - 100.0% (3/3)
+    {163, 13},  // Prime 163 interferes at mag ≡ 13 (mod 163) - 100.0% (2/2)
+    {167, 69},  // Prime 167 interferes at mag ≡ 69 (mod 167) - 100.0% (3/3)
+    {173, 158},  // Prime 173 interferes at mag ≡ 158 (mod 173) - 100.0% (2/2)
+    {179, 74},  // Prime 179 interferes at mag ≡ 74 (mod 179) - 100.0% (3/3)
+    {181, 105},  // Prime 181 interferes at mag ≡ 105 (mod 181) - 100.0% (3/3)
+    {191, 79},  // Prime 191 interferes at mag ≡ 79 (mod 191) - 100.0% (3/3)
+    {193, 112},  // Prime 193 interferes at mag ≡ 112 (mod 193) - 100.0% (3/3)
+    {197, 180},  // Prime 197 interferes at mag ≡ 180 (mod 197) - 100.0% (2/2)
+    {199, 16},  // Prime 199 interferes at mag ≡ 16 (mod 199) - 100.0% (2/2)
+    {0, 0}  // Sentinel
+};
+
+// Position 9 (Base 11) Interference Patterns
+InterferencePattern pos9_patterns[] = {
+    {5, 2},  // Prime 5 interferes at mag ≡ 2 (mod 5) - 100.0% (100/100)
+    {7, 2},  // Prime 7 interferes at mag ≡ 2 (mod 7) - 100.0% (72/72)
+    {11, 0},  // Prime 11 interferes at mag ≡ 0 (mod 11) - 100.0% (45/45)
+    {13, 11},  // Prime 13 interferes at mag ≡ 11 (mod 13) - 100.0% (38/38)
+    {17, 9},  // Prime 17 interferes at mag ≡ 9 (mod 17) - 100.0% (29/29)
+    {19, 7},  // Prime 19 interferes at mag ≡ 7 (mod 19) - 100.0% (26/26)
+    {23, 1},  // Prime 23 interferes at mag ≡ 1 (mod 23) - 100.0% (21/21)
+    {29, 16},  // Prime 29 interferes at mag ≡ 16 (mod 29) - 100.0% (17/17)
+    {31, 12},  // Prime 31 interferes at mag ≡ 12 (mod 31) - 100.0% (16/16)
+    {37, 33},  // Prime 37 interferes at mag ≡ 33 (mod 37) - 100.0% (13/13)
+    {41, 23},  // Prime 41 interferes at mag ≡ 23 (mod 41) - 100.0% (12/12)
+    {43, 17},  // Prime 43 interferes at mag ≡ 17 (mod 43) - 100.0% (12/12)
+    {47, 3},  // Prime 47 interferes at mag ≡ 3 (mod 47) - 100.0% (10/10)
+    {53, 30},  // Prime 53 interferes at mag ≡ 30 (mod 53) - 100.0% (9/9)
+    {59, 4},  // Prime 59 interferes at mag ≡ 4 (mod 59) - 100.0% (8/8)
+    {61, 55},  // Prime 61 interferes at mag ≡ 55 (mod 61) - 100.0% (8/8)
+    {67, 27},  // Prime 67 interferes at mag ≡ 27 (mod 67) - 100.0% (8/8)
+    {71, 5},  // Prime 71 interferes at mag ≡ 5 (mod 71) - 100.0% (6/6)
+    {73, 66},  // Prime 73 interferes at mag ≡ 66 (mod 73) - 100.0% (6/6)
+    {79, 32},  // Prime 79 interferes at mag ≡ 32 (mod 79) - 100.0% (6/6)
+    {83, 6},  // Prime 83 interferes at mag ≡ 6 (mod 83) - 100.0% (5/5)
+    {89, 51},  // Prime 89 interferes at mag ≡ 51 (mod 89) - 100.0% (6/6)
+    {97, 88},  // Prime 97 interferes at mag ≡ 88 (mod 97) - 100.0% (5/5)
+    {101, 58},  // Prime 101 interferes at mag ≡ 58 (mod 101) - 100.0% (5/5)
+    {103, 42},  // Prime 103 interferes at mag ≡ 42 (mod 103) - 100.0% (5/5)
+    {107, 8},  // Prime 107 interferes at mag ≡ 8 (mod 107) - 100.0% (4/4)
+    {109, 99},  // Prime 109 interferes at mag ≡ 99 (mod 109) - 100.0% (4/4)
+    {113, 65},  // Prime 113 interferes at mag ≡ 65 (mod 113) - 100.0% (4/4)
+    {127, 52},  // Prime 127 interferes at mag ≡ 52 (mod 127) - 100.0% (4/4)
+    {131, 10},  // Prime 131 interferes at mag ≡ 10 (mod 131) - 100.0% (3/3)
+    {137, 79},  // Prime 137 interferes at mag ≡ 79 (mod 137) - 100.0% (4/4)
+    {139, 57},  // Prime 139 interferes at mag ≡ 57 (mod 139) - 100.0% (4/4)
+    {149, 86},  // Prime 149 interferes at mag ≡ 86 (mod 149) - 100.0% (3/3)
+    {151, 62},  // Prime 151 interferes at mag ≡ 62 (mod 151) - 100.0% (3/3)
+    {157, 143},  // Prime 157 interferes at mag ≡ 143 (mod 157) - 100.0% (3/3)
+    {163, 67},  // Prime 163 interferes at mag ≡ 67 (mod 163) - 100.0% (3/3)
+    {167, 13},  // Prime 167 interferes at mag ≡ 13 (mod 167) - 100.0% (2/2)
+    {173, 100},  // Prime 173 interferes at mag ≡ 100 (mod 173) - 100.0% (3/3)
+    {179, 14},  // Prime 179 interferes at mag ≡ 14 (mod 179) - 100.0% (2/2)
+    {181, 165},  // Prime 181 interferes at mag ≡ 165 (mod 181) - 100.0% (2/2)
+    {191, 15},  // Prime 191 interferes at mag ≡ 15 (mod 191) - 100.0% (2/2)
+    {193, 176},  // Prime 193 interferes at mag ≡ 176 (mod 193) - 100.0% (2/2)
+    {197, 114},  // Prime 197 interferes at mag ≡ 114 (mod 197) - 100.0% (2/2)
+    {199, 82},  // Prime 199 interferes at mag ≡ 82 (mod 199) - 100.0% (3/3)
+    {0, 0}  // Sentinel
+};
+
+=== MATHEMATICAL FORMULA ANALYSIS FOR POSITION 3 ===
+
+Prime   5: interference at mag≡0 (mod 5)
+  Formula check: base + mag×12 ≡ 0 (mod 5)
+  => 5 + 0×12 ≡ 0 (mod 5)
+  => 5 ≡ 0 (mod 5) ✓ CORRECT!
+  FORMULA FOUND: mag_mod = (p - base/12) mod p
+
+Prime   7: interference at mag≡6 (mod 7)
+  Formula check: base + mag×12 ≡ 0 (mod 7)
+  => 5 + 6×12 ≡ 0 (mod 7)
+  => 5 ≡ 5 (mod 7) ✓ CORRECT!
+
+Prime  11: interference at mag≡6 (mod 11)
+  Formula check: base + mag×12 ≡ 0 (mod 11)
+  => 5 + 6×12 ≡ 0 (mod 11)
+  => 5 ≡ 5 (mod 11) ✓ CORRECT!
+
+Prime  13: interference at mag≡5 (mod 13)
+  Formula check: base + mag×12 ≡ 0 (mod 13)
+  => 5 + 5×12 ≡ 0 (mod 13)
+  => 5 ≡ 5 (mod 13) ✓ CORRECT!
+
+Prime  17: interference at mag≡1 (mod 17)
+  Formula check: base + mag×12 ≡ 0 (mod 17)
+  => 5 + 1×12 ≡ 0 (mod 17)
+  => 5 ≡ 5 (mod 17) ✓ CORRECT!
+
+Prime  19: interference at mag≡17 (mod 19)
+  Formula check: base + mag×12 ≡ 0 (mod 19)
+  => 5 + 17×12 ≡ 0 (mod 19)
+  => 5 ≡ 5 (mod 19) ✓ CORRECT!
+
+Prime  23: interference at mag≡13 (mod 23)
+  Formula check: base + mag×12 ≡ 0 (mod 23)
+  => 5 + 13×12 ≡ 0 (mod 23)
+  => 5 ≡ 5 (mod 23) ✓ CORRECT!
+
+Prime  29: interference at mag≡2 (mod 29)
+  Formula check: base + mag×12 ≡ 0 (mod 29)
+  => 5 + 2×12 ≡ 0 (mod 29)
+  => 5 ≡ 5 (mod 29) ✓ CORRECT!
+
+Prime  31: interference at mag≡28 (mod 31)
+  Formula check: base + mag×12 ≡ 0 (mod 31)
+  => 5 + 28×12 ≡ 0 (mod 31)
+  => 5 ≡ 5 (mod 31) ✓ CORRECT!
+
+Prime  37: interference at mag≡15 (mod 37)
+  Formula check: base + mag×12 ≡ 0 (mod 37)
+  => 5 + 15×12 ≡ 0 (mod 37)
+  => 5 ≡ 5 (mod 37) ✓ CORRECT!
+
+Prime  41: interference at mag≡3 (mod 41)
+  Formula check: base + mag×12 ≡ 0 (mod 41)
+  => 5 + 3×12 ≡ 0 (mod 41)
+  => 5 ≡ 5 (mod 41) ✓ CORRECT!
+
+Prime  43: interference at mag≡39 (mod 43)
+  Formula check: base + mag×12 ≡ 0 (mod 43)
+  => 5 + 39×12 ≡ 0 (mod 43)
+  => 5 ≡ 5 (mod 43) ✓ CORRECT!
+
+Prime  47: interference at mag≡27 (mod 47)
+  Formula check: base + mag×12 ≡ 0 (mod 47)
+  => 5 + 27×12 ≡ 0 (mod 47)
+  => 5 ≡ 5 (mod 47) ✓ CORRECT!
+
+Prime  53: interference at mag≡4 (mod 53)
+  Formula check: base + mag×12 ≡ 0 (mod 53)
+  => 5 + 4×12 ≡ 0 (mod 53)
+  => 5 ≡ 5 (mod 53) ✓ CORRECT!
+
+Prime  59: interference at mag≡34 (mod 59)
+  Formula check: base + mag×12 ≡ 0 (mod 59)
+  => 5 + 34×12 ≡ 0 (mod 59)
+  => 5 ≡ 5 (mod 59) ✓ CORRECT!
+
+Prime  61: interference at mag≡25 (mod 61)
+  Formula check: base + mag×12 ≡ 0 (mod 61)
+  => 5 + 25×12 ≡ 0 (mod 61)
+  => 5 ≡ 5 (mod 61) ✓ CORRECT!
+
+Prime  67: interference at mag≡61 (mod 67)
+  Formula check: base + mag×12 ≡ 0 (mod 67)
+  => 5 + 61×12 ≡ 0 (mod 67)
+  => 5 ≡ 5 (mod 67) ✓ CORRECT!
+
+Prime  71: interference at mag≡41 (mod 71)
+  Formula check: base + mag×12 ≡ 0 (mod 71)
+  => 5 + 41×12 ≡ 0 (mod 71)
+  => 5 ≡ 5 (mod 71) ✓ CORRECT!
+
+Prime  73: interference at mag≡30 (mod 73)
+  Formula check: base + mag×12 ≡ 0 (mod 73)
+  => 5 + 30×12 ≡ 0 (mod 73)
+  => 5 ≡ 5 (mod 73) ✓ CORRECT!
+
+Prime  79: interference at mag≡72 (mod 79)
+  Formula check: base + mag×12 ≡ 0 (mod 79)
+  => 5 + 72×12 ≡ 0 (mod 79)
+  => 5 ≡ 5 (mod 79) ✓ CORRECT!
+
+Prime  83: interference at mag≡48 (mod 83)
+  Formula check: base + mag×12 ≡ 0 (mod 83)
+  => 5 + 48×12 ≡ 0 (mod 83)
+  => 5 ≡ 5 (mod 83) ✓ CORRECT!
+
+Prime  89: interference at mag≡7 (mod 89)
+  Formula check: base + mag×12 ≡ 0 (mod 89)
+  => 5 + 7×12 ≡ 0 (mod 89)
+  => 5 ≡ 5 (mod 89) ✓ CORRECT!
+
+Prime  97: interference at mag≡40 (mod 97)
+  Formula check: base + mag×12 ≡ 0 (mod 97)
+  => 5 + 40×12 ≡ 0 (mod 97)
+  => 5 ≡ 5 (mod 97) ✓ CORRECT!
+
+Prime 101: interference at mag≡8 (mod 101)
+  Formula check: base + mag×12 ≡ 0 (mod 101)
+  => 5 + 8×12 ≡ 0 (mod 101)
+  => 5 ≡ 5 (mod 101) ✓ CORRECT!
+
+Prime 103: interference at mag≡94 (mod 103)
+  Formula check: base + mag×12 ≡ 0 (mod 103)
+  => 5 + 94×12 ≡ 0 (mod 103)
+  => 5 ≡ 5 (mod 103) ✓ CORRECT!
+
+Prime 107: interference at mag≡62 (mod 107)
+  Formula check: base + mag×12 ≡ 0 (mod 107)
+  => 5 + 62×12 ≡ 0 (mod 107)
+  => 5 ≡ 5 (mod 107) ✓ CORRECT!
+
+Prime 109: interference at mag≡45 (mod 109)
+  Formula check: base + mag×12 ≡ 0 (mod 109)
+  => 5 + 45×12 ≡ 0 (mod 109)
+  => 5 ≡ 5 (mod 109) ✓ CORRECT!
+
+Prime 113: interference at mag≡9 (mod 113)
+  Formula check: base + mag×12 ≡ 0 (mod 113)
+  => 5 + 9×12 ≡ 0 (mod 113)
+  => 5 ≡ 5 (mod 113) ✓ CORRECT!
+
+Prime 127: interference at mag≡116 (mod 127)
+  Formula check: base + mag×12 ≡ 0 (mod 127)
+  => 5 + 116×12 ≡ 0 (mod 127)
+  => 5 ≡ 5 (mod 127) ✓ CORRECT!
+
+Prime 131: interference at mag≡76 (mod 131)
+  Formula check: base + mag×12 ≡ 0 (mod 131)
+  => 5 + 76×12 ≡ 0 (mod 131)
+  => 5 ≡ 5 (mod 131) ✓ CORRECT!
+
+Prime 137: interference at mag≡11 (mod 137)
+  Formula check: base + mag×12 ≡ 0 (mod 137)
+  => 5 + 11×12 ≡ 0 (mod 137)
+  => 5 ≡ 5 (mod 137) ✓ CORRECT!
+
+Prime 139: interference at mag≡127 (mod 139)
+  Formula check: base + mag×12 ≡ 0 (mod 139)
+  => 5 + 127×12 ≡ 0 (mod 139)
+  => 5 ≡ 5 (mod 139) ✓ CORRECT!
+
+Prime 149: interference at mag≡12 (mod 149)
+  Formula check: base + mag×12 ≡ 0 (mod 149)
+  => 5 + 12×12 ≡ 0 (mod 149)
+  => 5 ≡ 5 (mod 149) ✓ CORRECT!
+
+Prime 151: interference at mag≡138 (mod 151)
+  Formula check: base + mag×12 ≡ 0 (mod 151)
+  => 5 + 138×12 ≡ 0 (mod 151)
+  => 5 ≡ 5 (mod 151) ✓ CORRECT!
+
+Prime 157: interference at mag≡65 (mod 157)
+  Formula check: base + mag×12 ≡ 0 (mod 157)
+  => 5 + 65×12 ≡ 0 (mod 157)
+  => 5 ≡ 5 (mod 157) ✓ CORRECT!
+
+Prime 163: interference at mag≡149 (mod 163)
+  Formula check: base + mag×12 ≡ 0 (mod 163)
+  => 5 + 149×12 ≡ 0 (mod 163)
+  => 5 ≡ 5 (mod 163) ✓ CORRECT!
+
+Prime 167: interference at mag≡97 (mod 167)
+  Formula check: base + mag×12 ≡ 0 (mod 167)
+  => 5 + 97×12 ≡ 0 (mod 167)
+  => 5 ≡ 5 (mod 167) ✓ CORRECT!
+
+Prime 173: interference at mag≡14 (mod 173)
+  Formula check: base + mag×12 ≡ 0 (mod 173)
+  => 5 + 14×12 ≡ 0 (mod 173)
+  => 5 ≡ 5 (mod 173) ✓ CORRECT!
+
+Prime 179: interference at mag≡104 (mod 179)
+  Formula check: base + mag×12 ≡ 0 (mod 179)
+  => 5 + 104×12 ≡ 0 (mod 179)
+  => 5 ≡ 5 (mod 179) ✓ CORRECT!
+
+Prime 181: interference at mag≡75 (mod 181)
+  Formula check: base + mag×12 ≡ 0 (mod 181)
+  => 5 + 75×12 ≡ 0 (mod 181)
+  => 5 ≡ 5 (mod 181) ✓ CORRECT!
+
+Prime 191: interference at mag≡111 (mod 191)
+  Formula check: base + mag×12 ≡ 0 (mod 191)
+  => 5 + 111×12 ≡ 0 (mod 191)
+  => 5 ≡ 5 (mod 191) ✓ CORRECT!
+
+Prime 193: interference at mag≡80 (mod 193)
+  Formula check: base + mag×12 ≡ 0 (mod 193)
+  => 5 + 80×12 ≡ 0 (mod 193)
+  => 5 ≡ 5 (mod 193) ✓ CORRECT!
+
+Prime 197: interference at mag≡16 (mod 197)
+  Formula check: base + mag×12 ≡ 0 (mod 197)
+  => 5 + 16×12 ≡ 0 (mod 197)
+  => 5 ≡ 5 (mod 197) ✓ CORRECT!
+
+Prime 199: interference at mag≡182 (mod 199)
+  Formula check: base + mag×12 ≡ 0 (mod 199)
+  => 5 + 182×12 ≡ 0 (mod 199)
+  => 5 ≡ 5 (mod 199) ✓ CORRECT!
+
+Prime 211: interference at mag≡193 (mod 211)
+  Formula check: base + mag×12 ≡ 0 (mod 211)
+  => 5 + 193×12 ≡ 0 (mod 211)
+  => 5 ≡ 5 (mod 211) ✓ CORRECT!
+
+Prime 223: interference at mag≡204 (mod 223)
+  Formula check: base + mag×12 ≡ 0 (mod 223)
+  => 5 + 204×12 ≡ 0 (mod 223)
+  => 5 ≡ 5 (mod 223) ✓ CORRECT!
+
+Prime 227: interference at mag≡132 (mod 227)
+  Formula check: base + mag×12 ≡ 0 (mod 227)
+  => 5 + 132×12 ≡ 0 (mod 227)
+  => 5 ≡ 5 (mod 227) ✓ CORRECT!
+
+Prime 229: interference at mag≡95 (mod 229)
+  Formula check: base + mag×12 ≡ 0 (mod 229)
+  => 5 + 95×12 ≡ 0 (mod 229)
+  => 5 ≡ 5 (mod 229) ✓ CORRECT!
+
+
+=== MATHEMATICAL FORMULA ANALYSIS FOR POSITION 6 ===
+
+Prime   5: interference at mag≡4 (mod 5)
+  Formula check: base + mag×12 ≡ 0 (mod 5)
+  => 7 + 4×12 ≡ 0 (mod 5)
+  => 7 ≡ 2 (mod 5) ✓ CORRECT!
+
+Prime   7: interference at mag≡0 (mod 7)
+  Formula check: base + mag×12 ≡ 0 (mod 7)
+  => 7 + 0×12 ≡ 0 (mod 7)
+  => 7 ≡ 0 (mod 7) ✓ CORRECT!
+  FORMULA FOUND: mag_mod = (p - base/12) mod p
+
+Prime  11: interference at mag≡4 (mod 11)
+  Formula check: base + mag×12 ≡ 0 (mod 11)
+  => 7 + 4×12 ≡ 0 (mod 11)
+  => 7 ≡ 7 (mod 11) ✓ CORRECT!
+
+Prime  13: interference at mag≡7 (mod 13)
+  Formula check: base + mag×12 ≡ 0 (mod 13)
+  => 7 + 7×12 ≡ 0 (mod 13)
+  => 7 ≡ 7 (mod 13) ✓ CORRECT!
+
+Prime  17: interference at mag≡15 (mod 17)
+  Formula check: base + mag×12 ≡ 0 (mod 17)
+  => 7 + 15×12 ≡ 0 (mod 17)
+  => 7 ≡ 7 (mod 17) ✓ CORRECT!
+
+Prime  19: interference at mag≡1 (mod 19)
+  Formula check: base + mag×12 ≡ 0 (mod 19)
+  => 7 + 1×12 ≡ 0 (mod 19)
+  => 7 ≡ 7 (mod 19) ✓ CORRECT!
+
+Prime  23: interference at mag≡9 (mod 23)
+  Formula check: base + mag×12 ≡ 0 (mod 23)
+  => 7 + 9×12 ≡ 0 (mod 23)
+  => 7 ≡ 7 (mod 23) ✓ CORRECT!
+
+Prime  29: interference at mag≡26 (mod 29)
+  Formula check: base + mag×12 ≡ 0 (mod 29)
+  => 7 + 26×12 ≡ 0 (mod 29)
+  => 7 ≡ 7 (mod 29) ✓ CORRECT!
+
+Prime  31: interference at mag≡2 (mod 31)
+  Formula check: base + mag×12 ≡ 0 (mod 31)
+  => 7 + 2×12 ≡ 0 (mod 31)
+  => 7 ≡ 7 (mod 31) ✓ CORRECT!
+
+Prime  37: interference at mag≡21 (mod 37)
+  Formula check: base + mag×12 ≡ 0 (mod 37)
+  => 7 + 21×12 ≡ 0 (mod 37)
+  => 7 ≡ 7 (mod 37) ✓ CORRECT!
+
+Prime  41: interference at mag≡37 (mod 41)
+  Formula check: base + mag×12 ≡ 0 (mod 41)
+  => 7 + 37×12 ≡ 0 (mod 41)
+  => 7 ≡ 7 (mod 41) ✓ CORRECT!
+
+Prime  43: interference at mag≡3 (mod 43)
+  Formula check: base + mag×12 ≡ 0 (mod 43)
+  => 7 + 3×12 ≡ 0 (mod 43)
+  => 7 ≡ 7 (mod 43) ✓ CORRECT!
+
+Prime  47: interference at mag≡19 (mod 47)
+  Formula check: base + mag×12 ≡ 0 (mod 47)
+  => 7 + 19×12 ≡ 0 (mod 47)
+  => 7 ≡ 7 (mod 47) ✓ CORRECT!
+
+Prime  53: interference at mag≡48 (mod 53)
+  Formula check: base + mag×12 ≡ 0 (mod 53)
+  => 7 + 48×12 ≡ 0 (mod 53)
+  => 7 ≡ 7 (mod 53) ✓ CORRECT!
+
+Prime  59: interference at mag≡24 (mod 59)
+  Formula check: base + mag×12 ≡ 0 (mod 59)
+  => 7 + 24×12 ≡ 0 (mod 59)
+  => 7 ≡ 7 (mod 59) ✓ CORRECT!
+
+Prime  61: interference at mag≡35 (mod 61)
+  Formula check: base + mag×12 ≡ 0 (mod 61)
+  => 7 + 35×12 ≡ 0 (mod 61)
+  => 7 ≡ 7 (mod 61) ✓ CORRECT!
+
+Prime  67: interference at mag≡5 (mod 67)
+  Formula check: base + mag×12 ≡ 0 (mod 67)
+  => 7 + 5×12 ≡ 0 (mod 67)
+  => 7 ≡ 7 (mod 67) ✓ CORRECT!
+
+Prime  71: interference at mag≡29 (mod 71)
+  Formula check: base + mag×12 ≡ 0 (mod 71)
+  => 7 + 29×12 ≡ 0 (mod 71)
+  => 7 ≡ 7 (mod 71) ✓ CORRECT!
+
+Prime  73: interference at mag≡42 (mod 73)
+  Formula check: base + mag×12 ≡ 0 (mod 73)
+  => 7 + 42×12 ≡ 0 (mod 73)
+  => 7 ≡ 7 (mod 73) ✓ CORRECT!
+
+Prime  79: interference at mag≡6 (mod 79)
+  Formula check: base + mag×12 ≡ 0 (mod 79)
+  => 7 + 6×12 ≡ 0 (mod 79)
+  => 7 ≡ 7 (mod 79) ✓ CORRECT!
+
+Prime  83: interference at mag≡34 (mod 83)
+  Formula check: base + mag×12 ≡ 0 (mod 83)
+  => 7 + 34×12 ≡ 0 (mod 83)
+  => 7 ≡ 7 (mod 83) ✓ CORRECT!
+
+Prime  89: interference at mag≡81 (mod 89)
+  Formula check: base + mag×12 ≡ 0 (mod 89)
+  => 7 + 81×12 ≡ 0 (mod 89)
+  => 7 ≡ 7 (mod 89) ✓ CORRECT!
+
+Prime  97: interference at mag≡56 (mod 97)
+  Formula check: base + mag×12 ≡ 0 (mod 97)
+  => 7 + 56×12 ≡ 0 (mod 97)
+  => 7 ≡ 7 (mod 97) ✓ CORRECT!
+
+Prime 101: interference at mag≡92 (mod 101)
+  Formula check: base + mag×12 ≡ 0 (mod 101)
+  => 7 + 92×12 ≡ 0 (mod 101)
+  => 7 ≡ 7 (mod 101) ✓ CORRECT!
+
+Prime 103: interference at mag≡8 (mod 103)
+  Formula check: base + mag×12 ≡ 0 (mod 103)
+  => 7 + 8×12 ≡ 0 (mod 103)
+  => 7 ≡ 7 (mod 103) ✓ CORRECT!
+
+Prime 107: interference at mag≡44 (mod 107)
+  Formula check: base + mag×12 ≡ 0 (mod 107)
+  => 7 + 44×12 ≡ 0 (mod 107)
+  => 7 ≡ 7 (mod 107) ✓ CORRECT!
+
+Prime 109: interference at mag≡63 (mod 109)
+  Formula check: base + mag×12 ≡ 0 (mod 109)
+  => 7 + 63×12 ≡ 0 (mod 109)
+  => 7 ≡ 7 (mod 109) ✓ CORRECT!
+
+Prime 113: interference at mag≡103 (mod 113)
+  Formula check: base + mag×12 ≡ 0 (mod 113)
+  => 7 + 103×12 ≡ 0 (mod 113)
+  => 7 ≡ 7 (mod 113) ✓ CORRECT!
+
+Prime 127: interference at mag≡10 (mod 127)
+  Formula check: base + mag×12 ≡ 0 (mod 127)
+  => 7 + 10×12 ≡ 0 (mod 127)
+  => 7 ≡ 7 (mod 127) ✓ CORRECT!
+
+Prime 131: interference at mag≡54 (mod 131)
+  Formula check: base + mag×12 ≡ 0 (mod 131)
+  => 7 + 54×12 ≡ 0 (mod 131)
+  => 7 ≡ 7 (mod 131) ✓ CORRECT!
+
+Prime 137: interference at mag≡125 (mod 137)
+  Formula check: base + mag×12 ≡ 0 (mod 137)
+  => 7 + 125×12 ≡ 0 (mod 137)
+  => 7 ≡ 7 (mod 137) ✓ CORRECT!
+
+Prime 139: interference at mag≡11 (mod 139)
+  Formula check: base + mag×12 ≡ 0 (mod 139)
+  => 7 + 11×12 ≡ 0 (mod 139)
+  => 7 ≡ 7 (mod 139) ✓ CORRECT!
+
+Prime 149: interference at mag≡136 (mod 149)
+  Formula check: base + mag×12 ≡ 0 (mod 149)
+  => 7 + 136×12 ≡ 0 (mod 149)
+  => 7 ≡ 7 (mod 149) ✓ CORRECT!
+
+Prime 151: interference at mag≡12 (mod 151)
+  Formula check: base + mag×12 ≡ 0 (mod 151)
+  => 7 + 12×12 ≡ 0 (mod 151)
+  => 7 ≡ 7 (mod 151) ✓ CORRECT!
+
+Prime 157: interference at mag≡91 (mod 157)
+  Formula check: base + mag×12 ≡ 0 (mod 157)
+  => 7 + 91×12 ≡ 0 (mod 157)
+  => 7 ≡ 7 (mod 157) ✓ CORRECT!
+
+Prime 163: interference at mag≡13 (mod 163)
+  Formula check: base + mag×12 ≡ 0 (mod 163)
+  => 7 + 13×12 ≡ 0 (mod 163)
+  => 7 ≡ 7 (mod 163) ✓ CORRECT!
+
+Prime 167: interference at mag≡69 (mod 167)
+  Formula check: base + mag×12 ≡ 0 (mod 167)
+  => 7 + 69×12 ≡ 0 (mod 167)
+  => 7 ≡ 7 (mod 167) ✓ CORRECT!
+
+Prime 173: interference at mag≡158 (mod 173)
+  Formula check: base + mag×12 ≡ 0 (mod 173)
+  => 7 + 158×12 ≡ 0 (mod 173)
+  => 7 ≡ 7 (mod 173) ✓ CORRECT!
+
+Prime 179: interference at mag≡74 (mod 179)
+  Formula check: base + mag×12 ≡ 0 (mod 179)
+  => 7 + 74×12 ≡ 0 (mod 179)
+  => 7 ≡ 7 (mod 179) ✓ CORRECT!
+
+Prime 181: interference at mag≡105 (mod 181)
+  Formula check: base + mag×12 ≡ 0 (mod 181)
+  => 7 + 105×12 ≡ 0 (mod 181)
+  => 7 ≡ 7 (mod 181) ✓ CORRECT!
+
+Prime 191: interference at mag≡79 (mod 191)
+  Formula check: base + mag×12 ≡ 0 (mod 191)
+  => 7 + 79×12 ≡ 0 (mod 191)
+  => 7 ≡ 7 (mod 191) ✓ CORRECT!
+
+Prime 193: interference at mag≡112 (mod 193)
+  Formula check: base + mag×12 ≡ 0 (mod 193)
+  => 7 + 112×12 ≡ 0 (mod 193)
+  => 7 ≡ 7 (mod 193) ✓ CORRECT!
+
+Prime 197: interference at mag≡180 (mod 197)
+  Formula check: base + mag×12 ≡ 0 (mod 197)
+  => 7 + 180×12 ≡ 0 (mod 197)
+  => 7 ≡ 7 (mod 197) ✓ CORRECT!
+
+Prime 199: interference at mag≡16 (mod 199)
+  Formula check: base + mag×12 ≡ 0 (mod 199)
+  => 7 + 16×12 ≡ 0 (mod 199)
+  => 7 ≡ 7 (mod 199) ✓ CORRECT!
+
+Prime 211: interference at mag≡17 (mod 211)
+  Formula check: base + mag×12 ≡ 0 (mod 211)
+  => 7 + 17×12 ≡ 0 (mod 211)
+  => 7 ≡ 7 (mod 211) ✓ CORRECT!
+
+Prime 223: interference at mag≡18 (mod 223)
+  Formula check: base + mag×12 ≡ 0 (mod 223)
+  => 7 + 18×12 ≡ 0 (mod 223)
+  => 7 ≡ 7 (mod 223) ✓ CORRECT!
+
+Prime 227: interference at mag≡94 (mod 227)
+  Formula check: base + mag×12 ≡ 0 (mod 227)
+  => 7 + 94×12 ≡ 0 (mod 227)
+  => 7 ≡ 7 (mod 227) ✓ CORRECT!
+
+Prime 229: interference at mag≡133 (mod 229)
+  Formula check: base + mag×12 ≡ 0 (mod 229)
+  => 7 + 133×12 ≡ 0 (mod 229)
+  => 7 ≡ 7 (mod 229) ✓ CORRECT!
+
+
+=== MATHEMATICAL FORMULA ANALYSIS FOR POSITION 9 ===
+
+Prime   5: interference at mag≡2 (mod 5)
+  Formula check: base + mag×12 ≡ 0 (mod 5)
+  => 11 + 2×12 ≡ 0 (mod 5)
+  => 11 ≡ 1 (mod 5) ✓ CORRECT!
+
+Prime   7: interference at mag≡2 (mod 7)
+  Formula check: base + mag×12 ≡ 0 (mod 7)
+  => 11 + 2×12 ≡ 0 (mod 7)
+  => 11 ≡ 4 (mod 7) ✓ CORRECT!
+
+Prime  11: interference at mag≡0 (mod 11)
+  Formula check: base + mag×12 ≡ 0 (mod 11)
+  => 11 + 0×12 ≡ 0 (mod 11)
+  => 11 ≡ 0 (mod 11) ✓ CORRECT!
+  FORMULA FOUND: mag_mod = (p - base/12) mod p
+
+Prime  13: interference at mag≡11 (mod 13)
+  Formula check: base + mag×12 ≡ 0 (mod 13)
+  => 11 + 11×12 ≡ 0 (mod 13)
+  => 11 ≡ 11 (mod 13) ✓ CORRECT!
+
+Prime  17: interference at mag≡9 (mod 17)
+  Formula check: base + mag×12 ≡ 0 (mod 17)
+  => 11 + 9×12 ≡ 0 (mod 17)
+  => 11 ≡ 11 (mod 17) ✓ CORRECT!
+
+Prime  19: interference at mag≡7 (mod 19)
+  Formula check: base + mag×12 ≡ 0 (mod 19)
+  => 11 + 7×12 ≡ 0 (mod 19)
+  => 11 ≡ 11 (mod 19) ✓ CORRECT!
+
+Prime  23: interference at mag≡1 (mod 23)
+  Formula check: base + mag×12 ≡ 0 (mod 23)
+  => 11 + 1×12 ≡ 0 (mod 23)
+  => 11 ≡ 11 (mod 23) ✓ CORRECT!
+
+Prime  29: interference at mag≡16 (mod 29)
+  Formula check: base + mag×12 ≡ 0 (mod 29)
+  => 11 + 16×12 ≡ 0 (mod 29)
+  => 11 ≡ 11 (mod 29) ✓ CORRECT!
+
+Prime  31: interference at mag≡12 (mod 31)
+  Formula check: base + mag×12 ≡ 0 (mod 31)
+  => 11 + 12×12 ≡ 0 (mod 31)
+  => 11 ≡ 11 (mod 31) ✓ CORRECT!
+
+Prime  37: interference at mag≡33 (mod 37)
+  Formula check: base + mag×12 ≡ 0 (mod 37)
+  => 11 + 33×12 ≡ 0 (mod 37)
+  => 11 ≡ 11 (mod 37) ✓ CORRECT!
+
+Prime  41: interference at mag≡23 (mod 41)
+  Formula check: base + mag×12 ≡ 0 (mod 41)
+  => 11 + 23×12 ≡ 0 (mod 41)
+  => 11 ≡ 11 (mod 41) ✓ CORRECT!
+
+Prime  43: interference at mag≡17 (mod 43)
+  Formula check: base + mag×12 ≡ 0 (mod 43)
+  => 11 + 17×12 ≡ 0 (mod 43)
+  => 11 ≡ 11 (mod 43) ✓ CORRECT!
+
+Prime  47: interference at mag≡3 (mod 47)
+  Formula check: base + mag×12 ≡ 0 (mod 47)
+  => 11 + 3×12 ≡ 0 (mod 47)
+  => 11 ≡ 11 (mod 47) ✓ CORRECT!
+
+Prime  53: interference at mag≡30 (mod 53)
+  Formula check: base + mag×12 ≡ 0 (mod 53)
+  => 11 + 30×12 ≡ 0 (mod 53)
+  => 11 ≡ 11 (mod 53) ✓ CORRECT!
+
+Prime  59: interference at mag≡4 (mod 59)
+  Formula check: base + mag×12 ≡ 0 (mod 59)
+  => 11 + 4×12 ≡ 0 (mod 59)
+  => 11 ≡ 11 (mod 59) ✓ CORRECT!
+
+Prime  61: interference at mag≡55 (mod 61)
+  Formula check: base + mag×12 ≡ 0 (mod 61)
+  => 11 + 55×12 ≡ 0 (mod 61)
+  => 11 ≡ 11 (mod 61) ✓ CORRECT!
+
+Prime  67: interference at mag≡27 (mod 67)
+  Formula check: base + mag×12 ≡ 0 (mod 67)
+  => 11 + 27×12 ≡ 0 (mod 67)
+  => 11 ≡ 11 (mod 67) ✓ CORRECT!
+
+Prime  71: interference at mag≡5 (mod 71)
+  Formula check: base + mag×12 ≡ 0 (mod 71)
+  => 11 + 5×12 ≡ 0 (mod 71)
+  => 11 ≡ 11 (mod 71) ✓ CORRECT!
+
+Prime  73: interference at mag≡66 (mod 73)
+  Formula check: base + mag×12 ≡ 0 (mod 73)
+  => 11 + 66×12 ≡ 0 (mod 73)
+  => 11 ≡ 11 (mod 73) ✓ CORRECT!
+
+Prime  79: interference at mag≡32 (mod 79)
+  Formula check: base + mag×12 ≡ 0 (mod 79)
+  => 11 + 32×12 ≡ 0 (mod 79)
+  => 11 ≡ 11 (mod 79) ✓ CORRECT!
+
+Prime  83: interference at mag≡6 (mod 83)
+  Formula check: base + mag×12 ≡ 0 (mod 83)
+  => 11 + 6×12 ≡ 0 (mod 83)
+  => 11 ≡ 11 (mod 83) ✓ CORRECT!
+
+Prime  89: interference at mag≡51 (mod 89)
+  Formula check: base + mag×12 ≡ 0 (mod 89)
+  => 11 + 51×12 ≡ 0 (mod 89)
+  => 11 ≡ 11 (mod 89) ✓ CORRECT!
+
+Prime  97: interference at mag≡88 (mod 97)
+  Formula check: base + mag×12 ≡ 0 (mod 97)
+  => 11 + 88×12 ≡ 0 (mod 97)
+  => 11 ≡ 11 (mod 97) ✓ CORRECT!
+
+Prime 101: interference at mag≡58 (mod 101)
+  Formula check: base + mag×12 ≡ 0 (mod 101)
+  => 11 + 58×12 ≡ 0 (mod 101)
+  => 11 ≡ 11 (mod 101) ✓ CORRECT!
+
+Prime 103: interference at mag≡42 (mod 103)
+  Formula check: base + mag×12 ≡ 0 (mod 103)
+  => 11 + 42×12 ≡ 0 (mod 103)
+  => 11 ≡ 11 (mod 103) ✓ CORRECT!
+
+Prime 107: interference at mag≡8 (mod 107)
+  Formula check: base + mag×12 ≡ 0 (mod 107)
+  => 11 + 8×12 ≡ 0 (mod 107)
+  => 11 ≡ 11 (mod 107) ✓ CORRECT!
+
+Prime 109: interference at mag≡99 (mod 109)
+  Formula check: base + mag×12 ≡ 0 (mod 109)
+  => 11 + 99×12 ≡ 0 (mod 109)
+  => 11 ≡ 11 (mod 109) ✓ CORRECT!
+
+Prime 113: interference at mag≡65 (mod 113)
+  Formula check: base + mag×12 ≡ 0 (mod 113)
+  => 11 + 65×12 ≡ 0 (mod 113)
+  => 11 ≡ 11 (mod 113) ✓ CORRECT!
+
+Prime 127: interference at mag≡52 (mod 127)
+  Formula check: base + mag×12 ≡ 0 (mod 127)
+  => 11 + 52×12 ≡ 0 (mod 127)
+  => 11 ≡ 11 (mod 127) ✓ CORRECT!
+
+Prime 131: interference at mag≡10 (mod 131)
+  Formula check: base + mag×12 ≡ 0 (mod 131)
+  => 11 + 10×12 ≡ 0 (mod 131)
+  => 11 ≡ 11 (mod 131) ✓ CORRECT!
+
+Prime 137: interference at mag≡79 (mod 137)
+  Formula check: base + mag×12 ≡ 0 (mod 137)
+  => 11 + 79×12 ≡ 0 (mod 137)
+  => 11 ≡ 11 (mod 137) ✓ CORRECT!
+
+Prime 139: interference at mag≡57 (mod 139)
+  Formula check: base + mag×12 ≡ 0 (mod 139)
+  => 11 + 57×12 ≡ 0 (mod 139)
+  => 11 ≡ 11 (mod 139) ✓ CORRECT!
+
+Prime 149: interference at mag≡86 (mod 149)
+  Formula check: base + mag×12 ≡ 0 (mod 149)
+  => 11 + 86×12 ≡ 0 (mod 149)
+  => 11 ≡ 11 (mod 149) ✓ CORRECT!
+
+Prime 151: interference at mag≡62 (mod 151)
+  Formula check: base + mag×12 ≡ 0 (mod 151)
+  => 11 + 62×12 ≡ 0 (mod 151)
+  => 11 ≡ 11 (mod 151) ✓ CORRECT!
+
+Prime 157: interference at mag≡143 (mod 157)
+  Formula check: base + mag×12 ≡ 0 (mod 157)
+  => 11 + 143×12 ≡ 0 (mod 157)
+  => 11 ≡ 11 (mod 157) ✓ CORRECT!
+
+Prime 163: interference at mag≡67 (mod 163)
+  Formula check: base + mag×12 ≡ 0 (mod 163)
+  => 11 + 67×12 ≡ 0 (mod 163)
+  => 11 ≡ 11 (mod 163) ✓ CORRECT!
+
+Prime 167: interference at mag≡13 (mod 167)
+  Formula check: base + mag×12 ≡ 0 (mod 167)
+  => 11 + 13×12 ≡ 0 (mod 167)
+  => 11 ≡ 11 (mod 167) ✓ CORRECT!
+
+Prime 173: interference at mag≡100 (mod 173)
+  Formula check: base + mag×12 ≡ 0 (mod 173)
+  => 11 + 100×12 ≡ 0 (mod 173)
+  => 11 ≡ 11 (mod 173) ✓ CORRECT!
+
+Prime 179: interference at mag≡14 (mod 179)
+  Formula check: base + mag×12 ≡ 0 (mod 179)
+  => 11 + 14×12 ≡ 0 (mod 179)
+  => 11 ≡ 11 (mod 179) ✓ CORRECT!
+
+Prime 181: interference at mag≡165 (mod 181)
+  Formula check: base + mag×12 ≡ 0 (mod 181)
+  => 11 + 165×12 ≡ 0 (mod 181)
+  => 11 ≡ 11 (mod 181) ✓ CORRECT!
+
+Prime 191: interference at mag≡15 (mod 191)
+  Formula check: base + mag×12 ≡ 0 (mod 191)
+  => 11 + 15×12 ≡ 0 (mod 191)
+  => 11 ≡ 11 (mod 191) ✓ CORRECT!
+
+Prime 193: interference at mag≡176 (mod 193)
+  Formula check: base + mag×12 ≡ 0 (mod 193)
+  => 11 + 176×12 ≡ 0 (mod 193)
+  => 11 ≡ 11 (mod 193) ✓ CORRECT!
+
+Prime 197: interference at mag≡114 (mod 197)
+  Formula check: base + mag×12 ≡ 0 (mod 197)
+  => 11 + 114×12 ≡ 0 (mod 197)
+  => 11 ≡ 11 (mod 197) ✓ CORRECT!
+
+Prime 199: interference at mag≡82 (mod 199)
+  Formula check: base + mag×12 ≡ 0 (mod 199)
+  => 11 + 82×12 ≡ 0 (mod 199)
+  => 11 ≡ 11 (mod 199) ✓ CORRECT!
+
+Prime 211: interference at mag≡87 (mod 211)
+  Formula check: base + mag×12 ≡ 0 (mod 211)
+  => 11 + 87×12 ≡ 0 (mod 211)
+  => 11 ≡ 11 (mod 211) ✓ CORRECT!
+
+Prime 223: interference at mag≡92 (mod 223)
+  Formula check: base + mag×12 ≡ 0 (mod 223)
+  => 11 + 92×12 ≡ 0 (mod 223)
+  => 11 ≡ 11 (mod 223) ✓ CORRECT!
+
+Prime 227: interference at mag≡18 (mod 227)
+  Formula check: base + mag×12 ≡ 0 (mod 227)
+  => 11 + 18×12 ≡ 0 (mod 227)
+  => 11 ≡ 11 (mod 227) ✓ CORRECT!
+
+Prime 229: interference at mag≡209 (mod 229)
+  Formula check: base + mag×12 ≡ 0 (mod 229)
+  => 11 + 209×12 ≡ 0 (mod 229)
+  => 11 ≡ 11 (mod 229) ✓ CORRECT!
+

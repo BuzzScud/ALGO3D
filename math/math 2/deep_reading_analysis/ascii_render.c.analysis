@@ -1,0 +1,10 @@
+=== FILE: math/src/visualization/ascii_render.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+MathError clock_lattice_to_ascii(char* buffer, size_t buffer_size) {
+MathError clock_position_to_ascii(const ClockPosition* pos,
+MathError abacus_to_ascii(const CrystallineAbacus* abacus,
+void abacus_print_ascii(const CrystallineAbacus* abacus) {
+
+--- KEY ALGORITHMS ---
+

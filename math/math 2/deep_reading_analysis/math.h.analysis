@@ -1,0 +1,9 @@
+=== FILE: math/include/math.h ===
+
+--- FUNCTIONS ---
+
+--- TYPES ---
+
+--- CONSTANTS ---
+#define CRYSTALLINE_MATH_H
+

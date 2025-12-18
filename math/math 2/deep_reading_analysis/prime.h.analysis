@@ -1,0 +1,30 @@
+=== FILE: math/include/math/prime.h ===
+
+--- FUNCTIONS ---
+uint64_t prime_nth(uint64_t n);
+uint64_t prime_next(uint64_t n);
+uint64_t prime_prev(uint64_t n);
+uint64_t prime_index(uint64_t prime);
+bool prime_is_prime(uint64_t n);
+bool prime_validate_by_clock(uint64_t n);
+uint64_t prime_count_below(uint64_t n);
+uint64_t prime_count_range(uint64_t a, uint64_t b);
+uint64_t prime_gap_next(uint64_t prime);
+uint64_t prime_gap_prev(uint64_t prime);
+uint64_t prime_largest_gap_below(uint64_t n, uint64_t* gap_start, uint64_t* gap_end);
+MathError prime_factor(uint64_t n, Factorization* result);
+void prime_factorization_free(Factorization* fact);
+bool prime_are_coprime(uint64_t a, uint64_t b);
+uint64_t prime_totient(uint64_t n);
+bool prime_is_prime_power(uint64_t n, uint64_t* prime, uint32_t* exponent);
+uint64_t prime_generate_o1(uint32_t position, uint64_t magnitude);
+bool prime_is_prime_o1(uint32_t position, uint64_t magnitude);
+size_t prime_generate_sequence_o1(uint32_t position, uint64_t start_magnitude,
+
+--- TYPES ---
+typedef struct {
+typedef struct {
+
+--- CONSTANTS ---
+#define MATH_PRIME_H
+

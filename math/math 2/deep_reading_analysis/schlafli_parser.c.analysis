@@ -1,0 +1,14 @@
+=== FILE: math/src/platonic/schlafli_parser.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+bool schlafli_validate(const SchlafliSymbol* symbol) {
+bool schlafli_is_regular(const SchlafliSymbol* symbol) {
+uint32_t schlafli_get_dimension(const SchlafliSymbol* symbol) {
+uint32_t schlafli_get_vertices_per_face(const SchlafliSymbol* symbol) {
+uint32_t schlafli_get_faces_per_vertex(const SchlafliSymbol* symbol) {
+void schlafli_print(const SchlafliSymbol* symbol) {
+void schlafli_free(SchlafliSymbol* symbol) {
+bool schlafli_equals(const SchlafliSymbol* a, const SchlafliSymbol* b) {
+
+--- KEY ALGORITHMS ---
+

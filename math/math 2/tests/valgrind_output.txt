@@ -1,0 +1,525 @@
+==59617== Memcheck, a memory error detector
+==59617== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==59617== Using Valgrind-3.19.0 and LibVEX; rerun with -h for copyright info
+==59617== Command: ./test_88d_architecture
+==59617== 
+WARNING: Rainbow table failed, using fallback for prime 0
+DEBUG: 88D pool created with 96 threads, pool->running=1
+==59617== 
+==59617== Process terminating with default action of signal 8 (SIGFPE)
+==59617==  Integer divide by zero at address 0x100A195C85
+==59617==    at 0x4B48244: abacus_sqrt (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x49021C8: random_normal.constprop.0.isra.0 (in /workspace/libalgorithms.so)
+==59617==    by 0x4902CF1: thread_initialize_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x4902DAA: thread_initialize_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739E5: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== HEAP SUMMARY:
+==59617==     in use at exit: 35,512,451 bytes in 3,804 blocks
+==59617==   total heap usage: 4,618 allocs, 814 frees, 55,232,451 bytes allocated
+==59617== 
+==59617== 8 bytes in 1 blocks are still reachable in loss record 1 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x4B587DB: platonic_generate_hypercube (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x488B7FC: cllm_generate_platonic_solid (in /workspace/libcllm.so)
+==59617==    by 0x48730C3: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 8 bytes in 1 blocks are still reachable in loss record 2 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x490260A: thread_allocate_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x49027C3: thread_allocate_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739D0: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 16 bytes in 1 blocks are still reachable in loss record 3 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x4900B46: hierarchical_thread_pool_create_88d (in /workspace/libalgorithms.so)
+==59617==    by 0x4873486: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 24 bytes in 1 blocks are still reachable in loss record 4 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x4B588C1: platonic_generate_hypercube (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x488B7FC: cllm_generate_platonic_solid (in /workspace/libcllm.so)
+==59617==    by 0x48730C3: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 24 bytes in 1 blocks are still reachable in loss record 5 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x48FE87A: work_distributor_create (in /workspace/libalgorithms.so)
+==59617==    by 0x48FF2BA: hierarchical_thread_pool_create (in /workspace/libalgorithms.so)
+==59617==    by 0x4900B19: hierarchical_thread_pool_create_88d (in /workspace/libalgorithms.so)
+==59617==    by 0x4873486: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 6 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5922EE8: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 7 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5922F04: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 8 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5922F20: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 9 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5922F43: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 10 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5922F5F: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 11 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5922F7B: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 12 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5922FBD: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 13 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5922FD9: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 14 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5922FF5: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 15 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5923018: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 16 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5923034: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 17 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5923050: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 18 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x592306C: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 19 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5923088: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 20 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x59230A4: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 21 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x59230C0: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 22 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5923161: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 23 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x592317D: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 24 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5923199: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 25 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x59231B5: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 26 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x59231D8: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 27 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x5855519: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x59231F4: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5838ACC: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 28 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x48738DE: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 29 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x48738F2: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 32 bytes in 1 blocks are still reachable in loss record 30 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x4873906: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 33 bytes in 1 blocks are still reachable in loss record 31 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x498856E: set_binding_values.part.0 (bindtextdom.c:203)
+==59617==    by 0x498885B: set_binding_values (bindtextdom.c:322)
+==59617==    by 0x498885B: bindtextdomain (bindtextdom.c:320)
+==59617==    by 0x5838821: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x5807C5E: ??? (in /usr/lib/x86_64-linux-gnu/libgnutls.so.30.34.3)
+==59617==    by 0x40049CD: call_init (dl-init.c:74)
+==59617==    by 0x40049CD: call_init (dl-init.c:26)
+==59617==    by 0x4004AB3: _dl_init (dl-init.c:121)
+==59617==    by 0x401AB4F: ??? (in /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2)
+==59617== 
+==59617== 40 bytes in 1 blocks are still reachable in loss record 32 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x4B511A3: ensure_rainbow_initialized (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x4B51404: prime_nth (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x4B52079: rainbow_populate_count (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x4890006: init_rainbow_table (in /workspace/libcllm.so)
+==59617==    by 0x489017D: crystalline_get_nth_prime (in /workspace/libcllm.so)
+==59617==    by 0x48733A9: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 48 bytes in 1 blocks are still reachable in loss record 33 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x4B588AD: platonic_generate_hypercube (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x488B7FC: cllm_generate_platonic_solid (in /workspace/libcllm.so)
+==59617==    by 0x48730C3: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 48 bytes in 1 blocks are still reachable in loss record 34 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x48FD96D: state_manager_create (in /workspace/libalgorithms.so)
+==59617==    by 0x48FF2CF: hierarchical_thread_pool_create (in /workspace/libalgorithms.so)
+==59617==    by 0x4900B19: hierarchical_thread_pool_create_88d (in /workspace/libalgorithms.so)
+==59617==    by 0x4873486: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 64 bytes in 1 blocks are still reachable in loss record 35 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x48F1478: generic_model_create (in /workspace/libalgorithms.so)
+==59617==    by 0x487E995: cllm_create_generic_interface (in /workspace/libcllm.so)
+==59617==    by 0x48734A7: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 64 bytes in 1 blocks are still reachable in loss record 36 of 114
+==59617==    at 0x48416C4: malloc (vg_replace_malloc.c:380)
+==59617==    by 0x490237C: thread_allocate_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x49027C3: thread_allocate_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739D0: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 64 bytes in 1 blocks are still reachable in loss record 37 of 114
+==59617==    at 0x48416C4: malloc (vg_replace_malloc.c:380)
+==59617==    by 0x4902392: thread_allocate_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x49027C3: thread_allocate_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739D0: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 64 bytes in 1 blocks are still reachable in loss record 38 of 114
+==59617==    at 0x48416C4: malloc (vg_replace_malloc.c:380)
+==59617==    by 0x49023A8: thread_allocate_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x49027C3: thread_allocate_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739D0: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 64 bytes in 1 blocks are still reachable in loss record 39 of 114
+==59617==    at 0x48416C4: malloc (vg_replace_malloc.c:380)
+==59617==    by 0x49023BE: thread_allocate_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x49027C3: thread_allocate_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739D0: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 72 bytes in 1 blocks are still reachable in loss record 40 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x4902504: thread_allocate_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x49027C3: thread_allocate_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739D0: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 72 bytes in 1 blocks are still reachable in loss record 41 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x4902525: thread_allocate_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x49027C3: thread_allocate_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739D0: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 72 bytes in 1 blocks are still reachable in loss record 42 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x4902546: thread_allocate_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x49027C3: thread_allocate_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739D0: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 72 bytes in 1 blocks are still reachable in loss record 43 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x4902564: thread_allocate_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x49027C3: thread_allocate_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739D0: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 72 bytes in 1 blocks are still reachable in loss record 44 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x4B442E6: abacus_new (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x4902143: random_normal.constprop.0.isra.0 (in /workspace/libalgorithms.so)
+==59617==    by 0x4902CF1: thread_initialize_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x4902DAA: thread_initialize_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739E5: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 72 bytes in 1 blocks are still reachable in loss record 45 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x4B442E6: abacus_new (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x490215D: random_normal.constprop.0.isra.0 (in /workspace/libalgorithms.so)
+==59617==    by 0x4902CF1: thread_initialize_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x4902DAA: thread_initialize_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739E5: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 72 bytes in 1 blocks are still reachable in loss record 46 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x4B442E6: abacus_new (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x4B46284: abacus_from_double (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x4902174: random_normal.constprop.0.isra.0 (in /workspace/libalgorithms.so)
+==59617==    by 0x4902CF1: thread_initialize_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x4902DAA: thread_initialize_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739E5: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 72 bytes in 1 blocks are still reachable in loss record 47 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x4B442E6: abacus_new (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x49021AC: random_normal.constprop.0.isra.0 (in /workspace/libalgorithms.so)
+==59617==    by 0x4902CF1: thread_initialize_parameter (in /workspace/libalgorithms.so)
+==59617==    by 0x4902DAA: thread_initialize_all_parameters (in /workspace/libalgorithms.so)
+==59617==    by 0x48739E5: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 96 bytes in 1 blocks are still reachable in loss record 48 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x4B58714: platonic_generate_hypercube (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x488B7FC: cllm_generate_platonic_solid (in /workspace/libcllm.so)
+==59617==    by 0x48730C3: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 96 bytes in 6 blocks are still reachable in loss record 49 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x4B58956: platonic_generate_hypercube (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x488B7FC: cllm_generate_platonic_solid (in /workspace/libcllm.so)
+==59617==    by 0x48730C3: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 96 bytes in 12 blocks are still reachable in loss record 50 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x4B58772: platonic_generate_hypercube (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x488B7FC: cllm_generate_platonic_solid (in /workspace/libcllm.so)
+==59617==    by 0x48730C3: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 128 bytes in 1 blocks are still reachable in loss record 51 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x48737FA: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 144 bytes in 1 blocks are still reachable in loss record 52 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x48FE7B7: work_distributor_create (in /workspace/libalgorithms.so)
+==59617==    by 0x48FF2BA: hierarchical_thread_pool_create (in /workspace/libalgorithms.so)
+==59617==    by 0x4900B19: hierarchical_thread_pool_create_88d (in /workspace/libalgorithms.so)
+==59617==    by 0x4873486: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 192 bytes in 1 blocks are still reachable in loss record 53 of 114
+==59617==    at 0x48465EF: calloc (vg_replace_malloc.c:1328)
+==59617==    by 0x4B5867A: platonic_generate_hypercube (in /workspace/math/lib/libcrystallinemath.so)
+==59617==    by 0x488B7FC: cllm_generate_platonic_solid (in /workspace/libcllm.so)
+==59617==    by 0x48730C3: cllm_create_model (in /workspace/libcllm.so)
+==59617==    by 0x1093A0: test_model_creation (test_88d_architecture.c:87)
+==59617==    by 0x10A02B: main (test_88d_architecture.c:481)
+==59617== 
+==59617== 199 bytes in 9 blocks are still reachable in loss record 54 of 114
+==59617==    at 0x48417B4: malloc (vg_replace_malloc.c:381)
+==59617==    by 0x5D9FD4F: ??? (in /usr/lib/x86_64-linux-gnu/libtasn1.so.6.6.3)

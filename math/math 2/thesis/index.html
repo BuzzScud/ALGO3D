@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crystalline Mathematics Thesis - Interactive Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --bg-color: #ecf0f1;
+            --text-color: #2c3e50;
+            --sidebar-bg: #34495e;
+            --sidebar-text: #ecf0f1;
+            --content-bg: #ffffff;
+            --border-color: #bdc3c7;
+            --hover-color: #2980b9;
+        }
+
+        /* Dark mode */
+        body.dark-mode {
+            --primary-color: #1a1a2e;
+            --secondary-color: #16213e;
+            --accent-color: #e94560;
+            --bg-color: #0f0f1e;
+            --text-color: #eaeaea;
+            --sidebar-bg: #16213e;
+            --sidebar-text: #eaeaea;
+            --content-bg: #1a1a2e;
+            --border-color: #2d3748;
+            --hover-color: #e94560;
+        }
+
+        body.dark-mode .markdown-body {
+            color: #eaeaea;
+            background: var(--content-bg);
+        }
+
+        body.dark-mode .markdown-body code {
+            background: #2d3748;
+            color: #eaeaea;
+        }
+
+        body.dark-mode .markdown-body pre {
+            background: #2d3748;
+        }
+
+        body.dark-mode .markdown-body a {
+            color: #4fc3f7;
+        }
+
+        body.dark-mode .markdown-body table tr {
+            background: #1a1a2e;
+            border-color: #2d3748;
+        }
+
+        body.dark-mode .markdown-body table tr:nth-child(2n) {
+            background: #16213e;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 350px;
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: var(--primary-color);
+            border-bottom: 2px solid var(--secondary-color);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .tree-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 2px 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tree-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .tree-item.active {
+            background: var(--secondary-color);
+            font-weight: bold;
+        }
+
+        .tree-item.directory {
+            font-weight: 600;
+        }
+
+        .tree-item.file {
+            padding-left: 30px;
+        }
+
+        .chapter-indicator {
+            margin-left: auto;
+            opacity: 0.7;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .chapter-indicator:hover {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .dir-name {
+            cursor: pointer;
+        }
+
+        .tree-item.directory:has(.chapter-indicator) .dir-name:hover {
+            text-decoration: underline;
+        }
+
+        .tree-children {
+            margin-left: 15px;
+            border-left: 1px solid rgba(255,255,255,0.2);
+            padding-left: 5px;
+        }
+
+        .tree-toggle {
+            width: 16px;
+            height: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .icon {
+            font-size: 16px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            background: var(--content-bg);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .toolbar-left {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .toolbar-right {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-primary {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--hover-color);
+        }
+
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background: #95a5a6;
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            background: var(--content-bg);
+        }
+
+        .markdown-body {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .markdown-body h1 {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--secondary-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .markdown-body h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        .markdown-body h3 {
+            color: var(--secondary-color);
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+
+        .markdown-body code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .markdown-body pre {
+            background: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .markdown-body pre code {
+            background: none;
+            padding: 0;
+            color: #f8f8f2;
+        }
+
+        .markdown-body blockquote {
+            border-left: 4px solid var(--secondary-color);
+            padding-left: 20px;
+            margin: 15px 0;
+            color: #555;
+            font-style: italic;
+        }
+
+        .markdown-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }
+
+        .markdown-body th, .markdown-body td {
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            text-align: left;
+        }
+
+        .markdown-body th {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .markdown-body a {
+            color: var(--secondary-color);
+            text-decoration: none;
+        }
+
+        .markdown-body a:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #7f8c8d;
+        }
+
+        .error {
+            background: #ffe6e6;
+            border: 1px solid #ffcccc;
+            color: #c0392b;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px;
+        }
+
+        .stats-panel {
+            background: var(--content-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            background: var(--bg-color);
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--secondary-color);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        .breadcrumb {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        .breadcrumb a {
+            color: var(--secondary-color);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 300px;
+                position: absolute;
+                left: -300px;
+                transition: left 0.3s;
+                height: 100vh;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
+            .content-area {
+                padding: 15px;
+            }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    /* Toast animations */
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+    </style>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>📚 Thesis Navigator</h1>
+                <input type="text" class="search-box" id="searchBox" placeholder="Search thesis...">
+            </div>
+            <div class="sidebar-content" id="fileTree">
+                <div class="loading">Loading file structure...</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <div class="breadcrumb" id="breadcrumb">
+                        <a href="#" onclick="loadFile('THESIS_MAIN.md'); return false;">📖 Table of Contents</a>
+                    </div>
+                </div>
+                <div class="toolbar-right">
+                    <button class="btn btn-secondary" onclick="toggleBookmark()" id="bookmarkBtn" title="Bookmark this page">
+                        ⭐ Bookmark
+                    </button>
+                    <button class="btn btn-secondary" onclick="showBookmarks()" title="View bookmarks">
+                        📑 Bookmarks
+                    </button>
+                    <button class="btn btn-secondary" onclick="toggleDarkMode()" id="darkModeBtn" title="Toggle Dark Mode">
+                        🌙 Dark Mode
+                    </button>
+                    <a href="#" class="btn btn-secondary" id="downloadBtn" download style="display:none;">
+                        📥 Download
+                    </a>
+                    <a href="#" class="btn btn-secondary" id="rawBtn" target="_blank" style="display:none;">
+                        📄 View Raw
+                    </a>
+                    <button class="btn btn-primary" onclick="showStats()">
+                        📊 Statistics
+                    </button>
+                </div>
+            </div>
+            <div class="content-area" id="contentArea">
+                <div class="loading">Loading content...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'api/thesis.php';
+        let currentFile = '';
+        let fileStructure = null;
+
+        // Dark mode toggle
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            
+            // Update button text
+            const btn = document.getElementById('darkModeBtn');
+            btn.innerHTML = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+        }
+
+        // Bookmark functions
+        function getBookmarks() {
+            const bookmarks = localStorage.getItem('bookmarks');
+            return bookmarks ? JSON.parse(bookmarks) : [];
+        }
+
+        function saveBookmarks(bookmarks) {
+            localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+        }
+
+        function toggleBookmark() {
+            if (!currentFile) return;
+            
+            const bookmarks = getBookmarks();
+            const index = bookmarks.findIndex(b => b.path === currentFile);
+            
+            if (index >= 0) {
+                // Remove bookmark
+                bookmarks.splice(index, 1);
+                document.getElementById('bookmarkBtn').innerHTML = '⭐ Bookmark';
+                showMessage('Bookmark removed');
+            } else {
+                // Add bookmark
+                const title = document.querySelector('.breadcrumb a:last-child')?.textContent || currentFile;
+                bookmarks.push({
+                    path: currentFile,
+                    title: title,
+                    timestamp: new Date().toISOString()
+                });
+                document.getElementById('bookmarkBtn').innerHTML = '★ Bookmarked';
+                showMessage('Bookmark added');
+            }
+            
+            saveBookmarks(bookmarks);
+        }
+
+        function updateBookmarkButton() {
+            if (!currentFile) return;
+            
+            const bookmarks = getBookmarks();
+            const isBookmarked = bookmarks.some(b => b.path === currentFile);
+            document.getElementById('bookmarkBtn').innerHTML = isBookmarked ? '★ Bookmarked' : '⭐ Bookmark';
+        }
+
+        function showBookmarks() {
+            const bookmarks = getBookmarks();
+            const contentArea = document.getElementById('contentArea');
+            
+            if (bookmarks.length === 0) {
+                contentArea.innerHTML = `
+                    <div class="markdown-body">
+                        <h1>📑 Bookmarks</h1>
+                        <p>No bookmarks yet. Click the ⭐ Bookmark button to save pages.</p>
+                        <p style="margin-top: 20px;">
+                            <a href="#" onclick="loadFile('THESIS_MAIN.md'); return false;" style="color: var(--secondary-color);">
+                                ← Back to Table of Contents
+                            </a>
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="markdown-body">
+                    <h1>📑 Bookmarks</h1>
+                    <p>You have ${bookmarks.length} bookmark${bookmarks.length > 1 ? 's' : ''}:</p>
+                    <ul style="list-style: none; padding: 0;">
+            `;
+            
+            bookmarks.forEach((bookmark, index) => {
+                const date = new Date(bookmark.timestamp).toLocaleDateString();
+                html += `
+                    <li style="margin: 15px 0; padding: 10px; background: var(--bg-color); border-radius: 5px;">
+                        <a href="#" onclick="loadFile('${bookmark.path}'); return false;" style="color: var(--secondary-color); font-weight: bold;">
+                            ${bookmark.title}
+                        </a>
+                        <br>
+                        <small style="color: #7f8c8d;">Added: ${date}</small>
+                        <button onclick="removeBookmark(${index}); showBookmarks();" style="float: right; background: var(--accent-color); color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">
+                            Remove
+                        </button>
+                    </li>
+                `;
+            });
+            
+            html += `
+                    </ul>
+                    <p style="margin-top: 20px;">
+                        <a href="#" onclick="loadFile('THESIS_MAIN.md'); return false;" style="color: var(--secondary-color);">
+                            ← Back to Table of Contents
+                        </a>
+                    </p>
+                </div>
+            `;
+            
+            contentArea.innerHTML = html;
+        }
+
+        function removeBookmark(index) {
+            const bookmarks = getBookmarks();
+            bookmarks.splice(index, 1);
+            saveBookmarks(bookmarks);
+            updateBookmarkButton();
+        }
+
+        function showMessage(message) {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background: var(--secondary-color);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 5px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load dark mode preference
+            const darkMode = localStorage.getItem('darkMode') === 'true';
+            if (darkMode) {
+                document.body.classList.add('dark-mode');
+                document.getElementById('darkModeBtn').innerHTML = '☀️ Light Mode';
+            }
+            
+            loadFileStructure();
+            loadFile('THESIS_MAIN.md'); // Load table of contents by default
+            
+            // Search functionality
+            let searchTimeout;
+            document.getElementById('searchBox').addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    if (e.target.value.trim().length > 2) {
+                        searchFiles(e.target.value.trim());
+                    } else {
+                        loadFileStructure();
+                    }
+                }, 300);
+            });
+        });
+
+        // Load file structure
+        async function loadFileStructure() {
+            try {
+                const response = await fetch(`${API_BASE}?action=structure`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    fileStructure = data.structure;
+                    renderFileTree(data.structure);
+                } else {
+                    showError('Failed to load file structure');
+                }
+            } catch (error) {
+                showError('Error loading file structure: ' + error.message);
+            }
+        }
+
+        // Render file tree
+        function renderFileTree(structure, container = null) {
+            if (!container) {
+                container = document.getElementById('fileTree');
+                container.innerHTML = '';
+            }
+
+            structure.forEach(item => {
+                const itemDiv = document.createElement('div');
+                
+                if (item.type === 'directory') {
+                    const dirDiv = document.createElement('div');
+                    dirDiv.className = 'tree-item directory';
+                    
+                    // Check if this is a chapter directory (contains content.md)
+                    const isChapter = item.name.startsWith('chapter_');
+                    
+                    dirDiv.innerHTML = `
+                        <span class="tree-toggle">▶</span>
+                        <span class="icon">📁</span>
+                        <span class="dir-name">${item.name}</span>
+                        ${isChapter ? '<span class="chapter-indicator" title="Click to view chapter content">📄</span>' : ''}
+                    `;
+                    
+                    const childrenDiv = document.createElement('div');
+                    childrenDiv.className = 'tree-children';
+                    childrenDiv.style.display = 'none';
+                    
+                    dirDiv.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        
+                        // If clicking on chapter indicator or it's a chapter directory, load content
+                        if (e.target.classList.contains('chapter-indicator') || 
+                            (isChapter && e.target.classList.contains('dir-name'))) {
+                            loadFile(item.path);
+                            return;
+                        }
+                        
+                        // Otherwise toggle directory
+                        const isOpen = childrenDiv.style.display === 'block';
+                        childrenDiv.style.display = isOpen ? 'none' : 'block';
+                        dirDiv.querySelector('.tree-toggle').textContent = isOpen ? '▶' : '▼';
+                    });
+                    
+                    itemDiv.appendChild(dirDiv);
+                    itemDiv.appendChild(childrenDiv);
+                    
+                    if (item.children && item.children.length > 0) {
+                        renderFileTree(item.children, childrenDiv);
+                    }
+                } else {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'tree-item file';
+                    fileDiv.innerHTML = `
+                        <span class="icon">📄</span>
+                        <span>${item.name}</span>
+                    `;
+                    fileDiv.addEventListener('click', () => loadFile(item.path));
+                    itemDiv.appendChild(fileDiv);
+                }
+                
+                container.appendChild(itemDiv);
+            });
+        }
+
+        // Load file content directly from filesystem
+        async function loadFile(filePath) {
+            currentFile = filePath;
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = '<div class="loading">Loading content...</div>';
+            
+            // Update breadcrumb
+            updateBreadcrumb(filePath);
+            
+            // If it's a directory (chapter folder), append /content.md
+            let actualPath = filePath;
+            if (!filePath.endsWith('.md') && !filePath.endsWith('.html')) {
+                // It's a directory, load content.md from it
+                actualPath = filePath.replace(/\/$/, '') + '/content.md';
+            }
+            
+            // Update download and raw links
+            document.getElementById('downloadBtn').href = actualPath;
+            document.getElementById('downloadBtn').style.display = 'inline-flex';
+            document.getElementById('rawBtn').href = actualPath;
+            document.getElementById('rawBtn').style.display = 'inline-flex';
+            
+            try {
+                // Fetch file directly from filesystem
+                const response = await fetch(actualPath);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const content = await response.text();
+                renderMarkdown(content);
+                highlightActiveFile(filePath);
+                updateBookmarkButton();
+            } catch (error) {
+                showError('Error loading file: ' + error.message + ' (tried to load: ' + actualPath + ')');
+            }
+        }
+
+        // Render markdown content
+        function renderMarkdown(content) {
+            const contentArea = document.getElementById('contentArea');
+            
+            // Configure marked to handle links
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                headerIds: true,
+                mangle: false
+            });
+            
+            const html = marked.parse(content);
+            contentArea.innerHTML = `<div class="markdown-body">${html}</div>`;
+            
+            // Intercept all links to handle them with JavaScript
+            contentArea.querySelectorAll('a').forEach(link => {
+                const href = link.getAttribute('href');
+                // Intercept internal links (relative paths, .md files, directories)
+                if (href && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('#')) {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        // Handle relative paths
+                        let targetPath = href;
+                        if (href.startsWith('../')) {
+                            // Calculate relative path from current file
+                            const currentDir = currentFile.substring(0, currentFile.lastIndexOf('/'));
+                            targetPath = resolvePath(currentDir, href);
+                        } else if (!href.startsWith('/')) {
+                            // Relative to current directory
+                            const currentDir = currentFile.substring(0, currentFile.lastIndexOf('/'));
+                            targetPath = currentDir ? currentDir + '/' + href : href;
+                        }
+                        // Remove trailing slash if present
+                        targetPath = targetPath.replace(/\/$/, '');
+                        loadFile(targetPath);
+                    });
+                }
+            });
+            
+            // Highlight code blocks
+            contentArea.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            
+            // Scroll to top
+            contentArea.scrollTop = 0;
+        }
+
+        // Resolve relative paths
+        function resolvePath(base, relative) {
+            const parts = base.split('/').filter(p => p);
+            const relativeParts = relative.split('/');
+            
+            for (const part of relativeParts) {
+                if (part === '..') {
+                    parts.pop();
+                } else if (part !== '.') {
+                    parts.push(part);
+                }
+            }
+            
+            return parts.join('/');
+        }
+
+        // Update breadcrumb
+        function updateBreadcrumb(filePath) {
+            const breadcrumb = document.getElementById('breadcrumb');
+            const parts = filePath.split('/');
+            let path = '';
+            let html = '<a href="#" onclick="loadFile(\'THESIS_MAIN.md\'); return false;">📖 Table of Contents</a>';
+            
+            parts.forEach((part, index) => {
+                path += (index > 0 ? '/' : '') + part;
+                if (index < parts.length - 1) {
+                    const currentPath = path;
+                    html += ` / <a href="#" onclick="loadFile('${currentPath}'); return false;">${part}</a>`;
+                } else {
+                    html += ` / <strong>${part}</strong>`;
+                }
+            });
+            
+            breadcrumb.innerHTML = html;
+        }
+
+        // Highlight active file in tree
+        function highlightActiveFile(filePath) {
+            document.querySelectorAll('.tree-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Find and highlight the active file
+            document.querySelectorAll('.tree-item.file').forEach(item => {
+                const span = item.querySelector('span:last-child');
+                if (span && span.textContent === filePath.split('/').pop()) {
+                    item.classList.add('active');
+                    
+                    // Expand parent directories
+                    let parent = item.parentElement;
+                    while (parent) {
+                        if (parent.classList.contains('tree-children')) {
+                            parent.style.display = 'block';
+                            const toggle = parent.previousElementSibling?.querySelector('.tree-toggle');
+                            if (toggle) toggle.textContent = '▼';
+                        }
+                        parent = parent.parentElement;
+                    }
+                }
+            });
+        }
+
+        // Search files
+        async function searchFiles(query) {
+            const fileTree = document.getElementById('fileTree');
+            fileTree.innerHTML = '<div class="loading">Searching...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}?action=search&query=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderSearchResults(data.results, query);
+                } else {
+                    showError('Search failed: ' + data.error);
+                }
+            } catch (error) {
+                showError('Search error: ' + error.message);
+            }
+        }
+
+        // Render search results
+        function renderSearchResults(results, query) {
+            const fileTree = document.getElementById('fileTree');
+            
+            if (results.length === 0) {
+                fileTree.innerHTML = '<div style="padding: 20px; text-align: center; color: #7f8c8d;">No results found</div>';
+                return;
+            }
+            
+            let html = `<div style="padding: 10px; background: rgba(255,255,255,0.1); margin-bottom: 10px; border-radius: 5px;">
+                <strong>${results.length} result(s) found for "${query}"</strong>
+            </div>`;
+            
+            results.forEach(result => {
+                html += `
+                    <div class="tree-item file" onclick="loadFile('${result.path}')">
+                        <span class="icon">📄</span>
+                        <span>${result.name}</span>
+                    </div>
+                `;
+            });
+            
+            fileTree.innerHTML = html;
+        }
+
+        // Show statistics
+        async function showStats() {
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = '<div class="loading">Loading statistics...</div>';
+            
+            // Hide download/raw buttons
+            document.getElementById('downloadBtn').style.display = 'none';
+            document.getElementById('rawBtn').style.display = 'none';
+            
+            try {
+                const response = await fetch(`${API_BASE}?action=stats`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.statistics;
+                    contentArea.innerHTML = `
+                        <div class="markdown-body">
+                            <h1>📊 Thesis Statistics</h1>
+                            <div class="stats-panel">
+                                <div class="stats-grid">
+                                    <div class="stat-item">
+                                        <div class="stat-value">${stats.total_files}</div>
+                                        <div class="stat-label">Total Files</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">${stats.total_lines.toLocaleString()}</div>
+                                        <div class="stat-label">Total Lines</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">${(stats.total_size / 1024 / 1024).toFixed(2)} MB</div>
+                                        <div class="stat-label">Total Size</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">${stats.chapters}</div>
+                                        <div class="stat-label">Chapters</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">${stats.parts}</div>
+                                        <div class="stat-label">Parts</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <p style="margin-top: 20px; text-align: center; color: #7f8c8d;">
+                                <a href="#" onclick="loadFile('THESIS_MAIN.md'); return false;" style="color: var(--secondary-color);">
+                                    ← Back to Table of Contents
+                                </a>
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    showError('Failed to load statistics');
+                }
+            } catch (error) {
+                showError('Error loading statistics: ' + error.message);
+            }
+        }
+
+        // Show error
+        function showError(message) {
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `<div class="error"><strong>Error:</strong> ${message}</div>`;
+        }
+    </script>
+</body>
+</html>

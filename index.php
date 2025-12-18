@@ -929,14 +929,16 @@ require_once 'includes/database.php';
                                     Refresh
                                 </button>
                             </div>
-                            <div class="projection-timeframe-selector">
-                                <label>Timeframe:</label>
-                                <div class="chart-timeframe-selector">
-                                    <button class="timeframe-btn" data-timeframe="15MIN">15 MIN</button>
-                                    <button class="timeframe-btn" data-timeframe="1H">1H</button>
-                                    <button class="timeframe-btn" data-timeframe="4H">4H</button>
-                                    <button class="timeframe-btn active" data-timeframe="1D">1D</button>
-                                </div>
+                            <div class="projection-interval-selector">
+                                <label>Interval:</label>
+                                <select id="projection-interval-select" class="projection-select">
+                                    <option value="1d">1 Day</option>
+                                    <option value="5d">5 Days</option>
+                                    <option value="1mo">1 Month</option>
+                                    <option value="3mo">3 Months</option>
+                                    <option value="6mo">6 Months</option>
+                                    <option value="1y">1 Year</option>
+                                </select>
                             </div>
                         </div>
                         
@@ -1317,45 +1319,78 @@ require_once 'includes/database.php';
 
         <!-- Notes Page -->
         <main class="page-content" id="page-notes">
-            <div class="notes-page-container">
-                <!-- Search Bar -->
-                <div class="notes-search-bar">
-                    <div class="search-input-wrapper">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="notes-search-input" class="notes-search-input" placeholder="Search notes...">
-                        <button class="search-clear-btn" id="notes-search-clear" style="display: none;">
-                            <i class="fas fa-times"></i>
-                        </button>
+            <div class="notes-page-redesign">
+                <!-- Header Section -->
+                <div class="notes-header">
+                    <div class="notes-header-content">
+                        <h1 class="notes-page-title">
+                            <i class="fas fa-sticky-note"></i>
+                            Notes
+                        </h1>
+                        <div class="notes-header-actions">
+                            <div class="notes-view-toggle">
+                                <button class="view-toggle-btn active" data-view="grid" title="Grid View">
+                                    <i class="fas fa-th"></i>
+                                </button>
+                                <button class="view-toggle-btn" data-view="list" title="List View">
+                                    <i class="fas fa-list"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="notes-view-toggle">
-                        <button class="view-toggle-btn active" data-view="grid" title="Grid View">
-                            <i class="fas fa-th"></i>
-                        </button>
-                        <button class="view-toggle-btn" data-view="list" title="List View">
-                            <i class="fas fa-list"></i>
-                        </button>
+                    
+                    <!-- Enhanced Search Bar -->
+                    <div class="notes-search-bar-modern">
+                        <div class="search-input-wrapper-modern">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="notes-search-input" class="notes-search-input-modern" placeholder="Search notes...">
+                            <button class="search-clear-btn-modern" id="notes-search-clear" style="display: none;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Quick Note Input -->
-                <div class="quick-note-container">
-                    <div class="quick-note-input" id="quick-note-input">
-                        <input type="text" id="quick-note-title" placeholder="Take a note..." class="quick-note-title-input">
-                        <div class="quick-note-expanded" id="quick-note-expanded" style="display: none;">
-                            <textarea id="quick-note-content" placeholder="Note content..." class="quick-note-content-input"></textarea>
-                            <div class="quick-note-actions">
-                                <div class="quick-note-colors">
-                                    <button class="color-btn" data-color="#cfe2ff" style="background-color: #cfe2ff;" title="Blue"></button>
-                                    <button class="color-btn" data-color="#fef3c7" style="background-color: #fef3c7;" title="Yellow"></button>
-                                    <button class="color-btn" data-color="#fecaca" style="background-color: #fecaca;" title="Red"></button>
-                                </div>
-                                <div class="quick-note-buttons">
-                                    <button class="quick-note-save-btn" id="quick-note-save">
+                <!-- Quick Note Input - Modern Design -->
+                <div class="quick-note-modern-container">
+                    <div class="quick-note-modern" id="quick-note-input">
+                        <div>
+                            <div class="quick-note-icon">
+                                <i class="fas fa-plus"></i>
+                            </div>
+                            <input type="text" id="quick-note-title" placeholder="Take a note..." class="quick-note-title-modern">
+                        </div>
+                        <div class="quick-note-expanded-modern" id="quick-note-expanded" style="display: none;">
+                            <textarea id="quick-note-content" placeholder="Note content..." class="quick-note-content-modern"></textarea>
+                            <div class="quick-note-footer-modern">
+                                <div class="quick-note-colors-modern">
+                                    <span class="color-label">Color:</span>
+                                    <button class="color-btn-modern active" data-color="#2563eb" style="background-color: #2563eb;" title="Blue">
                                         <i class="fas fa-check"></i>
-                                        <span>Save</span>
                                     </button>
-                                    <button class="quick-note-close-btn" id="quick-note-close">
-                                        <span>Close</span>
+                                    <button class="color-btn-modern" data-color="#eab308" style="background-color: #eab308;" title="Yellow">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="color-btn-modern" data-color="#dc2626" style="background-color: #dc2626;" title="Red">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="color-btn-modern" data-color="#059669" style="background-color: #059669;" title="Green">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="color-btn-modern" data-color="#9333ea" style="background-color: #9333ea;" title="Purple">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="color-btn-modern" data-color="#db2777" style="background-color: #db2777;" title="Pink">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </div>
+                                <div class="quick-note-buttons-modern">
+                                    <button class="quick-note-close-modern" id="quick-note-close">
+                                        Cancel
+                                    </button>
+                                    <button class="quick-note-save-modern" id="quick-note-save">
+                                        <i class="fas fa-check"></i>
+                                        Save
                                     </button>
                                 </div>
                             </div>
@@ -1364,46 +1399,81 @@ require_once 'includes/database.php';
                 </div>
 
                 <!-- Notes Grid -->
-                <div class="notes-grid-wrapper">
-                    <div class="notes-grid" id="notes-grid">
+                <div class="notes-grid-modern-wrapper">
+                    <div class="notes-grid-modern" id="notes-grid">
                         <!-- Notes will be loaded here -->
                     </div>
                 </div>
             </div>
 
-            <!-- Note Edit Modal -->
-            <div class="note-modal" id="note-modal">
-                <div class="note-modal-content">
-                    <div class="note-modal-header">
-                        <h2 id="note-modal-title">Edit Note</h2>
-                        <button class="note-modal-close" id="close-note-modal">
+            <!-- Note Edit Modal - Modern Design -->
+            <div class="note-modal-modern" id="note-modal">
+                <div class="note-modal-overlay"></div>
+                <div class="note-modal-content-modern">
+                    <div class="note-modal-header-modern">
+                        <h2 id="note-modal-title">
+                            <i class="fas fa-edit"></i>
+                            Edit Note
+                        </h2>
+                        <button class="note-modal-close-modern" id="close-note-modal">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
-                    <div class="note-modal-body">
-                        <input type="text" id="note-title-input" class="note-title-input" placeholder="Title">
-                        <textarea id="note-content-input" class="note-content-input" placeholder="Note content..."></textarea>
+                    <div class="note-modal-body-modern">
+                        <div class="note-input-group-modern">
+                            <input type="text" id="note-title-input" class="note-title-input-modern" placeholder="Title">
+                        </div>
+                        <div class="note-input-group-modern">
+                            <textarea id="note-content-input" class="note-content-input-modern" placeholder="Note content..."></textarea>
+                        </div>
                         
-                        <div class="note-modal-options">
-                            <div class="note-option-group">
-                                <label>Color</label>
-                                <div class="color-options">
-                                    <button class="color-option" data-color="#cfe2ff" style="background-color: #cfe2ff;" title="Blue"></button>
-                                    <button class="color-option" data-color="#fef3c7" style="background-color: #fef3c7;" title="Yellow"></button>
-                                    <button class="color-option" data-color="#fecaca" style="background-color: #fecaca;" title="Red"></button>
+                        <div class="note-modal-options-modern">
+                            <div class="note-option-group-modern">
+                                <label class="option-label">
+                                    <i class="fas fa-palette"></i>
+                                    Color
+                                </label>
+                                <div class="color-options-modern">
+                                    <button class="color-option-modern active" data-color="#2563eb" style="background-color: #2563eb;" title="Blue">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="color-option-modern" data-color="#eab308" style="background-color: #eab308;" title="Yellow">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="color-option-modern" data-color="#dc2626" style="background-color: #dc2626;" title="Red">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="color-option-modern" data-color="#059669" style="background-color: #059669;" title="Green">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="color-option-modern" data-color="#9333ea" style="background-color: #9333ea;" title="Purple">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="color-option-modern" data-color="#db2777" style="background-color: #db2777;" title="Pink">
+                                        <i class="fas fa-check"></i>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="note-option-group">
-                                <label>Labels</label>
-                                <div class="labels-input-wrapper">
-                                    <input type="text" id="note-labels-input" class="labels-input" placeholder="Add labels (comma separated)">
+                            <div class="note-option-group-modern">
+                                <label class="option-label">
+                                    <i class="fas fa-tags"></i>
+                                    Labels
+                                </label>
+                                <div class="labels-input-wrapper-modern">
+                                    <input type="text" id="note-labels-input" class="labels-input-modern" placeholder="Add labels (comma separated)">
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="note-modal-footer">
-                        <button class="btn btn-secondary" id="cancel-note-btn">Cancel</button>
-                        <button class="btn btn-primary" id="save-note-btn">Save</button>
+                    <div class="note-modal-footer-modern">
+                        <button class="btn-modern btn-secondary-modern" id="cancel-note-btn">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </button>
+                        <button class="btn-modern btn-primary-modern" id="save-note-btn">
+                            <i class="fas fa-check"></i>
+                            Save
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1630,6 +1700,87 @@ require_once 'includes/database.php';
             </div>
         </main>
 
+        <!-- API Management Dashboard Page -->
+        <main class="page-content" id="page-api">
+            <div class="api-dashboard-container">
+                <!-- Header -->
+                <div class="api-dashboard-header">
+                    <div class="api-header-content">
+                        <h1 class="api-page-title">
+                            <i class="fas fa-plug"></i>
+                            API Management Dashboard
+                        </h1>
+                        <div class="api-header-actions">
+                            <button class="btn-api-refresh" id="api-refresh-all-btn" title="Refresh All APIs">
+                                <i class="fas fa-sync-alt"></i>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <p class="api-page-subtitle">Monitor and manage your connected APIs, view real-time metrics, and control data sources</p>
+                </div>
+
+                <!-- API Status Overview Cards -->
+                <div class="api-overview-grid" id="api-overview-grid">
+                    <!-- Cards will be dynamically generated -->
+                </div>
+
+                <!-- API Details Section -->
+                <div class="api-details-section">
+                    <div class="api-tabs">
+                        <button class="api-tab active" data-tab="status">
+                            <i class="fas fa-chart-line"></i>
+                            Status & Metrics
+                        </button>
+                        <button class="api-tab" data-tab="configuration">
+                            <i class="fas fa-cog"></i>
+                            Configuration
+                        </button>
+                        <button class="api-tab" data-tab="history">
+                            <i class="fas fa-history"></i>
+                            Usage History
+                        </button>
+                    </div>
+
+                    <!-- Status & Metrics Tab -->
+                    <div class="api-tab-content active" id="tab-status">
+                        <div class="api-metrics-grid" id="api-metrics-grid">
+                            <!-- Metrics will be dynamically generated -->
+                        </div>
+                    </div>
+
+                    <!-- Configuration Tab -->
+                    <div class="api-tab-content" id="tab-configuration">
+                        <div class="api-config-section">
+                            <h3 class="api-section-title">
+                                <i class="fas fa-sliders-h"></i>
+                                API Source Selection
+                            </h3>
+                            <div class="api-source-selector" id="api-source-selector">
+                                <!-- Source selector will be generated -->
+                            </div>
+                        </div>
+                        <div class="api-config-section">
+                            <h3 class="api-section-title">
+                                <i class="fas fa-key"></i>
+                                API Keys Configuration
+                            </h3>
+                            <div class="api-keys-config" id="api-keys-config">
+                                <!-- API keys config will be generated -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Usage History Tab -->
+                    <div class="api-tab-content" id="tab-history">
+                        <div class="api-history-container" id="api-history-container">
+                            <!-- History will be dynamically generated -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
         <!-- Data Page -->
         <main class="page-content" id="page-data">
             <div class="page-header">
@@ -1720,127 +1871,6 @@ require_once 'includes/database.php';
                             <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>
-                </div>
-            </div>
-        </main>
-
-        <!-- API Management Page -->
-        <main class="page-content" id="page-api">
-            <div class="page-header">
-                <h1 class="page-title">
-                    <i class="fas fa-plug"></i>
-                    API Management
-                </h1>
-                <div class="api-page-controls">
-                    <button class="btn btn-primary" id="refresh-api-status-btn">
-                        <i class="fas fa-sync-alt"></i>
-                        Refresh Status
-                    </button>
-                    <button class="btn btn-secondary" id="add-api-btn">
-                        <i class="fas fa-plus"></i>
-                        Add New API
-                    </button>
-                </div>
-            </div>
-            
-            <div class="api-management-container">
-                <!-- Error/Success Messages -->
-                <div id="api-error-message" class="api-message api-error" style="display: none;">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span></span>
-                </div>
-                <div id="api-success-message" class="api-message api-success" style="display: none;">
-                    <i class="fas fa-check-circle"></i>
-                    <span></span>
-                </div>
-                
-                <!-- API 3D Visualization & Statistics - TOP OF PAGE -->
-                <section class="dashboard-section api-stats-section api-viz-top-section">
-                    <div class="section-header">
-                        <h2 class="section-title">
-                            <i class="fas fa-cube"></i>
-                            API Status Visualization
-                        </h2>
-                        <div class="api-viz-controls">
-                            <select id="api-stats-timeframe" class="form-input form-input-sm">
-                                <option value="hour">Last Hour</option>
-                                <option value="day" selected>Last 24 Hours</option>
-                                <option value="week">Last 7 Days</option>
-                                <option value="month">Last 30 Days</option>
-                            </select>
-                            <button class="btn btn-sm btn-secondary" id="reset-api-viz-camera" title="Reset Camera">
-                                <i class="fas fa-redo"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="api-viz-container-top">
-                        <div class="api-viz-canvas-wrapper-top">
-                            <canvas id="api-3d-canvas"></canvas>
-                            <div class="api-viz-loading" id="api-viz-loading">
-                                <i class="fas fa-spinner fa-spin"></i>
-                                <span>Loading 3D visualization...</span>
-                            </div>
-                            <div class="api-viz-hint">
-                                <i class="fas fa-info-circle"></i>
-                                <span>Drag to rotate • Scroll to zoom</span>
-                            </div>
-                        </div>
-                        
-                        <div class="api-stats-panel-top">
-                            <div class="api-stats-header">
-                                <h3>
-                                    <i class="fas fa-chart-line"></i>
-                                    Real-Time Metrics
-                                </h3>
-                            </div>
-                            
-                            <!-- Overall Summary Section -->
-                            <div class="api-overall-summary" id="api-overall-summary">
-                                <!-- Overall metrics will be dynamically generated -->
-                            </div>
-                            
-                            <!-- Individual API Stats -->
-                            <div class="api-stats-container" id="api-stats-container">
-                                <!-- Statistics will be dynamically generated -->
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- API Status Overview and Configuration - TOGETHER -->
-                <div class="api-status-config-wrapper">
-                    <!-- API Status Overview -->
-                    <section class="dashboard-section api-status-section">
-                        <div class="section-header">
-                            <h2 class="section-title">
-                                <i class="fas fa-chart-line"></i>
-                                API Status Overview
-                            </h2>
-                            <div class="api-status-indicator" id="overall-api-status">
-                                <span class="status-dot"></span>
-                                <span class="status-text">Checking...</span>
-                            </div>
-                        </div>
-                        
-                        <div class="api-status-grid" id="api-status-grid">
-                            <!-- API status cards will be dynamically generated -->
-                        </div>
-                    </section>
-
-                    <!-- API Configuration -->
-                    <section class="dashboard-section api-config-section">
-                        <div class="section-header">
-                            <h2 class="section-title">
-                                <i class="fas fa-cog"></i>
-                                API Configuration
-                            </h2>
-                        </div>
-                        
-                        <div class="api-config-list" id="api-config-list">
-                            <!-- API configuration cards will be dynamically generated -->
-                        </div>
-                    </section>
                 </div>
             </div>
         </main>
@@ -2514,128 +2544,6 @@ require_once 'includes/database.php';
         </div>
     </div>
 
-    <!-- Add/Edit API Modal -->
-    <div class="modal" id="api-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="api-modal-title">Add New API</h2>
-                <button class="modal-close" id="close-api-modal">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="api-form">
-                    <input type="hidden" id="api-id" value="">
-                    
-                    <div class="form-group">
-                        <label for="api-name" class="form-label">
-                            <i class="fas fa-tag"></i>
-                            API Name
-                        </label>
-                        <input type="text" id="api-name" class="form-input" placeholder="e.g., Alpha Vantage, Polygon.io" required>
-                        <span class="form-hint">A friendly name to identify this API</span>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="api-provider" class="form-label">
-                            <i class="fas fa-building"></i>
-                            Provider
-                        </label>
-                        <input type="text" id="api-provider" class="form-input" placeholder="e.g., Alpha Vantage Inc." required>
-                        <span class="form-hint">The company or service providing the API</span>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="api-type" class="form-label">
-                            <i class="fas fa-layer-group"></i>
-                            API Type
-                        </label>
-                        <select id="api-type" class="form-input" required>
-                            <option value="market_data">Market Data</option>
-                            <option value="news">News</option>
-                            <option value="fundamental">Fundamental Data</option>
-                            <option value="options">Options Data</option>
-                            <option value="crypto">Cryptocurrency</option>
-                            <option value="forex">Forex</option>
-                            <option value="other">Other</option>
-                        </select>
-                        <span class="form-hint">The type of data this API provides</span>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="api-base-url" class="form-label">
-                            <i class="fas fa-link"></i>
-                            Base URL
-                        </label>
-                        <input type="url" id="api-base-url" class="form-input" placeholder="https://api.example.com/v1" required>
-                        <span class="form-hint">The base URL endpoint for API requests</span>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="api-key" class="form-label">
-                            <i class="fas fa-key"></i>
-                            API Key
-                        </label>
-                        <div class="api-key-container">
-                            <input type="password" id="api-key" class="form-input api-key-input" placeholder="Enter your API key" required>
-                            <button type="button" class="api-key-toggle" id="toggle-api-key-modal" title="Show/Hide API Key">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
-                        <span class="form-hint">Your API key or access token (stored securely)</span>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="api-rate-limit" class="form-label">
-                                <i class="fas fa-tachometer-alt"></i>
-                                Rate Limit (per minute)
-                            </label>
-                            <input type="number" id="api-rate-limit" class="form-input" placeholder="60" min="1" required>
-                            <span class="form-hint">Maximum API calls per minute</span>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="api-priority" class="form-label">
-                                <i class="fas fa-sort-numeric-up"></i>
-                                Priority
-                            </label>
-                            <select id="api-priority" class="form-input">
-                                <option value="1">1 - Primary</option>
-                                <option value="2">2 - Secondary</option>
-                                <option value="3">3 - Backup</option>
-                            </select>
-                            <span class="form-hint">Lower number = higher priority</span>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">
-                            <input type="checkbox" id="api-enabled" checked>
-                            <span>Enable this API</span>
-                        </label>
-                        <span class="form-hint">Disable to temporarily stop using this API</span>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="api-notes" class="form-label">
-                            <i class="fas fa-sticky-note"></i>
-                            Notes
-                        </label>
-                        <textarea id="api-notes" class="form-input" rows="3" placeholder="Optional notes about this API configuration..."></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" id="cancel-api-btn">Cancel</button>
-                <button type="button" class="btn btn-primary" id="save-api-btn">
-                    <i class="fas fa-save"></i>
-                    Save API
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Chart.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
@@ -2711,12 +2619,11 @@ require_once 'includes/database.php';
     <script src="assets/js/projections.js"></script>
     <script src="assets/js/fib-calc.js"></script>
     <script src="assets/js/data-page.js"></script>
-    <script src="assets/js/data-page.js"></script>
     <script src="assets/js/settings-tabs.js"></script>
     <script src="assets/js/settings.js"></script>
     <script src="assets/js/user-widget.js"></script>
     <script src="assets/js/news-feed.js"></script>
-    <script src="assets/js/api-management.js"></script>
+    <script src="assets/js/api-dashboard.js"></script>
     <script src="assets/js/main.js"></script>
 </body>
 </html>

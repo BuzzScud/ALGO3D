@@ -1,0 +1,24 @@
+=== FILE: math/src/core/arithmetic.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+double math_add(double a, double b) {
+double math_sub(double a, double b) {
+double math_mul(double a, double b) {
+double math_div(double a, double b) {
+double math_mod(double a, double b) {
+double math_abs(double x) {
+double math_min(double a, double b) {
+double math_max(double a, double b) {
+double math_clamp(double x, double min_val, double max_val) {
+int math_sign(double x) {
+bool math_approx_equal(double a, double b, double epsilon) {
+bool math_is_nan(double x) {
+bool math_is_inf(double x) {
+bool math_is_finite(double x) {
+double math_floor(double x) {
+double math_ceil(double x) {
+double math_round(double x) {
+double math_trunc(double x) {
+
+--- KEY ALGORITHMS ---
+

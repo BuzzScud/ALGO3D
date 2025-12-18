@@ -1,0 +1,22 @@
+=== FILE: math/include/math/platonic_generator.h ===
+
+--- FUNCTIONS ---
+bool platonic_compute_properties(PlatonicSolid* solid);
+bool platonic_compute_coordinates(PlatonicSolid* solid);
+bool platonic_compute_edges(PlatonicSolid* solid);
+bool platonic_compute_faces(PlatonicSolid* solid);
+bool platonic_compute_symmetries(PlatonicSolid* solid);
+bool platonic_compute_metrics(PlatonicSolid* solid);
+bool platonic_compute_cllm_properties(PlatonicSolid* solid);
+void platonic_print(const PlatonicSolid* solid);
+bool platonic_validate_euler(const PlatonicSolid* solid);
+bool platonic_validate_symmetry(const PlatonicSolid* solid);
+bool platonic_validate_regularity(const PlatonicSolid* solid);
+bool platonic_validate(const PlatonicSolid* solid);
+bool platonic_export(const PlatonicSolid* solid, 
+
+--- TYPES ---
+
+--- CONSTANTS ---
+#define MATH_PLATONIC_GENERATOR_H
+

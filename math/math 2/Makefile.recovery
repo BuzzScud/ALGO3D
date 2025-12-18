@@ -1,0 +1,254 @@
+# Universal Recovery System - Master Makefile
+# Builds all libraries and tools for system-wide installation
+
+.PHONY: all clean install uninstall recovery-libs recovery-tools test help
+
+# Installation directories
+PREFIX ?= /usr/local
+LIBDIR = $(PREFIX)/lib
+INCLUDEDIR = $(PREFIX)/include
+BINDIR = $(PREFIX)/bin
+DOCDIR = $(PREFIX)/share/doc/recovery
+
+# Compiler settings
+CC = gcc
+CXX = g++
+AR = ar
+CFLAGS = -Wall -Wextra -O2 -fPIC
+CXXFLAGS = -Wall -Wextra -O2 -fPIC
+LDFLAGS = -lssl -lcrypto -lcurl -ljansson -lm -lpthread
+
+# Library directories
+RECOVERY_CORE_DIR = lib/recovery_core
+RECOVERY_CRYPTO_DIR = lib/recovery_crypto
+RECOVERY_NETWORK_DIR = lib/recovery_network
+RECOVERY_SIGNAL_DIR = lib/recovery_signal
+
+# Tool directories
+RECOVERY_TOOLS_DIR = tools/recovery
+UNIVERSAL_TOOLS_DIR = tools
+
+# Libraries
+RECOVERY_LIBS = \
+	$(RECOVERY_CORE_DIR)/librecovery_core.a \
+	$(RECOVERY_CORE_DIR)/librecovery_core.so \
+	$(RECOVERY_CRYPTO_DIR)/librecovery_crypto.a \
+	$(RECOVERY_CRYPTO_DIR)/librecovery_crypto.so
+
+# Tools
+RECOVERY_TOOLS = \
+	$(RECOVERY_TOOLS_DIR)/geometric-recovery \
+	$(RECOVERY_TOOLS_DIR)/signal-recovery \
+	$(RECOVERY_TOOLS_DIR)/image-recovery \
+	$(RECOVERY_TOOLS_DIR)/network-recovery \
+	$(RECOVERY_TOOLS_DIR)/crypto-recovery \
+	$(RECOVERY_TOOLS_DIR)/scientific-recovery \
+	$(RECOVERY_TOOLS_DIR)/ml-recovery \
+	$(RECOVERY_TOOLS_DIR)/platonic-demo
+
+UNIVERSAL_TOOLS = \
+	$(UNIVERSAL_TOOLS_DIR)/universal-recovery \
+	$(UNIVERSAL_TOOLS_DIR)/bitcoin-network
+
+# Default target
+all: recovery-libs recovery-tools universal-tools
+
+# Build recovery libraries
+recovery-libs:
+	@echo "Building recovery libraries..."
+	@$(MAKE) -C $(RECOVERY_CORE_DIR)
+	@$(MAKE) -C $(RECOVERY_CRYPTO_DIR)
+	@$(MAKE) -C $(RECOVERY_NETWORK_DIR)
+	@$(MAKE) -C $(RECOVERY_SIGNAL_DIR)
+	@echo "Recovery libraries built successfully"
+
+# Build recovery tools
+recovery-tools: recovery-libs
+	@echo "Building recovery tools..."
+	@$(MAKE) -C $(RECOVERY_TOOLS_DIR)
+	@echo "Recovery tools built successfully"
+
+# Build universal tools
+universal-tools: recovery-libs
+	@echo "Building universal tools..."
+	@cd $(UNIVERSAL_TOOLS_DIR) && \
+		$(CC) $(CFLAGS) -I../lib/recovery_core/include -I../lib/recovery_crypto/include \
+		-o universal-recovery universal_recovery.c \
+		-L../lib/recovery_core -L../lib/recovery_crypto -L../algorithms -L.. \
+		-lrecovery_core -lrecovery_crypto -lalgorithms -lcrystalline $(LDFLAGS)
+	@cd $(UNIVERSAL_TOOLS_DIR) && \
+		$(CC) $(CFLAGS) -I../lib/recovery_network/include \
+		-o bitcoin-network bitcoin_network.c \
+		-L../lib/recovery_network \
+		-lrecovery_network $(LDFLAGS)
+	@echo "Universal tools built successfully"
+		-lrecovery_network $(LDFLAGS)
+	@echo "Universal tools built successfully"
+
+# Install everything
+install: all
+	@echo "Installing Universal Recovery System..."
+	
+	# Create directories
+	install -d $(DESTDIR)$(LIBDIR)
+	install -d $(DESTDIR)$(INCLUDEDIR)/recovery
+	install -d $(DESTDIR)$(BINDIR)
+	install -d $(DESTDIR)$(DOCDIR)
+	
+	# Install libraries
+	install -m 644 $(RECOVERY_CORE_DIR)/librecovery_core.a $(DESTDIR)$(LIBDIR)/
+	install -m 755 $(RECOVERY_CORE_DIR)/librecovery_core.so $(DESTDIR)$(LIBDIR)/
+	install -m 644 $(RECOVERY_CRYPTO_DIR)/librecovery_crypto.a $(DESTDIR)$(LIBDIR)/
+	install -m 755 $(RECOVERY_CRYPTO_DIR)/librecovery_crypto.so $(DESTDIR)$(LIBDIR)/
+	install -m 644 $(RECOVERY_NETWORK_DIR)/librecovery_network.a $(DESTDIR)$(LIBDIR)/
+	install -m 755 $(RECOVERY_NETWORK_DIR)/librecovery_network.so $(DESTDIR)$(LIBDIR)/
+	install -m 644 $(RECOVERY_SIGNAL_DIR)/librecovery_signal.a $(DESTDIR)$(LIBDIR)/
+	install -m 755 $(RECOVERY_SIGNAL_DIR)/librecovery_signal.so $(DESTDIR)$(LIBDIR)/
+	
+	# Install headers
+	install -m 644 $(RECOVERY_CORE_DIR)/include/recovery_core.h $(DESTDIR)$(INCLUDEDIR)/recovery/
+	install -m 644 $(RECOVERY_CRYPTO_DIR)/include/recovery_crypto.h $(DESTDIR)$(INCLUDEDIR)/recovery/
+	install -m 644 $(RECOVERY_NETWORK_DIR)/include/recovery_network.h $(DESTDIR)$(INCLUDEDIR)/recovery/
+	install -m 644 $(RECOVERY_SIGNAL_DIR)/include/recovery_signal.h $(DESTDIR)$(INCLUDEDIR)/recovery/
+	
+	# Install tools
+	install -m 755 $(RECOVERY_TOOLS_DIR)/geometric-recovery $(DESTDIR)$(BINDIR)/ 2>/dev/null || true
+	install -m 755 $(RECOVERY_TOOLS_DIR)/signal-recovery $(DESTDIR)$(BINDIR)/ 2>/dev/null || true
+	install -m 755 $(RECOVERY_TOOLS_DIR)/image-recovery $(DESTDIR)$(BINDIR)/ 2>/dev/null || true
+	install -m 755 $(RECOVERY_TOOLS_DIR)/network-recovery $(DESTDIR)$(BINDIR)/ 2>/dev/null || true
+	install -m 755 $(RECOVERY_TOOLS_DIR)/crypto-recovery $(DESTDIR)$(BINDIR)/ 2>/dev/null || true
+	install -m 755 $(RECOVERY_TOOLS_DIR)/scientific-recovery $(DESTDIR)$(BINDIR)/ 2>/dev/null || true
+	install -m 755 $(RECOVERY_TOOLS_DIR)/ml-recovery $(DESTDIR)$(BINDIR)/ 2>/dev/null || true
+	install -m 755 $(RECOVERY_TOOLS_DIR)/platonic-demo $(DESTDIR)$(BINDIR)/ 2>/dev/null || true
+	install -m 755 $(UNIVERSAL_TOOLS_DIR)/universal-recovery $(DESTDIR)$(BINDIR)/
+	install -m 755 $(UNIVERSAL_TOOLS_DIR)/bitcoin-network $(DESTDIR)$(BINDIR)/
+	install -m 755 $(UNIVERSAL_TOOLS_DIR)/bitcoin-recovery $(DESTDIR)$(BINDIR)/ 2>/dev/null || true
+	install -m 755 $(UNIVERSAL_TOOLS_DIR)/bitcoin-miner $(DESTDIR)$(BINDIR)/ 2>/dev/null || true
+	
+	# Install documentation
+	install -m 644 UNIVERSAL_RECOVERY_EXPLAINED.md $(DESTDIR)$(DOCDIR)/ 2>/dev/null || true
+	install -m 644 UNIVERSAL_RECOVERY_IMPLEMENTATION.md $(DESTDIR)$(DOCDIR)/ 2>/dev/null || true
+	install -m 644 README.md $(DESTDIR)$(DOCDIR)/ 2>/dev/null || true
+	
+	# Update library cache
+	ldconfig
+	
+	@echo "Installation complete!"
+	@echo "Libraries installed to: $(LIBDIR)"
+	@echo "Headers installed to: $(INCLUDEDIR)/recovery"
+	@echo "Tools installed to: $(BINDIR)"
+	@echo "Documentation installed to: $(DOCDIR)"
+
+# Uninstall
+uninstall:
+	@echo "Uninstalling Universal Recovery System..."
+	
+	# Remove libraries
+	rm -f $(DESTDIR)$(LIBDIR)/librecovery_core.a
+	rm -f $(DESTDIR)$(LIBDIR)/librecovery_core.so
+	rm -f $(DESTDIR)$(LIBDIR)/librecovery_crypto.a
+	rm -f $(DESTDIR)$(LIBDIR)/librecovery_crypto.so
+	
+	# Remove headers
+	rm -rf $(DESTDIR)$(INCLUDEDIR)/recovery
+	
+	# Remove tools
+	rm -f $(DESTDIR)$(BINDIR)/geometric-recovery
+	rm -f $(DESTDIR)$(BINDIR)/signal-recovery
+	rm -f $(DESTDIR)$(BINDIR)/image-recovery
+	rm -f $(DESTDIR)$(BINDIR)/network-recovery
+	rm -f $(DESTDIR)$(BINDIR)/crypto-recovery
+	rm -f $(DESTDIR)$(BINDIR)/scientific-recovery
+	rm -f $(DESTDIR)$(BINDIR)/ml-recovery
+	rm -f $(DESTDIR)$(BINDIR)/platonic-demo
+	rm -f $(DESTDIR)$(BINDIR)/universal-recovery
+	rm -f $(DESTDIR)$(BINDIR)/bitcoin-network
+	
+	# Remove documentation
+	rm -rf $(DESTDIR)$(DOCDIR)
+	
+	# Update library cache
+	ldconfig
+	
+	@echo "Uninstallation complete!"
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	@$(MAKE) -C $(RECOVERY_CORE_DIR) clean 2>/dev/null || true
+	@$(MAKE) -C $(RECOVERY_CRYPTO_DIR) clean 2>/dev/null || true
+	@$(MAKE) -C $(RECOVERY_TOOLS_DIR) clean 2>/dev/null || true
+	@rm -f $(UNIVERSAL_TOOLS_DIR)/universal-recovery
+	@rm -f $(UNIVERSAL_TOOLS_DIR)/bitcoin-network
+	@echo "Clean complete"
+
+# Run tests
+test: all
+	@echo "Running tests..."
+	@bash tests/test_ssh_key_recovery_simple.sh
+	@bash tests/test_bitcoin_recovery.sh
+	@echo "Tests complete"
+
+# Help
+help:
+	@echo "Universal Recovery System - Build System"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all              - Build all libraries and tools (default)"
+	@echo "  recovery-libs    - Build recovery libraries only"
+	@echo "  recovery-tools   - Build recovery tools only"
+	@echo "  universal-tools  - Build universal tools only"
+	@echo "  install          - Install system-wide (requires sudo)"
+	@echo "  uninstall        - Uninstall system-wide (requires sudo)"
+	@echo "  clean            - Clean build artifacts"
+	@echo "  test             - Run tests"
+	@echo "  help             - Show this help"
+	@echo ""
+	@echo "Installation directories:"
+	@echo "  PREFIX=$(PREFIX)"
+	@echo "  LIBDIR=$(LIBDIR)"
+	@echo "  INCLUDEDIR=$(INCLUDEDIR)"
+	@echo "  BINDIR=$(BINDIR)"
+	@echo "  DOCDIR=$(DOCDIR)"
+	@echo ""
+	@echo "To install to a different prefix:"
+	@echo "  make PREFIX=/opt/recovery install"
+# Build signal library
+recovery-signal:
+	@echo "Building signal library..."
+	@$(MAKE) -C $(RECOVERY_SIGNAL_DIR)
+
+# Install Python bindings
+install-python: all
+	@echo "Installing Python bindings..."
+	cd python && pip3 install -e .
+
+# Uninstall Python bindings
+uninstall-python:
+	@echo "Uninstalling Python bindings..."
+	pip3 uninstall -y recovery
+
+# Build PHP extension
+php-extension:
+	@echo "Building PHP extension..."
+	@cd bindings/php && phpize && ./configure --with-recovery=$(PREFIX) && $(MAKE)
+
+# Install PHP extension
+install-php: all php-extension
+	@echo "Installing PHP extension..."
+	@cd bindings/php && sudo $(MAKE) install
+	@echo ""
+	@echo "PHP extension installed successfully!"
+	@echo "Add 'extension=recovery.so' to your php.ini to enable it."
+
+# Uninstall PHP extension
+uninstall-php:
+	@echo "Uninstalling PHP extension..."
+	@sudo rm -f $$(php-config --extension-dir)/recovery.so
+	@echo "PHP extension uninstalled"
+
+# Clean PHP extension
+clean-php:
+	@echo "Cleaning PHP extension..."
+	@cd bindings/php && $(MAKE) clean 2>/dev/null || true
+	@cd bindings/php && phpize --clean 2>/dev/null || true

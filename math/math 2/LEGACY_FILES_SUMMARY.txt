@@ -1,0 +1,84 @@
+================================================================================
+LEGACY CODE SUMMARY - VISUAL FILE TREE
+================================================================================
+
+CATEGORY 1: NEW MATH LIBRARY LEGACY FILES (SAFE TO DELETE)
+================================================================================
+Status: Backup copies from Phase 2 refactoring, NOT compiled
+Action: DELETE IMMEDIATELY - Zero risk
+
+math/src/
+├── core/
+│   └── arithmetic_legacy.c                    (138 lines) ❌ DELETE
+├── compact/
+│   └── compact_arithmetic_legacy.c            (339 lines) ❌ DELETE
+└── platonic/
+    ├── simplex_generator_legacy.c             (299 lines) ❌ DELETE
+    ├── hypercube_generator_legacy.c           (312 lines) ❌ DELETE
+    ├── cross_polytope_generator_legacy.c      (318 lines) ❌ DELETE
+    ├── dodecahedron_generator_legacy.c        (248 lines) ❌ DELETE
+    ├── icosahedron_generator_legacy.c         (236 lines) ❌ DELETE
+    ├── simplex_generator_abacus_legacy.c      (306 lines) ❌ DELETE
+    ├── hypercube_generator_abacus_legacy.c    (292 lines) ❌ DELETE
+    └── cross_polytope_generator_abacus_legacy.c (286 lines) ❌ DELETE
+
+TOTAL: 10 files, 2,774 lines
+
+
+CATEGORY 2: OLD CRYSTALLINE LIBRARY (COMPLEX - ARCHIVE)
+================================================================================
+Status: Original library replaced by NEW math library, NOT compiled in main build
+       BUT used by tools in tools/ directory
+Action: ARCHIVE to legacy/ directory
+
+src/core/ (NOT COMPILED - CORE_SOURCES removed from Makefile)
+├── bigint_core.c                    (977 lines)  📦 ARCHIVE
+├── bigint_conversions.c             (112 lines)  📦 ARCHIVE
+├── bigint_ntt.c                     (543 lines)  📦 ARCHIVE
+└── crystal_abacus.c                 (176 lines)  📦 ARCHIVE
+
+src/geometry/ (NOT COMPILED - not in GEOMETRY_SOURCES)
+├── clock_lattice.c                  (25,589 bytes) 📦 ARCHIVE
+├── lattice_algorithms.c             (18,237 bytes) 📦 ARCHIVE
+├── lattice_entropy.c                (5,471 bytes)  📦 ARCHIVE
+├── prime_coords.c                   (8,999 bytes)  📦 ARCHIVE
+├── prime_hyperdim.c                 (7,573 bytes)  📦 ARCHIVE
+├── prime_lattice.c                  (2,685 bytes)  📦 ARCHIVE
+├── prime_lattice_core.c             (22,856 bytes) 📦 ARCHIVE
+├── prime_lattice_geometry.c         (13,771 bytes) 📦 ARCHIVE
+├── prime_matrix.c                   (8,209 bytes)  📦 ARCHIVE
+├── prime_rainbow.c                  (22,718 bytes) 📦 ARCHIVE
+├── prime_ulam_spiral.c              (5,554 bytes)  📦 ARCHIVE
+├── sigma_spiral.c                   (3,297 bytes)  📦 ARCHIVE
+└── phonetic_values.c                (3,392 bytes)  ✅ KEEP (only one compiled)
+
+include/ (Legacy headers - define OLD types)
+├── prime_types.h                    📦 ARCHIVE (defines BigInt, BigFixed, CrystalAbacus)
+├── bigint_core.h                    📦 ARCHIVE
+├── crystal_abacus.h                 📦 ARCHIVE
+├── bigint_ntt.h                     📦 ARCHIVE
+├── prime_lattice_core.h             📦 ARCHIVE
+├── lattice_12d_core.h               📦 ARCHIVE
+├── cllm_inference.h                 📦 ARCHIVE
+├── prime_rainbow.h                  📦 ARCHIVE
+├── prime_coords.h                   📦 ARCHIVE
+├── cllm_training.h                  📦 ARCHIVE
+├── prime_lattice_geometry.h         📦 ARCHIVE
+├── prime_bigint_transcendental.h    📦 ARCHIVE
+├── io.h                             📦 ARCHIVE
+├── prime_basic.h                    📦 ARCHIVE
+├── main.h                           📦 ARCHIVE
+├── prime_lattice.h                  📦 ARCHIVE
+├── prime_matrix.h                   📦 ARCHIVE
+├── cllm_format.h                    📦 ARCHIVE
+└── prime_hyperdim.h                 📦 ARCHIVE
+
+tools/ (Tools using OLD library - still compiled)
+├── benchmark_prime_validation.c     📦 ARCHIVE (uses crystal_abacus.h)
+├── tetration_analysis.c             📦 ARCHIVE (uses bigint_core.h)
+├── platonic_prime_resonance.c       📦 ARCHIVE (uses crystal_abacus.h)
+├── analyze_million_primes.c         📦 ARCHIVE
+├── analyze_rainbow_structure.c      📦 ARCHIVE
+└── discover_platonic_solids.c       📦 ARCHIVE
+
+RECOMMENDED ACTION: Delete Category 1 immediately, Archive Category 2

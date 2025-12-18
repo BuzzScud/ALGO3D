@@ -1,0 +1,63 @@
+id: recovery_signal_recovery_block
+label: Signal Recovery
+category: '[Recovery]'
+
+parameters:
+- id: sample_rate
+  label: Sample Rate
+  dtype: real
+  default: samp_rate
+- id: center_freq
+  label: Center Frequency
+  dtype: real
+  default: 0
+- id: max_iterations
+  label: Max Iterations
+  dtype: int
+  default: 5000
+- id: convergence_threshold
+  label: Convergence Threshold
+  dtype: real
+  default: 0.001
+- id: use_reference
+  label: Use Reference Samples
+  dtype: bool
+  default: 'False'
+
+inputs:
+- label: in
+  domain: stream
+  dtype: complex
+
+outputs:
+- label: out
+  domain: stream
+  dtype: complex
+
+templates:
+  imports: from gnuradio import recovery
+  make: recovery.signal_recovery_block(${sample_rate}, ${center_freq}, ${max_iterations}, ${convergence_threshold}, ${use_reference})
+  callbacks:
+  - set_sample_rate(${sample_rate})
+  - set_center_freq(${center_freq})
+  - set_max_iterations(${max_iterations})
+  - set_convergence_threshold(${convergence_threshold})
+
+documentation: |-
+  Signal Recovery Block
+  
+  Recovers corrupted signals using the Universal Recovery System.
+  Integrates OBJECTIVE 28 Phase 1-6 algorithms for real-time signal recovery.
+  
+  Parameters:
+  - Sample Rate: Sample rate in Hz
+  - Center Frequency: Center frequency in Hz
+  - Max Iterations: Maximum recovery iterations (default: 5000)
+  - Convergence Threshold: Convergence threshold (default: 0.001)
+  - Use Reference Samples: Use reference samples for better recovery
+  
+  The block uses samples-as-anchors concept to recover corrupted signals.
+  When reference samples are enabled, the block collects the first 1024 samples
+  as anchors for improved recovery performance.
+
+file_format: 1

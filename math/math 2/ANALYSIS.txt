@@ -1,0 +1,9 @@
+User said: "There are extensive files under the src/ and include/ directories in the repo root 
+for the AI, abacus 88d, crawler, and other critical libraries which are IN THE WRONG PATH."
+
+But the build WORKS using these paths. So either:
+1. The build is using the wrong files but still compiling
+2. The files in src/ai/ ARE the correct NEW design
+3. There's a misunderstanding about which files are which
+
+Let me check the actual 88D implementation to determine if src/ai/ is NEW or LEGACY.

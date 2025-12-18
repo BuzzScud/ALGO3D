@@ -1,0 +1,32 @@
+=== FILE: math/src/core/transcendental.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+double math_sqrt(double x) {
+double math_cbrt(double x) {
+double math_pow(double x, double y) {
+double math_powi(double x, int n) {
+double math_exp(double x) {
+double math_expm1(double x) {
+double math_log(double x) {
+double math_log1p(double x) {
+double math_log10(double x) {
+double math_log2(double x) {
+double math_sin(double x) {
+double math_cos(double x) {
+double math_tan(double x) {
+void math_sincos(double x, double *sin_x, double *cos_x) {
+double math_asin(double x) {
+double math_acos(double x) {
+double math_atan(double x) {
+double math_atan2(double y, double x) {
+double math_sinh(double x) {
+double math_cosh(double x) {
+double math_tanh(double x) {
+double math_asinh(double x) {
+double math_acosh(double x) {
+double math_atanh(double x) {
+double math_fmod(double x, double y) {
+double math_remainder(double x, double y) {
+
+--- KEY ALGORITHMS ---
+

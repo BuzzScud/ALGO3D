@@ -1,0 +1,9 @@
+-include algorithms_extension.dep
+algorithms_extension.lo: /workspace/php/algorithms/algorithms_extension.c
+	$(LIBTOOL) --tag=CC --mode=compile $(CC) -I. -I/workspace/php/algorithms $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS)   -DZEND_COMPILE_DL_EXT=1 -c /workspace/php/algorithms/algorithms_extension.c -o algorithms_extension.lo  -MMD -MF algorithms_extension.dep -MT algorithms_extension.lo
+$(phplibdir)/algorithms.la: ./algorithms.la
+	$(LIBTOOL) --tag=CC --mode=install cp ./algorithms.la $(phplibdir)
+
+./algorithms.la: $(shared_objects_algorithms) $(ALGORITHMS_SHARED_DEPENDENCIES)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) -shared $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) $(LDFLAGS)  -o $@ -export-dynamic -avoid-version -prefer-pic -module -rpath $(phplibdir) $(EXTRA_LDFLAGS) $(shared_objects_algorithms) $(ALGORITHMS_SHARED_LIBADD)
+

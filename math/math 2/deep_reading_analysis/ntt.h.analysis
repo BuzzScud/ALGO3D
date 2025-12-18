@@ -1,0 +1,25 @@
+=== FILE: math/include/math/ntt.h ===
+
+--- FUNCTIONS ---
+void ntt_free(NTTContext* ctx);
+bool ntt_init_with_prime(NTTContext* ctx, size_t n, const CrystallineAbacus* prime);
+MathError ntt_find_primitive_root(CrystallineAbacus* root, size_t n, const CrystallineAbacus* p);
+MathError ntt_find_prime(CrystallineAbacus* prime, size_t n, uint32_t bits);
+bool ntt_is_primitive_root(const CrystallineAbacus* g, const CrystallineAbacus* p);
+MathError ntt_forward(const NTTContext* ctx, CrystallineAbacus** output, 
+MathError ntt_inverse(const NTTContext* ctx, CrystallineAbacus** output,
+MathError ntt_multiply(CrystallineAbacus* result, const CrystallineAbacus* a, 
+MathError ntt_poly_multiply(CrystallineAbacus** result, const CrystallineAbacus** a, size_t n,
+bool ntt_is_power_of_2(size_t n);
+size_t ntt_next_power_of_2(size_t n);
+uint32_t ntt_log2(size_t n);
+void ntt_bit_reverse(CrystallineAbacus** array, size_t n);
+MathError ntt_find_prime_lattice(CrystallineAbacus* prime, size_t n, uint32_t bits);
+MathError ntt_optimize_for_lattice(NTTContext* ctx);
+
+--- TYPES ---
+typedef struct {
+
+--- CONSTANTS ---
+#define MATH_NTT_H
+

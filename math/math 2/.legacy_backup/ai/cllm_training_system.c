@@ -1,0 +1,849 @@
+/**
+ * @file cllm_training_88d.c
+ * @brief CLLM Training System using 88D Hierarchical Threading
+ * 
+ * This is the complete rewrite of the training system to use the 88D
+ * hierarchical threading infrastructure from the algorithms library.
+ * 
+ * Key Design Principles:
+ * 1. NO custom threading - use HierarchicalThreadPool
+ * 2. NO custom message passing - use MessageSystem
+ * 3. NO custom shared memory - use SharedMemoryEnhanced
+ * 4. NO custom work queues - use WorkDistribution
+ * 5. FULL integration with 88D infrastructure
+ * 
+ * This replaces ALL legacy threading code.
+ */
+
+#include "cllm_batch.h"  // Must come before cllm_training_system.h to define CLLMBatch
+#include "ai/cllm_training_system.h"
+#include "cllm_training.h"
+#include "ai/cllm_loss.h"
+#include "math/constants.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <time.h>
+#include <pthread.h>
+#include <unistd.h>
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Get current time in seconds
+ */
+static double get_time_seconds(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+}
+
+/**
+ * Calculate number of hierarchy levels for given thread count
+ */
+int cllm_calculate_num_levels_88d(uint32_t num_threads) {
+    if (num_threads <= 1) return 1;
+    if (num_threads <= 13) return 2;   // 1 + 12
+    if (num_threads <= 157) return 3;  // 1 + 12 + 144
+    if (num_threads <= 1885) return 4; // 1 + 12 + 144 + 1728
+    return 8;  // Maximum 8 levels for 88D
+}
+
+/**
+ * Calculate gradient size for model
+ */
+size_t cllm_calculate_gradient_size_88d(const CLLMModel* model) {
+    if (!model) return 0;
+    
+    size_t total = 0;
+    
+    // Embeddings: vocab_size * embedding_dim
+    total += model->vocab_size * model->embedding_dim;
+    
+    // Positional encoding: max_seq_len * embedding_dim
+    total += model->max_seq_len * model->embedding_dim;
+    
+    // Layers
+    for (uint32_t i = 0; i < model->num_layers; i++) {
+        // Attention: 4 * (embedding_dim * embedding_dim)
+        total += 4 * model->embedding_dim * model->embedding_dim;
+        
+        // FFN: 2 weight matrices + 2 bias vectors
+        total += model->embedding_dim * model->hidden_dim;  // W1
+        total += model->hidden_dim * model->embedding_dim;  // W2
+        total += model->hidden_dim;                          // b1
+        total += model->embedding_dim;                       // b2
+        
+        // Layer norm: 4 * embedding_dim (2 gamma + 2 beta)
+        total += 4 * model->embedding_dim;
+    }
+    
+    // Output layer: embedding_dim * vocab_size
+    total += model->embedding_dim * model->vocab_size;
+    
+    return total;
+}
+
+/**
+ * Adjust thread count for 12-fold symmetry
+ */
+uint32_t cllm_adjust_thread_count_88d(uint32_t requested) {
+    if (requested <= 1) return 1;
+    
+    // For 12-fold symmetry, we want 12n or 12n+1 (with control thread)
+    // Round to nearest multiple of 12
+    uint32_t base = (requested / 12) * 12;
+    
+    if (requested - base >= 6) {
+        // Closer to next multiple of 12
+        return base + 12;
+    } else {
+        // Closer to current multiple
+        return (base == 0) ? 12 : base;
+    }
+}
+
+// ============================================================================
+// THREAD-LOCAL CONTEXT MANAGEMENT
+// ============================================================================
+
+ThreadLocalTrainingContext* thread_local_training_create_88d(
+    int batch_size,
+    int seq_len,
+    int num_layers,
+    int embed_dim,
+    int vocab_size,
+    int ff_hidden_dim,
+    int num_heads
+) {
+    ThreadLocalTrainingContext* ctx = (ThreadLocalTrainingContext*)calloc(1, sizeof(ThreadLocalTrainingContext));
+    if (!ctx) return NULL;
+    
+    // Store configuration
+    ctx->batch_size = batch_size;
+    ctx->seq_len = seq_len;
+    ctx->num_layers = num_layers;
+    ctx->embed_dim = embed_dim;
+    ctx->vocab_size = vocab_size;
+    ctx->ff_hidden_dim = ff_hidden_dim;
+    ctx->num_heads = num_heads;
+    
+    size_t seq_size = batch_size * seq_len * embed_dim;
+    size_t logits_size = batch_size * seq_len * vocab_size;
+    size_t ff_size = batch_size * seq_len * ff_hidden_dim;
+    
+    // Allocate forward pass buffers
+    ctx->input_embeddings = (double*)calloc(seq_size, sizeof(double));
+    ctx->final_hidden = (double*)calloc(seq_size, sizeof(double));
+    ctx->logits = (double*)calloc(logits_size, sizeof(double));
+    
+    // Allocate per-layer buffers
+    ctx->layer_inputs = (double**)calloc(num_layers, sizeof(double*));
+    ctx->attention_outputs = (double**)calloc(num_layers, sizeof(double*));
+    ctx->ff_outputs = (double**)calloc(num_layers, sizeof(double*));
+    ctx->layer_outputs = (double**)calloc(num_layers, sizeof(double*));
+    ctx->ff_hidden = (double**)calloc(num_layers, sizeof(double*));
+    
+    if (ctx->layer_inputs && ctx->attention_outputs && ctx->ff_outputs &&
+        ctx->layer_outputs && ctx->ff_hidden) {
+        for (int i = 0; i < num_layers; i++) {
+            ctx->layer_inputs[i] = (double*)calloc(seq_size, sizeof(double));
+            ctx->attention_outputs[i] = (double*)calloc(seq_size, sizeof(double));
+            ctx->ff_outputs[i] = (double*)calloc(seq_size, sizeof(double));
+            ctx->layer_outputs[i] = (double*)calloc(seq_size, sizeof(double));
+            ctx->ff_hidden[i] = (double*)calloc(ff_size, sizeof(double));
+        }
+    }
+    
+    // Allocate attention cache
+    ctx->attention_cache = calloc(num_layers, sizeof(*ctx->attention_cache));
+    if (ctx->attention_cache) {
+        for (int i = 0; i < num_layers; i++) {
+            ctx->attention_cache[i].queries = (double*)calloc(seq_len * embed_dim, sizeof(double));
+            ctx->attention_cache[i].keys = (double*)calloc(seq_len * embed_dim, sizeof(double));
+            ctx->attention_cache[i].values = (double*)calloc(seq_len * embed_dim, sizeof(double));
+            ctx->attention_cache[i].attention_weights = (double*)calloc(num_heads * seq_len * seq_len, sizeof(double));
+            ctx->attention_cache[i].scores = (double*)calloc(num_heads * seq_len * seq_len, sizeof(double));
+        }
+    }
+    
+    // Allocate backward pass temporary buffers
+    ctx->grad_logits = (double*)calloc(logits_size, sizeof(double));
+    ctx->grad_hidden = (double*)calloc(seq_size, sizeof(double));
+    ctx->grad_layer = (double*)calloc(seq_size, sizeof(double));
+    
+    return ctx;
+}
+
+void thread_local_training_free_88d(ThreadLocalTrainingContext* ctx) {
+    if (!ctx) return;
+    
+    // Free forward pass buffers
+    free(ctx->input_embeddings);
+    free(ctx->final_hidden);
+    free(ctx->logits);
+    
+    // Free per-layer buffers
+    if (ctx->layer_inputs) {
+        for (int i = 0; i < ctx->num_layers; i++) {
+            free(ctx->layer_inputs[i]);
+        }
+        free(ctx->layer_inputs);
+    }
+    
+    if (ctx->attention_outputs) {
+        for (int i = 0; i < ctx->num_layers; i++) {
+            free(ctx->attention_outputs[i]);
+        }
+        free(ctx->attention_outputs);
+    }
+    
+    if (ctx->ff_outputs) {
+        for (int i = 0; i < ctx->num_layers; i++) {
+            free(ctx->ff_outputs[i]);
+        }
+        free(ctx->ff_outputs);
+    }
+    
+    if (ctx->layer_outputs) {
+        for (int i = 0; i < ctx->num_layers; i++) {
+            free(ctx->layer_outputs[i]);
+        }
+        free(ctx->layer_outputs);
+    }
+    
+    if (ctx->ff_hidden) {
+        for (int i = 0; i < ctx->num_layers; i++) {
+            free(ctx->ff_hidden[i]);
+        }
+        free(ctx->ff_hidden);
+    }
+    
+    // Free attention cache
+    if (ctx->attention_cache) {
+        for (int i = 0; i < ctx->num_layers; i++) {
+            free(ctx->attention_cache[i].queries);
+            free(ctx->attention_cache[i].keys);
+            free(ctx->attention_cache[i].values);
+            free(ctx->attention_cache[i].attention_weights);
+            free(ctx->attention_cache[i].scores);
+        }
+        free(ctx->attention_cache);
+    }
+    
+    // Free backward pass buffers
+    free(ctx->grad_logits);
+    free(ctx->grad_hidden);
+    free(ctx->grad_layer);
+    
+    free(ctx);
+}
+
+// CREATION & DESTRUCTION
+// ============================================================================
+
+CLLMTrainingSystem* cllm_training_system_create(
+    CLLMModel* model,
+    CLLMTraining* training,
+    CLLMBatchIterator* batch_iterator,
+    uint32_t num_threads
+) {
+    if (!model || !training || !batch_iterator) {
+        fprintf(stderr, "ERROR: NULL parameters to cllm_training_system_create\n");
+        return NULL;
+    }
+    
+    printf("\n=== Creating 88D Training System ===\n");
+    
+    // Allocate context
+    CLLMTrainingSystem* ctx = calloc(1, sizeof(CLLMTrainingSystem));
+    if (!ctx) {
+        fprintf(stderr, "ERROR: Failed to allocate training context\n");
+        return NULL;
+    }
+    
+    // Set core components
+    ctx->model = model;
+    ctx->training = training;
+    ctx->batch_iterator = batch_iterator;
+    
+    // Adjust thread count for 12-fold symmetry
+    ctx->num_threads = cllm_adjust_thread_count_88d(num_threads);
+    ctx->num_levels = cllm_calculate_num_levels_88d(ctx->num_threads);
+    
+    printf("  Threads: %u (adjusted from %u for 12-fold symmetry)\n", 
+           ctx->num_threads, num_threads);
+    printf("  Hierarchy levels: %u\n", ctx->num_levels);
+    
+    // Create 88D thread pool
+    printf("  Creating hierarchical thread pool...\n");
+    ctx->thread_pool = hierarchical_thread_pool_create_88d(ctx->num_levels);
+    if (!ctx->thread_pool) {
+        fprintf(stderr, "ERROR: Failed to create thread pool\n");
+        free(ctx);
+        return NULL;
+    }
+    printf("  ✓ Thread pool created\n");
+    
+    // Calculate gradient size
+    ctx->gradient_size = cllm_calculate_gradient_size_88d(model);
+    printf("  Gradient size: %zu doubles (%.2f MB)\n", 
+           ctx->gradient_size, 
+           (double)(ctx->gradient_size * sizeof(double)) / (1024.0 * 1024.0));
+    
+    // Create shared memory for gradients
+    printf("  Creating shared memory for gradients...\n");
+    ctx->gradient_memory = shared_memory_enhanced_create(
+        ctx->gradient_size * ctx->num_threads * sizeof(double),  // total size for all threads
+        SHARED_LOCKED_WRITE,                   // access mode
+        0                                      // region ID
+    );
+    if (!ctx->gradient_memory) {
+        fprintf(stderr, "ERROR: Failed to create gradient memory\n");
+        hierarchical_thread_pool_free(ctx->thread_pool);
+        free(ctx);
+        return NULL;
+    }
+    printf("  ✓ Shared memory created\n");
+    
+    // Create message system
+    printf("  Creating message system...\n");
+    ctx->message_system = message_system_create(
+        ctx->num_threads,  // max channels
+        10000              // pool size
+    );
+    if (!ctx->message_system) {
+        fprintf(stderr, "ERROR: Failed to create message system\n");
+        shared_memory_enhanced_free(ctx->gradient_memory);
+        hierarchical_thread_pool_free(ctx->thread_pool);
+        free(ctx);
+        return NULL;
+    }
+    printf("  ✓ Message system created\n");
+    
+    // Work pool not needed - using hierarchical thread pool directly
+    ctx->work_pool = NULL;
+    printf("  ✓ Using hierarchical thread pool for work distribution\n");
+    
+    // Allocate accumulated gradients buffer
+    ctx->accumulated_gradients = calloc(ctx->gradient_size, sizeof(double));
+    if (!ctx->accumulated_gradients) {
+        fprintf(stderr, "ERROR: Failed to allocate gradient buffer\n");
+        message_system_destroy(ctx->message_system);
+        shared_memory_enhanced_free(ctx->gradient_memory);
+        hierarchical_thread_pool_free(ctx->thread_pool);
+        free(ctx);
+        return NULL;
+    }
+    
+    // Create thread-local contexts
+    ctx->num_thread_contexts = ctx->num_threads;
+    ctx->thread_contexts = calloc(ctx->num_thread_contexts, sizeof(ThreadLocalTrainingContext*));
+    if (!ctx->thread_contexts) {
+        fprintf(stderr, "ERROR: Failed to allocate thread contexts array\n");
+        free(ctx->accumulated_gradients);
+        message_system_destroy(ctx->message_system);
+        shared_memory_enhanced_free(ctx->gradient_memory);
+        hierarchical_thread_pool_free(ctx->thread_pool);
+        free(ctx);
+        return NULL;
+    }
+    
+    // Create thread-local contexts for each thread
+    printf("  Creating thread-local contexts...\n");
+    for (uint32_t i = 0; i < ctx->num_thread_contexts; i++) {
+        ctx->thread_contexts[i] = thread_local_training_create_88d(
+            training->config.batch_size,
+            model->max_seq_len,
+            model->num_layers,
+            model->embedding_dim,
+            model->vocab_size,
+            model->hidden_dim,
+            model->num_heads
+        );
+        
+        if (!ctx->thread_contexts[i]) {
+            fprintf(stderr, "ERROR: Failed to create thread-local context %u\n", i);
+            // Free previously created contexts
+            for (uint32_t j = 0; j < i; j++) {
+                thread_local_training_free_88d(ctx->thread_contexts[j]);
+            }
+            free(ctx->thread_contexts);
+            free(ctx->accumulated_gradients);
+            message_system_destroy(ctx->message_system);
+            shared_memory_enhanced_free(ctx->gradient_memory);
+            hierarchical_thread_pool_free(ctx->thread_pool);
+            free(ctx);
+            return NULL;
+        }
+    }
+    printf("  ✓ Created %u thread-local contexts\n", ctx->num_thread_contexts);
+    
+    // Initialize configuration
+    ctx->batch_size = training->config.batch_size;
+    ctx->use_ntt_attention = model->ntt.enabled;
+    ctx->use_work_stealing = true;
+    
+    // Initialize state
+    ctx->training_active = false;
+    ctx->epoch_complete = false;
+    ctx->epoch_loss = 0.0;
+    ctx->batches_processed = 0;
+    ctx->total_batches = 0;
+    ctx->total_sequences_processed = 0;
+    ctx->total_training_time = 0.0;
+    
+    printf("=== 88D Training System Ready ===\n\n");
+    
+    return ctx;
+}
+
+void cllm_training_system_free(CLLMTrainingSystem* ctx) {
+    if (!ctx) return;
+    
+    printf("\n=== Freeing 88D Training System ===\n");
+    
+    // Free thread-local contexts
+    if (ctx->thread_contexts) {
+        for (uint32_t i = 0; i < ctx->num_thread_contexts; i++) {
+            if (ctx->thread_contexts[i]) {
+                thread_local_training_free_88d(ctx->thread_contexts[i]);
+            }
+        }
+        free(ctx->thread_contexts);
+    }
+    
+    // Free accumulated gradients
+    if (ctx->accumulated_gradients) {
+        free(ctx->accumulated_gradients);
+    }
+    
+    // Free 88D infrastructure
+    // work_pool is NULL, no need to free
+    
+    if (ctx->message_system) {
+        message_system_destroy(ctx->message_system);
+    }
+    
+    if (ctx->gradient_memory) {
+        shared_memory_enhanced_free(ctx->gradient_memory);
+    }
+    
+    if (ctx->thread_pool) {
+        hierarchical_thread_pool_free(ctx->thread_pool);
+    }
+    
+    free(ctx);
+    
+    printf("=== 88D Training System Freed ===\n\n");
+}
+
+// ============================================================================
+// BATCH PROCESSING
+// ============================================================================
+
+/**
+ * Process a single sequence within a batch
+ */
+double cllm_system_process_sequence(
+    CLLMTrainingSystem* ctx,
+    CLLMBatch* batch,
+    uint32_t seq_idx,
+    int thread_id
+) {
+    if (!ctx || !batch || thread_id < 0 || thread_id >= (int)ctx->num_thread_contexts) {
+        return 0.0;
+    }
+    
+    // Get thread-local context
+    ThreadLocalTrainingContext* thread_ctx = ctx->thread_contexts[thread_id];
+    if (!thread_ctx) {
+        fprintf(stderr, "ERROR: Thread-local context %d is NULL\n", thread_id);
+        return 0.0;
+    }
+    
+    uint32_t offset = seq_idx * batch->seq_len;
+    
+    // Check if sequence has valid tokens
+    int has_valid = 0;
+    for (uint32_t i = 0; i < batch->seq_len; i++) {
+        if (batch->attention_mask[offset + i] > 0.5) {
+            has_valid = 1;
+            break;
+        }
+    }
+    
+    if (!has_valid) return 0.0;
+    
+    // Forward pass using thread-local context
+    double seq_loss = cllm_forward_training_threaded(
+        ctx->training,
+        thread_ctx,
+        &batch->input_ids[offset]
+    );
+    
+    // Get gradient buffer from shared memory
+    // Access the data field directly from the base SharedMemoryRegion
+    double* gradient_buffer = (double*)ctx->gradient_memory->base.data + 
+                              (thread_id * ctx->gradient_size);
+    
+    // Backward pass using thread-local context
+    cllm_backward_training_threaded(
+        ctx->training,
+        thread_ctx,
+        &batch->target_ids[offset],
+        gradient_buffer
+    );
+    
+    return seq_loss;
+}
+
+/**
+ * Work wrapper for batch processing
+ * 
+ * This wrapper adapts our batch processing to the hierarchical work submission API.
+ * It extracts the BatchWorkItem from the data and processes it.
+ */
+void cllm_process_batch_work_wrapper(void* data) {
+    if (!data) return;
+    
+    BatchWorkItem* work = (BatchWorkItem*)data;
+    CLLMBatch* batch = work->batch;
+    CLLMTrainingSystem* ctx = work->training_ctx;
+    
+    if (!batch || !ctx) {
+        fprintf(stderr, "ERROR: NULL batch or context in work wrapper\n");
+        if (batch) cllm_batch_free(batch);
+        free(work);
+        return;
+    }
+    
+    // Process all sequences in batch
+    double batch_loss = 0.0;
+    int valid_sequences = 0;
+    
+    // Get thread ID from work item
+    int thread_id = work->thread_id;
+    
+    for (uint32_t seq = 0; seq < batch->batch_size; seq++) {
+        double seq_loss = cllm_system_process_sequence(ctx, batch, seq, thread_id);
+        if (seq_loss > 0.0) {
+            batch_loss += seq_loss;
+            valid_sequences++;
+        }
+    }
+    
+    // Calculate average loss for this batch
+    work->loss = (valid_sequences > 0) ? batch_loss / valid_sequences : 0.0;
+    work->valid_sequences = valid_sequences;
+    
+    // Accumulate to epoch loss (needs atomic operation)
+    // For now, we'll skip this and handle it in synchronization
+    
+    // Clean up
+    cllm_batch_free(batch);
+    free(work);
+}
+
+/**
+ * Process a single batch (called by worker threads via 88D system)
+ * 
+ * This is the legacy interface that will be phased out in favor of the work wrapper.
+ */
+void cllm_process_batch_88d(WorkItem* item, void* user_data) {
+    if (!item || !user_data) return;
+    
+    CLLMTrainingSystem* ctx = (CLLMTrainingSystem*)user_data;
+    BatchWorkItem* work = (BatchWorkItem*)item->data;
+    CLLMBatch* batch = work->batch;
+    
+    // For now, use thread 0 (TODO: implement proper thread ID tracking)
+    int thread_id = 0;
+    
+    // Zero gradient buffer for this thread
+    // Access the data field directly from the base SharedMemoryRegion
+    double* gradient_buffer = (double*)ctx->gradient_memory->base.data + 
+                              (thread_id * ctx->gradient_size);
+    memset(gradient_buffer, 0, ctx->gradient_size * sizeof(double));
+    
+    // Process all sequences in batch
+    double batch_loss = 0.0;
+    int valid_sequences = 0;
+    
+    for (uint32_t seq = 0; seq < batch->batch_size; seq++) {
+        double seq_loss = cllm_system_process_sequence(ctx, batch, seq, thread_id);
+        if (seq_loss > 0.0) {
+            batch_loss += seq_loss;
+            valid_sequences++;
+        }
+    }
+    
+    // Calculate average loss for this batch
+    work->loss = (valid_sequences > 0) ? batch_loss / valid_sequences : 0.0;
+    work->valid_sequences = valid_sequences;
+    
+    // Write gradients to shared memory boundary
+    // Gradients are already written to shared memory buffer
+    // No need for explicit boundary write with direct access
+    
+    // TODO: Implement proper message passing for completion notification
+    // For now, we'll rely on synchronization barriers
+    (void)thread_id;  // Suppress unused variable warning
+    (void)batch_loss;  // Suppress unused variable warning
+}
+
+// ============================================================================
+// GRADIENT SYNCHRONIZATION
+// ============================================================================
+
+void cllm_system_zero_gradients(CLLMTrainingSystem* ctx) {
+    if (!ctx || !ctx->accumulated_gradients) return;
+    
+    memset(ctx->accumulated_gradients, 0, ctx->gradient_size * sizeof(double));
+    
+    // Also zero all thread-local gradient buffers
+    for (uint32_t i = 0; i < ctx->num_threads; i++) {
+        double* gradient_buffer = (double*)ctx->gradient_memory->base.data + 
+                                  (i * ctx->gradient_size);
+        memset(gradient_buffer, 0, ctx->gradient_size * sizeof(double));
+    }
+}
+
+void cllm_system_sync_gradients(CLLMTrainingSystem* ctx) {
+    if (!ctx || !ctx->accumulated_gradients) return;
+    
+    // Zero accumulated gradients
+    memset(ctx->accumulated_gradients, 0, ctx->gradient_size * sizeof(double));
+    
+    // Read and accumulate gradients from all thread boundaries
+    for (uint32_t i = 0; i < ctx->num_threads; i++) {
+        double* thread_gradients = (double*)ctx->gradient_memory->base.data + 
+                                   (i * ctx->gradient_size);
+        
+        // Accumulate gradients
+        for (size_t j = 0; j < ctx->gradient_size; j++) {
+            ctx->accumulated_gradients[j] += thread_gradients[j];
+        }
+    }
+    
+    // Average gradients by number of threads
+    double scale = 1.0 / (double)ctx->num_threads;
+    for (size_t i = 0; i < ctx->gradient_size; i++) {
+        ctx->accumulated_gradients[i] *= scale;
+    }
+}
+
+// ============================================================================
+// TRAINING
+// ============================================================================
+
+double cllm_system_train_epoch(CLLMTrainingSystem* ctx, int epoch_num) {
+    if (!ctx) return 0.0;
+    
+    printf("\n=== Training Epoch %d (88D System) ===\n", epoch_num + 1);
+    
+    // Reset epoch state
+    ctx->epoch_loss = 0.0;
+    ctx->batches_processed = 0;
+    ctx->total_sequences_processed = 0;
+    ctx->epoch_complete = false;
+    ctx->training_active = true;
+    
+    // Get total batches
+    ctx->total_batches = cllm_batch_iterator_num_batches(ctx->batch_iterator);
+    printf("  Total batches: %lu\n", ctx->total_batches);
+    printf("  Threads: %u\n", ctx->num_threads);
+    printf("  Hierarchy levels: %u\n", ctx->num_levels);
+    
+    // Reset batch iterator
+    cllm_batch_iterator_reset(ctx->batch_iterator);
+    
+    // Zero gradients
+    cllm_system_zero_gradients(ctx);
+    
+    // Start timing
+    ctx->epoch_start_time = get_time_seconds();
+    
+    // Process all batches using hierarchical work submission
+    uint64_t work_id = 0;
+    uint32_t next_thread = 0;  // Round-robin thread selection
+    CLLMBatch* batch;
+    
+    printf("  Submitting batches to thread pool...\n");
+    
+    while ((batch = cllm_batch_iterator_next(ctx->batch_iterator)) != NULL) {
+        if (!batch) break;
+        
+        // Create work item
+        BatchWorkItem* work = calloc(1, sizeof(BatchWorkItem));
+        if (!work) {
+            fprintf(stderr, "ERROR: Failed to allocate work item\n");
+            cllm_batch_free(batch);
+            continue;
+        }
+        
+        work->batch = batch;
+        work->batch_id = work_id++;
+        work->loss = 0.0;
+        work->valid_sequences = 0;
+        work->training_ctx = ctx;  // Store context reference
+        work->thread_id = next_thread;  // Store thread ID
+        
+        // Get a thread from the pool (round-robin distribution)
+        HierarchicalThread* thread = hierarchical_thread_pool_get_thread(
+            ctx->thread_pool, 
+            next_thread
+        );
+        
+        if (!thread) {
+            fprintf(stderr, "ERROR: Failed to get thread %u\n", next_thread);
+            free(work);
+            cllm_batch_free(batch);
+            continue;
+        }
+        
+        // Submit work to the thread
+        // Note: The work function expects a WorkItem*, so we need a wrapper
+        uint64_t submitted_id = hierarchical_thread_submit_work(
+            thread,
+            (void (*)(void*))cllm_process_batch_work_wrapper,
+            work,
+            sizeof(BatchWorkItem),
+            WORK_PRIORITY_NORMAL
+        );
+        
+        if (submitted_id == 0) {
+            fprintf(stderr, "ERROR: Failed to submit work to thread %u\n", next_thread);
+            free(work);
+            cllm_batch_free(batch);
+            continue;
+        }
+        
+        // Move to next thread (round-robin)
+        next_thread = (next_thread + 1) % ctx->num_threads;
+        
+        ctx->batches_processed++;
+        
+        // Print progress every 10 batches
+        if (ctx->batches_processed % 10 == 0) {
+            printf("  Submitted: %lu/%lu batches (%.1f%%)\r",
+                   ctx->batches_processed, ctx->total_batches,
+                   100.0 * ctx->batches_processed / ctx->total_batches);
+            fflush(stdout);
+        }
+    }
+    
+    printf("\n  All batches submitted, waiting for completion...\n");
+    
+    // Wait for all work to complete
+    hierarchical_thread_pool_wait(ctx->thread_pool);
+    
+    printf("  All work completed, synchronizing gradients...\n");
+    
+    // Synchronize gradients from shared memory
+    cllm_system_sync_gradients(ctx);
+    
+    printf("  Gradients synchronized, applying optimizer step...\n");
+    
+    // Apply optimizer step
+    cllm_optimizer_step(ctx->training);
+    
+    // End timing
+    ctx->epoch_end_time = get_time_seconds();
+    double epoch_time = ctx->epoch_end_time - ctx->epoch_start_time;
+    ctx->total_training_time += epoch_time;
+    
+    // Calculate average loss
+    double avg_loss = ctx->epoch_loss / ctx->batches_processed;
+    
+    // Mark epoch complete
+    ctx->epoch_complete = true;
+    ctx->training_active = false;
+    
+    printf("\n=== Epoch %d Complete ===\n", epoch_num + 1);
+    printf("  Loss: %.6f\n", avg_loss);
+    printf("  Batches: %lu\n", ctx->batches_processed);
+    printf("  Sequences: %lu\n", ctx->total_sequences_processed);
+    printf("  Time: %.2f seconds\n", epoch_time);
+    printf("  Throughput: %.2f batches/sec\n", ctx->batches_processed / epoch_time);
+    printf("========================\n\n");
+    
+    return avg_loss;
+}
+
+double cllm_train_88d(CLLMTrainingSystem* ctx, int num_epochs) {
+    if (!ctx) return 0.0;
+    
+    printf("\n=== Starting 88D Training ===\n");
+    printf("  Epochs: %d\n", num_epochs);
+    printf("  Threads: %u\n", ctx->num_threads);
+    printf("  Batch size: %u\n", ctx->batch_size);
+    printf("=============================\n");
+    
+    double final_loss = 0.0;
+    
+    for (int epoch = 0; epoch < num_epochs; epoch++) {
+        final_loss = cllm_system_train_epoch(ctx, epoch);
+        
+        // Print statistics
+        cllm_system_print_training_stats(ctx);
+    }
+    
+    printf("\n=== Training Complete ===\n");
+    printf("  Total time: %.2f seconds\n", ctx->total_training_time);
+    printf("  Final loss: %.6f\n", final_loss);
+    printf("=========================\n\n");
+    
+    return final_loss;
+}
+
+// ============================================================================
+// STATISTICS & MONITORING
+// ============================================================================
+
+void cllm_system_print_training_stats(const CLLMTrainingSystem* ctx) {
+    if (!ctx) return;
+    
+    printf("\n=== 88D Training Statistics ===\n");
+    printf("  Batches processed: %lu\n", ctx->batches_processed);
+    printf("  Sequences processed: %lu\n", ctx->total_sequences_processed);
+    printf("  Average loss: %.6f\n", ctx->epoch_loss / ctx->batches_processed);
+    printf("  Total training time: %.2f seconds\n", ctx->total_training_time);
+    printf("===============================\n\n");
+}
+
+void cllm_get_thread_pool_stats_88d(
+    const CLLMTrainingSystem* ctx,
+    HierarchicalThreadPoolStats* stats
+) {
+    if (!ctx || !stats || !ctx->thread_pool) return;
+    
+    hierarchical_thread_pool_get_stats(ctx->thread_pool, stats);
+}
+
+void cllm_system_print_thread_stats(const CLLMTrainingSystem* ctx) {
+    if (!ctx || !ctx->thread_pool) return;
+    
+    hierarchical_thread_pool_print_stats(ctx->thread_pool);
+}
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+void cllm_system_set_work_stealing(CLLMTrainingSystem* ctx, bool enable) {
+    if (!ctx) return;
+    ctx->use_work_stealing = enable;
+}
+
+void cllm_system_set_ntt_attention(CLLMTrainingSystem* ctx, bool enable) {
+    if (!ctx) return;
+    ctx->use_ntt_attention = enable;
+}
+
+void cllm_system_set_batch_size(CLLMTrainingSystem* ctx, uint32_t batch_size) {
+    if (!ctx) return;
+    ctx->batch_size = batch_size;
+}

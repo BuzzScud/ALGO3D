@@ -1,0 +1,15 @@
+=== FILE: math/src/platonic/platonic_clock.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+uint64_t platonic_vertex_to_prime(uint64_t vertex_idx) {
+uint64_t platonic_prime_to_vertex(uint64_t prime) {
+MathError platonic_prime_to_clock_position(uint64_t prime, ClockPosition* pos) {
+MathError platonic_vertex_to_clock_position(uint64_t vertex_idx, ClockPosition* pos) {
+MathError platonic_clock_to_coordinates(const ClockPosition* pos,
+MathError platonic_vertex_to_coordinates(uint64_t vertex_idx,
+bool platonic_validate_coordinates(CrystallineAbacus** coords, uint32_t dimension) {
+MathError platonic_apply_12fold_rotation(CrystallineAbacus** coords,
+bool platonic_has_12fold_symmetry(CrystallineAbacus** coords, uint32_t dimension) {
+
+--- KEY ALGORITHMS ---
+

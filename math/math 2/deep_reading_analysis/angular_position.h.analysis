@@ -1,0 +1,39 @@
+=== FILE: math/include/math/angular_position.h ===
+
+--- FUNCTIONS ---
+void angular_position_calculate(uint64_t prime,
+double angular_position_spiral_term(uint64_t prime_index);
+double angular_position_index_term(int dimension);
+double angular_position_phonetic_term(double phonetic_wavelength);
+double angular_position_omega_correction(uint64_t prime);
+double angular_position_psi_correction(uint64_t prime);
+double angular_position_normalize(double theta);
+void angular_position_to_clock(double theta, int* hour, double* minute);
+int angular_position_symmetry_group(uint64_t prime);
+int angular_position_is_near_boundary(uint64_t prime, double* distance);
+int angular_position_is_twin_prime(uint64_t prime);
+double wavelength_to_frequency(double wavelength);
+double frequency_to_wavelength(double frequency);
+double get_phonetic_wavelength(char character);
+double get_phonetic_frequency(char character);
+bool is_coprime(uint64_t p, uint64_t q);
+bool verify_plimpton_constraints(uint64_t p, uint64_t q);
+PlimptonRatios calculate_plimpton_ratios(uint64_t p, uint64_t q);
+int find_nearest_plimpton_triple(uint64_t prime, PythagoreanTriple* triple);
+double calculate_plimpton_correction_factor(uint64_t prime, 
+bool find_optimal_generators(uint64_t prime, uint64_t* p, uint64_t* q);
+double cllm_get_einstein_lambda(void);
+
+--- TYPES ---
+typedef struct {
+typedef struct {
+typedef struct {
+
+--- CONSTANTS ---
+#define MATH_ANGULAR_POSITION_H
+#define SPEED_OF_SOUND 343.0
+#define VECTOR_CULMINATION 144000
+#define TWIN_PRIME_LOWER 143999
+#define TWIN_PRIME_UPPER 144001
+#define LN_3 1.0986122886681096
+

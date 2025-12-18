@@ -7,9 +7,10 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
 header('Access-Control-Allow-Headers: Content-Type');
 
+session_start();
+
 require_once '../includes/config.php';
 require_once '../includes/database.php';
-require_once 'track_api_usage.php';
 
 $database = new Database();
 $conn = $database->getConnection();
@@ -109,42 +110,110 @@ function getQuote() {
         return;
     }
 
+    // Get selected API source from session, default to config default
+    $selectedSource = $_SESSION['api_source'] ?? DEFAULT_API_SOURCE;
+    $validSources = ['finnhub', 'yahoo'];
+    if (!in_array($selectedSource, $validSources)) {
+        $selectedSource = DEFAULT_API_SOURCE;
+    }
+
     // Check cache (1 minute cache for quotes - more frequent updates)
     $cacheFile = $cacheDir . '/quote_' . $symbol . '.json';
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 60) {
-        echo file_get_contents($cacheFile);
-        return;
+        $cachedData = json_decode(file_get_contents($cacheFile), true);
+        // Use cache if source matches or if cache doesn't have source set
+        if ($cachedData && (!isset($cachedData['source']) || $cachedData['source'] === $selectedSource)) {
+            echo file_get_contents($cacheFile);
+            return;
+        }
     }
 
-    // Try Finnhub first
-    $data = fetchFinnhubQuote($symbol);
-    
-    if ($data && isset($data['c']) && $data['c'] > 0) {
-        $result = [
-            'success' => true,
-            'symbol' => $symbol,
-            'current' => $data['c'],
-            'high' => $data['h'],
-            'low' => $data['l'],
-            'open' => $data['o'],
-            'previousClose' => $data['pc'],
-            'change' => $data['d'] ?? ($data['c'] - $data['pc']),
-            'changePercent' => $data['dp'] ?? (($data['c'] - $data['pc']) / $data['pc'] * 100),
-            'timestamp' => $data['t'] ?? time(),
-            'source' => 'finnhub'
-        ];
-        file_put_contents($cacheFile, json_encode($result));
-        echo json_encode($result);
-        return;
-    }
-    
-    // Try Yahoo Finance as backup
-    $yahooData = fetchYahooQuote($symbol);
-    if ($yahooData && $yahooData['success']) {
-        $yahooData['source'] = 'yahoo';
-        file_put_contents($cacheFile, json_encode($yahooData));
-        echo json_encode($yahooData);
-        return;
+    // Try selected API source first
+    if ($selectedSource === 'yahoo') {
+        // Try Yahoo Finance first
+        $yahooData = fetchYahooQuote($symbol);
+        if ($yahooData && isset($yahooData['current']) && $yahooData['current'] > 0) {
+            $result = [
+                'success' => true,
+                'symbol' => $symbol,
+                'current' => $yahooData['current'],
+                'high' => $yahooData['high'] ?? $yahooData['current'],
+                'low' => $yahooData['low'] ?? $yahooData['current'],
+                'open' => $yahooData['open'] ?? $yahooData['current'],
+                'previousClose' => $yahooData['previousClose'] ?? $yahooData['current'],
+                'change' => $yahooData['change'] ?? 0,
+                'changePercent' => $yahooData['changePercent'] ?? 0,
+                'timestamp' => time(),
+                'source' => 'yahoo'
+            ];
+            file_put_contents($cacheFile, json_encode($result));
+            echo json_encode($result);
+            return;
+        }
+        
+        // Fallback to Finnhub if Yahoo fails
+        $data = fetchFinnhubQuote($symbol);
+        if ($data && isset($data['c']) && $data['c'] > 0) {
+            $result = [
+                'success' => true,
+                'symbol' => $symbol,
+                'current' => $data['c'],
+                'high' => $data['h'],
+                'low' => $data['l'],
+                'open' => $data['o'],
+                'previousClose' => $data['pc'],
+                'change' => $data['d'] ?? ($data['c'] - $data['pc']),
+                'changePercent' => $data['dp'] ?? (($data['c'] - $data['pc']) / $data['pc'] * 100),
+                'timestamp' => $data['t'] ?? time(),
+                'source' => 'finnhub'
+            ];
+            file_put_contents($cacheFile, json_encode($result));
+            echo json_encode($result);
+            return;
+        }
+    } else {
+        // Try Finnhub first (default)
+        $data = fetchFinnhubQuote($symbol);
+        
+        if ($data && isset($data['c']) && $data['c'] > 0) {
+            $result = [
+                'success' => true,
+                'symbol' => $symbol,
+                'current' => $data['c'],
+                'high' => $data['h'],
+                'low' => $data['l'],
+                'open' => $data['o'],
+                'previousClose' => $data['pc'],
+                'change' => $data['d'] ?? ($data['c'] - $data['pc']),
+                'changePercent' => $data['dp'] ?? (($data['c'] - $data['pc']) / $data['pc'] * 100),
+                'timestamp' => $data['t'] ?? time(),
+                'source' => 'finnhub'
+            ];
+            file_put_contents($cacheFile, json_encode($result));
+            echo json_encode($result);
+            return;
+        }
+        
+        // Fallback to Yahoo Finance if Finnhub fails
+        $yahooData = fetchYahooQuote($symbol);
+        if ($yahooData && isset($yahooData['current']) && $yahooData['current'] > 0) {
+            $result = [
+                'success' => true,
+                'symbol' => $symbol,
+                'current' => $yahooData['current'],
+                'high' => $yahooData['high'] ?? $yahooData['current'],
+                'low' => $yahooData['low'] ?? $yahooData['current'],
+                'open' => $yahooData['open'] ?? $yahooData['current'],
+                'previousClose' => $yahooData['previousClose'] ?? $yahooData['current'],
+                'change' => $yahooData['change'] ?? 0,
+                'changePercent' => $yahooData['changePercent'] ?? 0,
+                'timestamp' => time(),
+                'source' => 'yahoo'
+            ];
+            file_put_contents($cacheFile, json_encode($result));
+            echo json_encode($result);
+            return;
+        }
     }
     
     // Return error - no demo data
@@ -165,6 +234,13 @@ function getChartData() {
         return;
     }
 
+    // Get selected API source from session, default to config default
+    $selectedSource = $_SESSION['api_source'] ?? DEFAULT_API_SOURCE;
+    $validSources = ['finnhub', 'yahoo'];
+    if (!in_array($selectedSource, $validSources)) {
+        $selectedSource = DEFAULT_API_SOURCE;
+    }
+
     // Determine resolution and date range based on timeframe
     $params = getTimeframeParams($timeframe);
     
@@ -180,31 +256,58 @@ function getChartData() {
     if (!$forceRefresh && file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTime) {
         $cachedData = file_get_contents($cacheFile);
         $decoded = json_decode($cachedData, true);
-        // Only use cache if it's real data (not demo)
+        // Only use cache if it's real data (not demo) and matches selected source
         if ($decoded && !isset($decoded['demo']) && isset($decoded['success']) && $decoded['success'] === true) {
-            echo $cachedData;
-            return;
+            // If cache has a source and it matches selected, use it
+            // If cache doesn't have source, use it (backward compatibility)
+            if (!isset($decoded['source']) || $decoded['source'] === $selectedSource) {
+                echo $cachedData;
+                return;
+            }
+            // If cache source doesn't match selected source, bypass cache
         }
     }
 
-    // Try Finnhub first
-    $data = fetchFinnhubCandles($symbol, $params['resolution'], $params['from'], $params['to']);
-    
-    if ($data && isset($data['c']) && is_array($data['c']) && count($data['c']) > 0) {
-        $chartData = formatCandleData($data, $symbol, $timeframe);
-        $chartData['source'] = 'finnhub';
-        file_put_contents($cacheFile, json_encode($chartData));
-        echo json_encode($chartData);
-        return;
-    }
-    
-    // Try Yahoo Finance as backup
-    $yahooData = fetchYahooChartData($symbol, $timeframe);
-    if ($yahooData && isset($yahooData['candles']) && count($yahooData['candles']) > 0) {
-        $yahooData['source'] = 'yahoo';
-        file_put_contents($cacheFile, json_encode($yahooData));
-        echo json_encode($yahooData);
-        return;
+    // Try selected API source first
+    if ($selectedSource === 'yahoo') {
+        // Try Yahoo Finance first
+        $yahooData = fetchYahooChartData($symbol, $timeframe);
+        if ($yahooData && isset($yahooData['candles']) && count($yahooData['candles']) > 0) {
+            $yahooData['source'] = 'yahoo';
+            file_put_contents($cacheFile, json_encode($yahooData));
+            echo json_encode($yahooData);
+            return;
+        }
+        
+        // Fallback to Finnhub if Yahoo fails
+        $data = fetchFinnhubCandles($symbol, $params['resolution'], $params['from'], $params['to']);
+        if ($data && isset($data['c']) && is_array($data['c']) && count($data['c']) > 0) {
+            $chartData = formatCandleData($data, $symbol, $timeframe);
+            $chartData['source'] = 'finnhub';
+            file_put_contents($cacheFile, json_encode($chartData));
+            echo json_encode($chartData);
+            return;
+        }
+    } else {
+        // Try Finnhub first (default)
+        $data = fetchFinnhubCandles($symbol, $params['resolution'], $params['from'], $params['to']);
+        
+        if ($data && isset($data['c']) && is_array($data['c']) && count($data['c']) > 0) {
+            $chartData = formatCandleData($data, $symbol, $timeframe);
+            $chartData['source'] = 'finnhub';
+            file_put_contents($cacheFile, json_encode($chartData));
+            echo json_encode($chartData);
+            return;
+        }
+        
+        // Fallback to Yahoo Finance if Finnhub fails
+        $yahooData = fetchYahooChartData($symbol, $timeframe);
+        if ($yahooData && isset($yahooData['candles']) && count($yahooData['candles']) > 0) {
+            $yahooData['source'] = 'yahoo';
+            file_put_contents($cacheFile, json_encode($yahooData));
+            echo json_encode($yahooData);
+            return;
+        }
     }
     
     // Return error - NO demo data
@@ -254,10 +357,18 @@ function getTimeframeParams($timeframe) {
 }
 
 function fetchFinnhubQuote($symbol) {
-    $startTime = microtime(true);
+    require_once __DIR__ . '/track_api_usage.php';
+    
+    // Check rate limit
+    if (!checkRateLimit('finnhub', FINNHUB_RATE_LIMIT)) {
+        error_log("Finnhub rate limit exceeded");
+        return null;
+    }
+    
     $apiKey = FINNHUB_API_KEY;
     $url = "https://finnhub.io/api/v1/quote?symbol={$symbol}&token={$apiKey}";
     
+    $startTime = microtime(true);
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -267,21 +378,14 @@ function fetchFinnhubQuote($symbol) {
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
-    $endTime = microtime(true);
-    $responseTime = round(($endTime - $startTime) * 1000);
+    $responseTime = (microtime(true) - $startTime) * 1000; // Convert to milliseconds
     curl_close($ch);
     
     $success = ($httpCode === 200 && !$error);
     
-    // Track API usage (non-blocking)
-    try {
-        trackApiUsage('finnhub', 'Finnhub', $success, $responseTime, $success ? null : "HTTP $httpCode: $error");
-    } catch (Exception $e) {
-        error_log("Failed to track API usage: " . $e->getMessage());
-    }
-    
     if (!$success) {
         error_log("Finnhub quote error: HTTP $httpCode, Error: $error");
+        trackAPICall('finnhub', false, $responseTime, "HTTP $httpCode: $error");
         return null;
     }
     
@@ -289,22 +393,29 @@ function fetchFinnhubQuote($symbol) {
     
     // Check if we got valid data (Finnhub returns all zeros for invalid symbols)
     if (!$data || (isset($data['c']) && $data['c'] == 0)) {
-        try {
-            trackApiUsage('finnhub', 'Finnhub', false, $responseTime, 'Invalid or empty data');
-        } catch (Exception $e) {
-            error_log("Failed to track API usage: " . $e->getMessage());
-        }
+        trackAPICall('finnhub', false, $responseTime, 'Invalid data returned');
         return null;
     }
+    
+    // Track successful call
+    trackAPICall('finnhub', true, $responseTime);
     
     return $data;
 }
 
 function fetchFinnhubCandles($symbol, $resolution, $from, $to) {
-    $startTime = microtime(true);
+    require_once __DIR__ . '/track_api_usage.php';
+    
+    // Check rate limit
+    if (!checkRateLimit('finnhub', FINNHUB_RATE_LIMIT)) {
+        error_log("Finnhub rate limit exceeded");
+        return null;
+    }
+    
     $apiKey = FINNHUB_API_KEY;
     $url = "https://finnhub.io/api/v1/stock/candle?symbol={$symbol}&resolution={$resolution}&from={$from}&to={$to}&token={$apiKey}";
     
+    $startTime = microtime(true);
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -314,21 +425,14 @@ function fetchFinnhubCandles($symbol, $resolution, $from, $to) {
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
-    $endTime = microtime(true);
-    $responseTime = round(($endTime - $startTime) * 1000);
+    $responseTime = (microtime(true) - $startTime) * 1000; // Convert to milliseconds
     curl_close($ch);
     
     $success = ($httpCode === 200 && !$error);
     
-    // Track API usage (non-blocking)
-    try {
-        trackApiUsage('finnhub', 'Finnhub', $success, $responseTime, $success ? null : "HTTP $httpCode: $error");
-    } catch (Exception $e) {
-        error_log("Failed to track API usage: " . $e->getMessage());
-    }
-    
     if (!$success) {
         error_log("Finnhub candles error: HTTP $httpCode, Error: $error, URL: $url");
+        trackAPICall('finnhub', false, $responseTime, "HTTP $httpCode: $error");
         return null;
     }
     
@@ -336,22 +440,29 @@ function fetchFinnhubCandles($symbol, $resolution, $from, $to) {
     
     // Check for valid response (Finnhub returns 's' => 'no_data' when no data available)
     if (!$data || (isset($data['s']) && $data['s'] === 'no_data')) {
-        try {
-            trackApiUsage('finnhub', 'Finnhub', false, $responseTime, 'No data available');
-        } catch (Exception $e) {
-            error_log("Failed to track API usage: " . $e->getMessage());
-        }
         error_log("Finnhub candles: No data available for $symbol");
+        trackAPICall('finnhub', false, $responseTime, 'No data available');
         return null;
     }
+    
+    // Track successful call
+    trackAPICall('finnhub', true, $responseTime);
     
     return $data;
 }
 
 function fetchYahooQuote($symbol) {
-    $startTime = microtime(true);
+    require_once __DIR__ . '/track_api_usage.php';
+    
+    // Check rate limit
+    if (!checkRateLimit('yahoo', 100)) {
+        error_log("Yahoo Finance rate limit exceeded");
+        return null;
+    }
+    
     $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?interval=1d&range=1d";
     
+    $startTime = microtime(true);
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -361,22 +472,24 @@ function fetchYahooQuote($symbol) {
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
-    $endTime = microtime(true);
-    $responseTime = round(($endTime - $startTime) * 1000);
+    $responseTime = (microtime(true) - $startTime) * 1000; // Convert to milliseconds
     curl_close($ch);
     
-    $data = json_decode($response, true);
-    $success = ($httpCode === 200 && isset($data['chart']['result'][0]['meta']));
+    $success = ($httpCode === 200 && !$error);
     
-    // Track API usage (non-blocking)
-    try {
-        trackApiUsage('yahoo', 'Yahoo Finance', $success, $responseTime, $success ? null : "HTTP $httpCode: $error");
-    } catch (Exception $e) {
-        error_log("Failed to track API usage: " . $e->getMessage());
+    if (!$success) {
+        trackAPICall('yahoo', false, $responseTime, "HTTP $httpCode: $error");
+        return null;
     }
     
-    if ($success) {
+    $data = json_decode($response, true);
+    
+    if (isset($data['chart']['result'][0]['meta'])) {
         $meta = $data['chart']['result'][0]['meta'];
+        
+        // Track successful call
+        trackAPICall('yahoo', true, $responseTime);
+        
         return [
             'success' => true,
             'symbol' => $symbol,
@@ -391,11 +504,11 @@ function fetchYahooQuote($symbol) {
         ];
     }
     
+    trackAPICall('yahoo', false, $responseTime, 'Invalid data returned');
     return null;
 }
 
 function fetchYahooChartData($symbol, $timeframe) {
-    $startTime = microtime(true);
     // Map timeframe to Yahoo Finance parameters
     $yahooParams = getYahooTimeframeParams($timeframe);
     
@@ -410,21 +523,9 @@ function fetchYahooChartData($symbol, $timeframe) {
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $error = curl_error($ch);
-    $endTime = microtime(true);
-    $responseTime = round(($endTime - $startTime) * 1000);
     curl_close($ch);
     
-    $success = ($httpCode === 200 && !empty($response));
-    
-    // Track API usage (non-blocking)
-    try {
-        trackApiUsage('yahoo', 'Yahoo Finance', $success, $responseTime, $success ? null : "HTTP $httpCode: $error");
-    } catch (Exception $e) {
-        error_log("Failed to track API usage: " . $e->getMessage());
-    }
-    
-    if (!$success) {
+    if ($httpCode !== 200 || empty($response)) {
         return null;
     }
     

@@ -1,0 +1,32 @@
+=== FILE: math/include/math/clock.h ===
+
+--- FUNCTIONS ---
+MathError clock_init(ClockContext* ctx);
+void clock_free(ClockContext* ctx);
+void clock_cleanup(ClockContext* ctx);
+MathError clock_map_prime_to_position(uint64_t prime, ClockPosition* pos);
+uint64_t clock_position_to_prime(const ClockPosition* pos);
+uint64_t clock_position_to_prime_exact(uint32_t ring, uint32_t position, uint64_t magnitude);
+MathError clock_map_index_to_position(uint64_t prime_index, ClockPosition* pos);
+uint64_t clock_position_to_index(const ClockPosition* pos);
+bool clock_is_valid_position(const ClockPosition* pos);
+MathError clock_next_position(const ClockPosition* current, ClockPosition* next);
+MathError clock_prev_position(const ClockPosition* current, ClockPosition* prev);
+MathError clock_get_modular(uint64_t prime, PrimeModular* pm);
+bool clock_satisfies_modular(uint64_t n);
+MathError clock_fold_to_sphere(const ClockPosition* pos, SphereCoord* sphere);
+MathError clock_unfold_from_sphere(const SphereCoord* sphere, ClockPosition* pos);
+double clock_angular_distance(const ClockPosition* pos1, const ClockPosition* pos2);
+double clock_sphere_distance(const ClockPosition* pos1, const ClockPosition* pos2);
+MathError clock_populate_cache(ClockContext* ctx, uint64_t max_index);
+uint64_t clock_get_cached_prime(const ClockContext* ctx, uint64_t index);
+void clock_clear_cache(ClockContext* ctx);
+uint64_t clock_generate_prime_o1(uint32_t ring, uint32_t position, uint64_t magnitude,
+bool clock_is_prime_o1(uint64_t base, uint64_t magnitude, const ClockContext* ctx);
+MathError clock_reverse_lookup(uint64_t number, uint32_t* ring, 
+
+--- TYPES ---
+
+--- CONSTANTS ---
+#define MATH_CLOCK_H
+

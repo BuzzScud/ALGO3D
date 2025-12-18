@@ -96,7 +96,7 @@ try {
             $input = json_decode(file_get_contents('php://input'), true);
             $title = trim($input['title'] ?? 'Untitled Note');
             $content = $input['content'] ?? '';
-            $color = $input['color'] ?? '#cfe2ff';
+            $color = $input['color'] ?? '#2563eb';
             $pinned = isset($input['pinned']) ? intval($input['pinned']) : 0;
             $labels = isset($input['labels']) && is_array($input['labels']) ? json_encode($input['labels']) : null;
             
@@ -129,7 +129,7 @@ try {
             $id = intval($input['id'] ?? 0);
             $title = trim($input['title'] ?? 'Untitled Note');
             $content = $input['content'] ?? '';
-            $color = $input['color'] ?? '#cfe2ff';
+            $color = $input['color'] ?? '#2563eb';
             $pinned = isset($input['pinned']) ? intval($input['pinned']) : 0;
             $labels = isset($input['labels']) && is_array($input['labels']) ? json_encode($input['labels']) : null;
             

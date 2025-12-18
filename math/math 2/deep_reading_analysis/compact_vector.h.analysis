@@ -1,0 +1,55 @@
+=== FILE: math/include/math/compact_vector.h ===
+
+--- FUNCTIONS ---
+MathError compact_vector_create(
+MathError compact_vector_distance(
+MathError compact_vector_angle(
+int compact_vector_compare(
+MathError compact_number_create(
+void compact_number_free(CompactNumber* number);
+MathError compact_number_from_uint64(
+MathError compact_number_to_uint64(
+MathError compact_number_get_digit(
+MathError compact_number_to_string(
+MathError triangulate_addition(
+MathError triangulate_subtraction(
+MathError triangulate_multiplication(
+MathError get_precise_clock_position(
+MathError calculate_precise_angle_with_factors(
+MathError find_prime_phase_offset(
+size_t compact_number_memory_usage(const CompactNumber* number);
+double compact_number_reduction_ratio(
+uint32_t map_angle_to_vertex(double angle, const PlatonicSolid* solid);
+MathError map_number_to_solid(
+MathError create_trajectory_for_operation(
+void trajectory_free(GeometricTrajectory* trajectory);
+MathError create_multi_value_mapping(
+void multi_value_mapping_free(MultiValueMapping* mapping);
+MathError create_extended_vector(
+void create_children_recursive(
+void free_sphere_hierarchy(CompactSphere* root);
+double calculate_sphere_phase_difference(uint32_t sphere1, uint32_t sphere2);
+int32_t calculate_magnitude_scale(uint32_t sphere1, uint32_t sphere2);
+MathError sphere_hop(
+MathError navigate_hierarchy(
+double calculate_sphere_radius(uint64_t magnitude);
+uint32_t magnitude_to_level(uint64_t magnitude);
+double get_scale_factor(uint32_t level);
+size_t calculate_hierarchy_memory(const CompactSphere* root);
+uint32_t count_spheres(const CompactSphere* root);
+
+--- TYPES ---
+typedef enum {
+typedef struct {
+typedef struct {
+typedef struct {
+typedef struct {
+typedef struct {
+typedef struct GeometricTrajectory {
+typedef struct MultiValueMapping {
+typedef enum {
+typedef struct CompactSphere {
+
+--- CONSTANTS ---
+#define MATH_COMPACT_VECTOR_H
+

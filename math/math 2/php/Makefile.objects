@@ -1,0 +1,9 @@
+-include crystalline_math.dep
+crystalline_math.lo: /workspace/php/crystalline_math.c
+	$(LIBTOOL) --tag=CC --mode=compile $(CC) -I. -I/workspace/php $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS)   -DZEND_COMPILE_DL_EXT=1 -c /workspace/php/crystalline_math.c -o crystalline_math.lo  -MMD -MF crystalline_math.dep -MT crystalline_math.lo
+$(phplibdir)/crystalline_math.la: ./crystalline_math.la
+	$(LIBTOOL) --tag=CC --mode=install cp ./crystalline_math.la $(phplibdir)
+
+./crystalline_math.la: $(shared_objects_crystalline_math) $(CRYSTALLINE_MATH_SHARED_DEPENDENCIES)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) -shared $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) $(LDFLAGS)  -o $@ -export-dynamic -avoid-version -prefer-pic -module -rpath $(phplibdir) $(EXTRA_LDFLAGS) $(shared_objects_crystalline_math) $(CRYSTALLINE_MATH_SHARED_LIBADD)
+

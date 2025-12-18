@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crystalline Math Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #1f2937;
+            --light: #f3f4f6;
+            --border: #d1d5db;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1400px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px var(--shadow);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .calculator-section, .advanced-section {
+            background: var(--light);
+            border-radius: 15px;
+            padding: 25px;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: var(--dark);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--primary);
+        }
+
+        .display {
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 80px;
+            font-size: 2em;
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            color: var(--dark);
+            box-shadow: inset 0 2px 4px var(--shadow);
+            word-wrap: break-word;
+        }
+
+        .display.error {
+            color: var(--danger);
+            font-size: 1.2em;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .button {
+            padding: 20px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            box-shadow: 0 4px 6px var(--shadow);
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px var(--shadow);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.number {
+            background: white;
+            color: var(--dark);
+            border: 2px solid var(--border);
+        }
+
+        .button.operator {
+            background: var(--primary);
+            color: white;
+        }
+
+        .button.function {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .button.special {
+            background: var(--warning);
+            color: white;
+        }
+
+        .button.equals {
+            background: var(--danger);
+            color: white;
+            grid-column: span 2;
+        }
+
+        .button.clear {
+            background: var(--danger);
+            color: white;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .tab:hover:not(.active) {
+            background: var(--light);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .result-box {
+            background: white;
+            border: 2px solid var(--secondary);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .result-box.error {
+            border-color: var(--danger);
+            background: #fee;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+
+        .result-value {
+            font-size: 1.5em;
+            color: var(--primary);
+            word-wrap: break-word;
+        }
+
+        .history {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .history-item:hover {
+            background: var(--light);
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-expression {
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        .history-result {
+            color: var(--primary);
+            font-size: 1.2em;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--light);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .api-info {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+
+        .api-info code {
+            background: var(--light);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow);
+        }
+
+        .examples {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .example-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: var(--light);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .example-item:hover {
+            background: var(--border);
+        }
+    </style>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔢 Crystalline Math Calculator</h1>
+            <p>Powered by Crystalline Mathematics Library - 112+ Functions</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Basic Calculator -->
+            <div class="calculator-section">
+                <h2 class="section-title">Basic Calculator</h2>
+                
+                <div class="display" id="display">0</div>
+                
+                <div class="button-grid">
+                    <button class="button clear" onclick="clearDisplay()">C</button>
+                    <button class="button special" onclick="appendToDisplay('(')">(</button>
+                    <button class="button special" onclick="appendToDisplay(')')">)</button>
+                    <button class="button operator" onclick="appendToDisplay('/')">÷</button>
+                    
+                    <button class="button number" onclick="appendToDisplay('7')">7</button>
+                    <button class="button number" onclick="appendToDisplay('8')">8</button>
+                    <button class="button number" onclick="appendToDisplay('9')">9</button>
+                    <button class="button operator" onclick="appendToDisplay('*')">×</button>
+                    
+                    <button class="button number" onclick="appendToDisplay('4')">4</button>
+                    <button class="button number" onclick="appendToDisplay('5')">5</button>
+                    <button class="button number" onclick="appendToDisplay('6')">6</button>
+                    <button class="button operator" onclick="appendToDisplay('-')">−</button>
+                    
+                    <button class="button number" onclick="appendToDisplay('1')">1</button>
+                    <button class="button number" onclick="appendToDisplay('2')">2</button>
+                    <button class="button number" onclick="appendToDisplay('3')">3</button>
+                    <button class="button operator" onclick="appendToDisplay('+')">+</button>
+                    
+                    <button class="button number" onclick="appendToDisplay('0')">0</button>
+                    <button class="button number" onclick="appendToDisplay('.')">.</button>
+                    <button class="button equals" onclick="calculate()">=</button>
+                </div>
+
+                <div class="button-grid">
+                    <button class="button function" onclick="applyFunction('sqrt')">√</button>
+                    <button class="button function" onclick="applyFunction('pow')">x²</button>
+                    <button class="button function" onclick="applyFunction('sin')">sin</button>
+                    <button class="button function" onclick="applyFunction('cos')">cos</button>
+                    <button class="button function" onclick="applyFunction('tan')">tan</button>
+                    <button class="button function" onclick="applyFunction('log')">log</button>
+                    <button class="button function" onclick="applyFunction('ln')">ln</button>
+                    <button class="button function" onclick="applyFunction('exp')">eˣ</button>
+                </div>
+
+                <h3 class="section-title" style="font-size: 1.2em; margin-top: 20px;">History</h3>
+                <div class="history" id="history"></div>
+            </div>
+
+            <!-- Advanced Functions -->
+            <div class="advanced-section">
+                <h2 class="section-title">Advanced Functions</h2>
+                
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('prime')">Prime Numbers</div>
+                    <div class="tab" onclick="switchTab('trig')">Trigonometry</div>
+                    <div class="tab" onclick="switchTab('stats')">Statistics</div>
+                    <div class="tab" onclick="switchTab('rainbow')">Rainbow Table</div>
+                    <div class="tab" onclick="switchTab('clock')">Clock Lattice</div>
+                </div>
+
+                <!-- Prime Numbers Tab -->
+                <div id="prime-tab" class="tab-content active">
+                    <div class="input-group">
+                        <label>Check if Prime:</label>
+                        <input type="number" id="prime-check" placeholder="Enter number">
+                        <button class="btn btn-primary" onclick="checkPrime()">Check</button>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Generate Prime (O(1)):</label>
+                        <input type="number" id="prime-position" placeholder="Position (3, 6, or 9)" value="3">
+                        <input type="number" id="prime-magnitude" placeholder="Magnitude" value="0">
+                        <button class="btn btn-primary" onclick="generatePrime()">Generate</button>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Get Nth Prime:</label>
+                        <input type="number" id="prime-nth" placeholder="Enter n" value="10">
+                        <button class="btn btn-primary" onclick="getNthPrime()">Get Prime</button>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Euler's Totient φ(n):</label>
+                        <input type="number" id="totient-n" placeholder="Enter n" value="12">
+                        <button class="btn btn-primary" onclick="calculateTotient()">Calculate</button>
+                    </div>
+
+                    <div id="prime-result" class="result-box" style="display:none;">
+                        <div class="result-label">Result:</div>
+                        <div class="result-value" id="prime-result-value"></div>
+                    </div>
+
+                    <div class="examples">
+                        <strong>Examples:</strong>
+                        <div class="example-item" onclick="document.getElementById('prime-check').value='17'; checkPrime();">
+                            Is 17 prime?
+                        </div>
+                        <div class="example-item" onclick="document.getElementById('prime-position').value='3'; document.getElementById('prime-magnitude').value='5'; generatePrime();">
+                            Generate prime at position 3, magnitude 5
+                        </div>
+                        <div class="example-item" onclick="document.getElementById('totient-n').value='100'; calculateTotient();">
+                            Calculate φ(100)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trigonometry Tab -->
+                <div id="trig-tab" class="tab-content">
+                    <div class="input-group">
+                        <label>Function:</label>
+                        <select id="trig-function">
+                            <option value="sin">Sine</option>
+                            <option value="cos">Cosine</option>
+                            <option value="tan">Tangent</option>
+                            <option value="asin">Arcsine</option>
+                            <option value="acos">Arccosine</option>
+                            <option value="atan">Arctangent</option>
+                            <option value="sinh">Hyperbolic Sine</option>
+                            <option value="cosh">Hyperbolic Cosine</option>
+                            <option value="tanh">Hyperbolic Tangent</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Value (radians):</label>
+                        <input type="number" id="trig-value" placeholder="Enter value" value="1.5708" step="0.0001">
+                        <button class="btn btn-primary" onclick="calculateTrig()">Calculate</button>
+                    </div>
+
+                    <div id="trig-result" class="result-box" style="display:none;">
+                        <div class="result-label">Result:</div>
+                        <div class="result-value" id="trig-result-value"></div>
+                    </div>
+
+                    <div class="examples">
+                        <strong>Common Values:</strong>
+                        <div class="example-item" onclick="document.getElementById('trig-value').value='0'; calculateTrig();">
+                            0 radians (0°)
+                        </div>
+                        <div class="example-item" onclick="document.getElementById('trig-value').value='1.5708'; calculateTrig();">
+                            π/2 radians (90°)
+                        </div>
+                        <div class="example-item" onclick="document.getElementById('trig-value').value='3.1416'; calculateTrig();">
+                            π radians (180°)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics Tab -->
+                <div id="stats-tab" class="tab-content">
+                    <div class="input-group">
+                        <label>Data (comma-separated):</label>
+                        <textarea id="stats-data" rows="3" placeholder="1, 2, 3, 4, 5">1, 2, 3, 4, 5, 6, 7, 8, 9, 10</textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="calculateStats('mean')">Mean</button>
+                        <button class="btn btn-primary" onclick="calculateStats('median')">Median</button>
+                        <button class="btn btn-primary" onclick="calculateStats('variance')">Variance</button>
+                        <button class="btn btn-primary" onclick="calculateStats('std_dev')">Std Dev</button>
+                    </div>
+
+                    <div id="stats-result" class="result-box" style="display:none;">
+                        <div class="result-label">Result:</div>
+                        <div class="result-value" id="stats-result-value"></div>
+                    </div>
+                </div>
+
+                <!-- Rainbow Table Tab -->
+                <div id="rainbow-tab" class="tab-content">
+                    <div class="input-group">
+                        <label>Lookup Prime by Index:</label>
+                        <input type="number" id="rainbow-index" placeholder="Enter index" value="10">
+                        <button class="btn btn-primary" onclick="rainbowLookupByIndex()">Lookup</button>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Get Index of Prime:</label>
+                        <input type="number" id="rainbow-prime" placeholder="Enter prime" value="29">
+                        <button class="btn btn-primary" onclick="rainbowLookupIndex()">Get Index</button>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Next/Previous Prime:</label>
+                        <input type="number" id="rainbow-nav" placeholder="Enter number" value="29">
+                        <div class="button-group">
+                            <button class="btn btn-secondary" onclick="rainbowPrevPrime()">Previous</button>
+                            <button class="btn btn-secondary" onclick="rainbowNextPrime()">Next</button>
+                        </div>
+                    </div>
+
+                    <div id="rainbow-result" class="result-box" style="display:none;">
+                        <div class="result-label">Result:</div>
+                        <div class="result-value" id="rainbow-result-value"></div>
+                    </div>
+
+                    <div class="api-info">
+                        <strong>Rainbow Table Info:</strong><br>
+                        Pre-cached primes for O(1) lookup. Table is automatically initialized with 1000 primes.
+                    </div>
+                </div>
+
+                <!-- Clock Lattice Tab -->
+                <div id="clock-tab" class="tab-content">
+                    <div class="input-group">
+                        <label>Map Prime to Clock Position:</label>
+                        <input type="number" id="clock-prime" placeholder="Enter prime" value="17">
+                        <button class="btn btn-primary" onclick="clockMapPrime()">Map</button>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Reverse Lookup:</label>
+                        <input type="number" id="clock-number" placeholder="Enter number" value="17">
+                        <button class="btn btn-primary" onclick="clockReverseLookup()">Lookup</button>
+                    </div>
+
+                    <div id="clock-result" class="result-box" style="display:none;">
+                        <div class="result-label">Result:</div>
+                        <div class="result-value" id="clock-result-value"></div>
+                    </div>
+
+                    <div class="api-info">
+                        <strong>Clock Lattice Info:</strong><br>
+                        Maps primes to geometric positions on a Babylonian clock structure with 12-fold symmetry.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_URL = './index.php';
+        
+        // Calculator State
+        let currentDisplay = '0';
+        let history = [];
+
+        // Display Functions
+        function updateDisplay(value) {
+            currentDisplay = value;
+            document.getElementById('display').textContent = value;
+        }
+
+        function appendToDisplay(value) {
+            if (currentDisplay === '0' && value !== '.') {
+                updateDisplay(value);
+            } else {
+                updateDisplay(currentDisplay + value);
+            }
+        }
+
+        function clearDisplay() {
+            updateDisplay('0');
+        }
+
+        // Basic Calculator
+        function calculate() {
+            try {
+                // Simple evaluation for basic operations
+                const result = eval(currentDisplay.replace('×', '*').replace('÷', '/').replace('−', '-'));
+                addToHistory(currentDisplay + ' = ' + result);
+                updateDisplay(result.toString());
+            } catch (error) {
+                updateDisplay('Error');
+            }
+        }
+
+        function applyFunction(func) {
+            const value = parseFloat(currentDisplay);
+            if (isNaN(value)) {
+                updateDisplay('Error');
+                return;
+            }
+
+            let operation = func;
+            let params = { x: value };
+
+            if (func === 'pow') {
+                operation = 'pow';
+                params = { base: value, exp: 2 };
+            } else if (func === 'ln') {
+                operation = 'log';
+            }
+
+            apiCall(operation, params).then(data => {
+                if (data.success) {
+                    addToHistory(`${func}(${value}) = ${data.result}`);
+                    updateDisplay(data.result.toString());
+                } else {
+                    updateDisplay('Error');
+                }
+            });
+        }
+
+        // History Management
+        function addToHistory(expression) {
+            history.unshift(expression);
+            if (history.length > 10) history.pop();
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            const historyDiv = document.getElementById('history');
+            historyDiv.innerHTML = history.map(item => {
+                const [expr, result] = item.split(' = ');
+                return `<div class="history-item" onclick="updateDisplay('${result}')">
+                    <div class="history-expression">${expr}</div>
+                    <div class="history-result">${result}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // Tab Switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // API Call Function
+        async function apiCall(operation, params = {}) {
+            const url = new URL(API_URL, window.location.href);
+            url.searchParams.append('operation', operation);
+            
+            for (const [key, value] of Object.entries(params)) {
+                url.searchParams.append(key, value);
+            }
+
+            try {
+                const response = await fetch(url);
+                return await response.json();
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Show Result
+        function showResult(elementId, value, isError = false) {
+            const resultBox = document.getElementById(elementId);
+            const resultValue = document.getElementById(elementId + '-value');
+            
+            resultBox.style.display = 'block';
+            resultBox.classList.toggle('error', isError);
+            
+            if (typeof value === 'object') {
+                resultValue.textContent = JSON.stringify(value, null, 2);
+            } else {
+                resultValue.textContent = value;
+            }
+        }
+
+        // Prime Functions
+        async function checkPrime() {
+            const n = document.getElementById('prime-check').value;
+            const data = await apiCall('is_prime', { n });
+            
+            if (data.success) {
+                showResult('prime-result', `${n} is ${data.result ? 'PRIME' : 'COMPOSITE'}`);
+            } else {
+                showResult('prime-result', data.error, true);
+            }
+        }
+
+        async function generatePrime() {
+            const position = document.getElementById('prime-position').value;
+            const magnitude = document.getElementById('prime-magnitude').value;
+            const data = await apiCall('prime_generate', { position, magnitude });
+            
+            if (data.success) {
+                showResult('prime-result', `Prime: ${data.result}`);
+            } else {
+                showResult('prime-result', data.error, true);
+            }
+        }
+
+        async function getNthPrime() {
+            const n = document.getElementById('prime-nth').value;
+            const data = await apiCall('prime_nth', { n });
+            
+            if (data.success) {
+                showResult('prime-result', `The ${n}th prime is: ${data.result}`);
+            } else {
+                showResult('prime-result', data.error, true);
+            }
+        }
+
+        async function calculateTotient() {
+            const n = document.getElementById('totient-n').value;
+            const data = await apiCall('totient', { n });
+            
+            if (data.success) {
+                showResult('prime-result', `φ(${n}) = ${data.result}`);
+            } else {
+                showResult('prime-result', data.error, true);
+            }
+        }
+
+        // Trigonometry Functions
+        async function calculateTrig() {
+            const func = document.getElementById('trig-function').value;
+            const x = document.getElementById('trig-value').value;
+            const data = await apiCall(func, { x });
+            
+            if (data.success) {
+                showResult('trig-result', `${func}(${x}) = ${data.result}`);
+            } else {
+                showResult('trig-result', data.error, true);
+            }
+        }
+
+        // Statistics Functions
+        async function calculateStats(operation) {
+            const dataStr = document.getElementById('stats-data').value;
+            const dataArray = dataStr.split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
+            const data = await apiCall('stats_' + operation, { data: JSON.stringify(dataArray) });
+            
+            if (data.success) {
+                showResult('stats-result', `${operation.toUpperCase()}: ${data.result}`);
+            } else {
+                showResult('stats-result', data.error || 'Algorithms extension not loaded', true);
+            }
+        }
+
+        // Rainbow Table Functions
+        async function rainbowLookupByIndex() {
+            const index = document.getElementById('rainbow-index').value;
+            const data = await apiCall('rainbow_lookup_by_index', { index });
+            
+            if (data.success) {
+                showResult('rainbow-result', `Prime at index ${index}: ${data.result}`);
+            } else {
+                showResult('rainbow-result', data.error, true);
+            }
+        }
+
+        async function rainbowLookupIndex() {
+            const prime = document.getElementById('rainbow-prime').value;
+            const data = await apiCall('rainbow_lookup_index', { prime });
+            
+            if (data.success) {
+                showResult('rainbow-result', `Index of prime ${prime}: ${data.result}`);
+            } else {
+                showResult('rainbow-result', data.error, true);
+            }
+        }
+
+        async function rainbowNextPrime() {
+            const prime = document.getElementById('rainbow-nav').value;
+            const data = await apiCall('rainbow_next_prime', { prime });
+            
+            if (data.success) {
+                showResult('rainbow-result', `Next prime after ${prime}: ${data.result}`);
+            } else {
+                showResult('rainbow-result', data.error, true);
+            }
+        }
+
+        async function rainbowPrevPrime() {
+            const prime = document.getElementById('rainbow-nav').value;
+            const data = await apiCall('rainbow_prev_prime', { prime });
+            
+            if (data.success) {
+                showResult('rainbow-result', `Previous prime before ${prime}: ${data.result}`);
+            } else {
+                showResult('rainbow-result', data.error, true);
+            }
+        }
+
+        // Clock Lattice Functions
+        async function clockMapPrime() {
+            const prime = document.getElementById('clock-prime').value;
+            const data = await apiCall('clock_map_prime', { prime });
+            
+            if (data.success) {
+                showResult('clock-result', data.result);
+            } else {
+                showResult('clock-result', data.error, true);
+            }
+        }
+
+        async function clockReverseLookup() {
+            const number = document.getElementById('clock-number').value;
+            const data = await apiCall('clock_reverse_lookup', { number });
+            
+            if (data.success) {
+                showResult('clock-result', data.result);
+            } else {
+                showResult('clock-result', data.error, true);
+            }
+        }
+
+        // Initialize
+        window.onload = function() {
+            console.log('Crystalline Math Calculator loaded');
+            console.log('API URL:', API_URL);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+=== FILE: math/include/math/polytope_abacus.h ===
+
+--- FUNCTIONS ---
+void platonic_abacus_free(PlatonicSolidAbacus* solid);
+
+--- TYPES ---
+typedef struct {
+
+--- CONSTANTS ---
+#define MATH_POLYTOPE_ABACUS_H
+

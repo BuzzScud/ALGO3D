@@ -537,7 +537,6 @@ const ProjectionsModule = (function() {
         
         let g = 1 + 0.01 * tau + 0.001 * (depthPrime % 7);
         const points = [];
-        let currentPrice = lastPrice; // Start with last price and update cumulatively
         
         for (let i = 0; i < N; i++) {
             const lambda = lambdaSchedule[i % lambdaSchedule.length];
@@ -566,9 +565,8 @@ const ProjectionsModule = (function() {
             const depthScale = Math.log(depthPrime) / Math.log(2);
             const triScale = Math.max(1, tau);
             const delta = trunc(latticeSum * depthScale * 0.5 * triScale, decimals);
-            const pricePoint = Math.max(0.01, trunc(currentPrice + delta, decimals));
+            const pricePoint = trunc(lastPrice + delta, decimals);
             points.push(pricePoint);
-            currentPrice = pricePoint; // Update for next iteration (cumulative projection)
         }
         
         return points;
@@ -974,20 +972,14 @@ const ProjectionsModule = (function() {
                     const realTimePrice = parseFloat(quoteData.current);
                     const lastHistoricalPrice = historicalPrices[historicalPrices.length - 1];
                     
-                    // Validate real-time price is reasonable (within 50% of last historical price)
-                    const priceDiff = Math.abs(realTimePrice - lastHistoricalPrice) / lastHistoricalPrice;
-                    if (priceDiff > 0.5) {
-                        console.warn(`Real-time price ($${realTimePrice.toFixed(2)}) differs significantly from last historical price ($${lastHistoricalPrice.toFixed(2)}). Using historical price.`);
+                    // Update the last price with real-time quote
+                    if (historicalPrices.length > 0) {
+                        historicalPrices[historicalPrices.length - 1] = realTimePrice;
+                        console.log(`Updated last price from $${lastHistoricalPrice.toFixed(2)} to real-time price $${realTimePrice.toFixed(2)}`);
                     } else {
-                        // Update the last price with real-time quote
-                        if (historicalPrices.length > 0) {
-                            historicalPrices[historicalPrices.length - 1] = realTimePrice;
-                            console.log(`✓ Updated last price from $${lastHistoricalPrice.toFixed(2)} to real-time price $${realTimePrice.toFixed(2)}`);
-                        } else {
-                            // If no historical prices, add the real-time price
-                            historicalPrices.push(realTimePrice);
-                            console.log(`✓ Added real-time price $${realTimePrice.toFixed(2)} as starting point`);
-                        }
+                        // If no historical prices, add the real-time price
+                        historicalPrices.push(realTimePrice);
+                        console.log(`Added real-time price $${realTimePrice.toFixed(2)} as starting point`);
                     }
                     
                     // Update the last label with current time
@@ -1613,76 +1605,39 @@ const ProjectionsModule = (function() {
         // Add actual price data if available (for comparison with saved projections)
         if (actualPrices && actualPrices.length > 0 && actualLabels && actualLabels.length > 0) {
             const actualData = [];
-            
-            // Create a map of actual prices by label for matching
-            const actualPriceMap = new Map();
-            for (let i = 0; i < actualLabels.length; i++) {
-                if (actualPrices[i] !== null && !isNaN(actualPrices[i])) {
-                    actualPriceMap.set(actualLabels[i], actualPrices[i]);
-                }
-            }
-            
             // Fill with nulls for historical period
             for (let i = 0; i < historicalPrices.length; i++) {
                 actualData.push(null);
             }
             
-            // Match actual prices to projection labels by comparing label strings
-            for (let i = historicalPrices.length; i < allLabels.length; i++) {
-                const projectionLabel = allLabels[i];
-                // Try exact match first
-                let matchedPrice = actualPriceMap.get(projectionLabel);
-                
-                // If no exact match, try fuzzy matching (check if labels are similar)
-                if (matchedPrice === undefined) {
-                    // Find closest matching label
-                    for (const [label, price] of actualPriceMap.entries()) {
-                        // Check if labels are similar (same date, ignore time differences)
-                        const labelDate = projectionLabel.split(',')[0]; // Get date part
-                        const actualLabelDate = label.split(',')[0];
-                        if (labelDate === actualLabelDate) {
-                            matchedPrice = price;
-                            break;
-                        }
-                    }
-                }
-                
-                actualData.push(matchedPrice !== undefined ? matchedPrice : null);
+            // Add actual prices starting from where projection begins
+            // Match actual labels to projection labels
+            let actualIdx = 0;
+            for (let i = historicalPrices.length; i < allLabels.length && actualIdx < actualPrices.length; i++) {
+                actualData.push(actualPrices[actualIdx]);
+                actualIdx++;
             }
             
-            // Ensure array length matches labels
+            // Fill remaining with nulls
             while (actualData.length < allLabels.length) {
                 actualData.push(null);
             }
             
-            // Filter out leading/trailing nulls for cleaner display, but keep alignment
-            const hasActualData = actualData.some((val, idx) => idx >= historicalPrices.length && val !== null);
+            datasets.push({
+                label: 'Actual Price (Post-Projection)',
+                data: actualData,
+                borderColor: '#22c55e', // Green for actual
+                backgroundColor: 'transparent',
+                borderWidth: 3,
+                pointRadius: 2,
+                pointBackgroundColor: '#22c55e',
+                tension: 0.1,
+                borderDash: [],
+                yAxisID: 'y'
+            });
             
-            if (hasActualData) {
-                datasets.push({
-                    label: 'Actual Price (Post-Projection)',
-                    data: actualData,
-                    borderColor: '#22c55e', // Green for actual
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)', // Light green fill
-                    borderWidth: 3,
-                    pointRadius: 3,
-                    pointBackgroundColor: '#22c55e',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 1,
-                    tension: 0.1,
-                    borderDash: [],
-                    fill: false,
-                    yAxisID: 'y',
-                    order: 0 // Render on top
-                });
-                
-                // Calculate and display accuracy metrics
-                // Extract only non-null actual prices for comparison
-                const validActualPrices = actualPrices.filter(p => p !== null && !isNaN(p) && p > 0);
-                if (validActualPrices.length > 0) {
-                    calculateAccuracyMetrics(projectionLines, validActualPrices, historicalPrices.length);
-                }
-            }
+            // Calculate and display accuracy metrics
+            calculateAccuracyMetrics(projectionLines, actualPrices, historicalPrices.length);
         }
         
         // Destroy existing chart and cleanup pan handlers
@@ -2676,123 +2631,53 @@ const ProjectionsModule = (function() {
             const savedProjectionLines = projectionData.projectionLines || [];
             const savedParams = projectionData.params || (typeof proj.params === 'string' ? JSON.parse(proj.params) : proj.params) || {};
             
-            // Use saved projection labels if available, otherwise generate them
-            let projectionLabels = projectionData.projectionLabels || [];
-            const savedTimestamp = projectionData.savedTimestamp || new Date(proj.saved_at).getTime();
-            
             // Fetch actual price data from saved date to now
-            const savedDate = new Date(savedTimestamp);
+            const savedDate = new Date(proj.saved_at);
             showLoading(true);
             
-            // Generate projection labels if not saved
-            const steps = savedParams.steps || 20;
-            const projectionStartDate = new Date(savedDate);
-            
-            if (projectionLabels.length === 0) {
-                // Calculate time increment based on interval
-                let timeIncrementMs = 24 * 60 * 60 * 1000; // Default: 1 day
-                if (currentInterval === '15MIN') {
-                    timeIncrementMs = 15 * 60 * 1000; // 15 minutes
-                } else if (currentInterval === '1H') {
-                    timeIncrementMs = 60 * 60 * 1000; // 1 hour
-                } else if (currentInterval === '4H') {
-                    timeIncrementMs = 4 * 60 * 60 * 1000; // 4 hours
-                } else if (currentInterval === '1D') {
-                    timeIncrementMs = 24 * 60 * 60 * 1000; // 1 day
-                }
-                
-                // Generate projection labels starting from saved date
-                for (let i = 0; i < steps; i++) {
-                    const projectionDate = new Date(projectionStartDate.getTime() + (i + 1) * timeIncrementMs);
-                    const estDateString = projectionDate.toLocaleString('en-US', {
-                        timeZone: 'America/New_York',
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: (currentInterval === '15MIN' || currentInterval === '1H' || currentInterval === '4H') ? '2-digit' : undefined,
-                        minute: (currentInterval === '15MIN' || currentInterval === '1H' || currentInterval === '4H') ? '2-digit' : undefined,
-                        hour12: false
-                    });
-                    projectionLabels.push(estDateString);
-                }
-            }
-            
-            // Combine historical and projection labels
-            const allLabels = [...historicalLabels, ...projectionLabels];
-            
             try {
-                // Fetch current market data with force refresh to get latest
-                const currentData = await fetchMarketData(currentSymbol, currentInterval, true);
+                // Fetch current market data
+                const currentData = await fetchMarketData(currentSymbol, currentInterval);
                 
                 if (currentData && currentData.candles && currentData.candles.length > 0) {
-                    // Convert saved date to timestamp for comparison
-                    const savedTimestamp = savedDate.getTime();
+                    // Convert saved date to EST for comparison
+                    const savedDateEST = toEST(savedDate);
                     
-                    // Filter candles to only include those after the saved date
+                    // Filter candles to only include those after the saved date (using EST)
                     const actualCandles = currentData.candles.filter(c => {
                         const candleTimestamp = c.time || c.timestamp;
                         if (!candleTimestamp) return false;
-                        // Compare timestamps directly
-                        return candleTimestamp >= savedTimestamp;
+                        const candleDateEST = toEST(new Date(candleTimestamp));
+                        return candleDateEST >= savedDateEST;
                     });
                     
-                    // Map actual prices to projection timeline
-                    const actualPrices = [];
-                    const actualLabels = [];
-                    
-                    // Create a map of actual prices by timestamp for quick lookup
-                    const priceMap = new Map();
-                    actualCandles.forEach(c => {
-                        const timestamp = c.time || c.timestamp;
-                        if (timestamp) {
-                            priceMap.set(timestamp, parseFloat(c.close || c.price || 0));
+                    // Convert all actual candle timestamps to EST
+                    const actualCandlesEST = actualCandles.map(c => {
+                        const candle = { ...c };
+                        if (candle.time) {
+                            candle.time = toESTTimestamp(candle.time);
                         }
+                        if (candle.timestamp) {
+                            candle.timestamp = toESTTimestamp(candle.timestamp);
+                        }
+                        return candle;
                     });
                     
-                    // Match actual prices to projection labels
-                    for (let i = 0; i < projectionLabels.length; i++) {
-                        const projectionLabel = projectionLabels[i];
-                        const projectionDate = new Date(projectionStartDate.getTime() + (i + 1) * timeIncrementMs);
-                        
-                        // Find closest actual price within a reasonable window (e.g., ±50% of interval)
-                        let closestPrice = null;
-                        let closestTimestamp = null;
-                        let minDiff = Infinity;
-                        
-                        priceMap.forEach((price, timestamp) => {
-                            const diff = Math.abs(timestamp - projectionDate.getTime());
-                            // Allow matching within 50% of interval
-                            const window = timeIncrementMs * 0.5;
-                            if (diff < window && diff < minDiff) {
-                                minDiff = diff;
-                                closestPrice = price;
-                                closestTimestamp = timestamp;
-                            }
-                        });
-                        
-                        if (closestPrice && !isNaN(closestPrice) && closestPrice > 0) {
-                            actualPrices.push(closestPrice);
-                            actualLabels.push(projectionLabel);
-                            // Remove matched price to avoid duplicates
-                            priceMap.delete(closestTimestamp);
-                        } else {
-                            // No match found, use null to maintain alignment
-                            actualPrices.push(null);
-                            actualLabels.push(projectionLabel);
-                        }
-                    }
-                    
-                    // Filter out nulls but keep alignment info
+                    // Extract actual prices
                     actualPriceData = {
-                        prices: actualPrices,
-                        labels: actualLabels,
-                        projectionLabels: projectionLabels
+                        prices: actualCandlesEST.map(c => parseFloat(c.close || c.price || 0)).filter(p => !isNaN(p) && p > 0),
+                        labels: actualCandlesEST.map(c => {
+                            const timestamp = c.time || c.timestamp;
+                            if (!timestamp) return '';
+                            const estDate = new Date(timestamp);
+                            return estDate.toLocaleDateString('en-US', {
+                                timeZone: 'America/New_York',
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                            });
+                        }).filter(l => l)
                     };
-                    
-                    console.log(`✓ Fetched ${actualPrices.filter(p => p !== null).length} actual price points for comparison`);
-                } else {
-                    console.warn('No current market data available for comparison');
-                    actualPriceData = null;
                 }
             } catch (error) {
                 console.warn('Could not fetch actual price data:', error);
@@ -2802,7 +2687,7 @@ const ProjectionsModule = (function() {
             // Render chart with both saved projection and actual data
             renderChart(
                 historicalPrices, 
-                allLabels, // Use combined labels
+                historicalLabels, 
                 savedProjectionLines, 
                 savedParams,
                 actualPriceData ? actualPriceData.prices : null,
@@ -3115,25 +3000,19 @@ const ProjectionsModule = (function() {
                 hour12: true
             }) + ' EST';
             
-            // Generate projection labels for saving (so we can match actual prices later)
-            const steps = params.steps || 20;
-            const projectionLabels = generateProjectionLabels(steps, currentInterval, historicalLabels);
-            
             const saveData = {
                 symbol: currentSymbol,
-                title: `${currentSymbol} - ${currentInterval} Projection (Saved ${estDateStr})`,
+                title: `${currentSymbol} - ${currentInterval} Projection (EST)`,
                 projection_data: {
                     symbol: currentSymbol,
                     interval: currentInterval,
                     historicalPrices: historicalPrices,
                     historicalLabels: historicalLabels, // Already in EST format
                     projectionLines: projectionLines,
-                    projectionLabels: projectionLabels, // Save projection labels for alignment
                     params: params,
                     lastPrice: historicalPrices[historicalPrices.length - 1],
                     timezone: 'EST',
-                    savedAtEST: estDateStr,
-                    savedTimestamp: estTimestamp // Save timestamp for accurate date matching
+                    savedAtEST: estDateStr
                 },
                 chart_data: chartData,
                 params: params,

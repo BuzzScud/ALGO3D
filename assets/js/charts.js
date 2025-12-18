@@ -1624,8 +1624,9 @@ const ChartsModule = (function() {
         hideEmpty();
 
         try {
-            // Fetch chart data (uses Finnhub first, then Yahoo Finance as backup)
-            const chartResponse = await fetch(`api/charts.php?action=chart&symbol=${symbol}&timeframe=${currentTimeframe}`);
+            // Fetch chart data with refresh parameter if forceRefresh is true
+            const refreshParam = forceRefresh ? '&refresh=true' : '';
+            const chartResponse = await fetch(`api/charts.php?action=chart&symbol=${symbol}&timeframe=${currentTimeframe}${refreshParam}`);
             
             if (!chartResponse.ok) {
                 throw new Error(`HTTP error! status: ${chartResponse.status}`);
@@ -3041,10 +3042,23 @@ const ChartsModule = (function() {
         }, 200);
     });
 
+    // Listen for API source changes and reload chart
+    window.addEventListener('apiSourceChanged', function(event) {
+        if (currentSymbol) {
+            console.log('API source changed, reloading chart with new source:', event.detail.source);
+            loadChart(currentSymbol, true); // Force refresh to use new API
+        }
+    });
+
     // Public API
     return {
         loadChart,
         loadStudyById,
+        reloadChart: function(forceRefresh = true) {
+            if (currentSymbol) {
+                loadChart(currentSymbol, forceRefresh);
+            }
+        },
         init
     };
 })();

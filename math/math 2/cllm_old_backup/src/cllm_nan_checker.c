@@ -1,0 +1,263 @@
+/*
+ * NaN Detection and Debugging Utilities
+ * 
+ * This file provides utilities to detect NaN values in the forward and backward passes
+ * to help identify numerical stability issues.
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include "../include/cllm_training.h"
+#include "math/transcendental.h"
+
+// Check if a double value is NaN
+static inline bool is_nan_double(double val) {
+    return val != val;  // NaN is the only value that doesn't equal itself
+}
+
+// Check if a float value is NaN
+static inline bool is_nan_float(float val) {
+    return val != val;
+}
+
+/**
+ * Check array for NaN values
+ * Returns the index of the first NaN found, or -1 if no NaN
+ */
+int check_array_for_nan_double(const double* array, size_t size, const char* name) {
+    if (!array) return -1;
+    
+    for (size_t i = 0; i < size; i++) {
+        if (is_nan_double(array[i])) {
+            fprintf(stderr, "NaN detected in %s at index %zu (value: %f)\n", name, i, array[i]);
+            return (int)i;
+        }
+        if (math_is_inf(array[i])) {
+            fprintf(stderr, "Inf detected in %s at index %zu (value: %f)\n", name, i, array[i]);
+            return (int)i;
+        }
+    }
+    return -1;
+}
+
+int check_array_for_nan_float(const float* array, size_t size, const char* name) {
+    if (!array) return -1;
+    
+    for (size_t i = 0; i < size; i++) {
+        if (is_nan_float(array[i])) {
+            fprintf(stderr, "NaN detected in %s at index %zu (value: %f)\n", name, i, array[i]);
+            return (int)i;
+        }
+        if (math_is_inf(array[i])) {
+            fprintf(stderr, "Inf detected in %s at index %zu (value: %f)\n", name, i, array[i]);
+            return (int)i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * Check embeddings for NaN
+ */
+bool check_embeddings_for_nan(CLLMTraining* training) {
+    if (!training || !training->input_embeddings) return false;
+    
+    CLLMModel* model = training->model;
+    int batch_size = training->config.batch_size;
+    int seq_len = training->config.sequence_length;
+    uint32_t embed_dim = model->embedding_dim;
+    
+    size_t total_size = batch_size * seq_len * embed_dim;
+    int nan_idx = check_array_for_nan_double(training->input_embeddings, total_size, "input_embeddings");
+    
+    if (nan_idx >= 0) {
+        fprintf(stderr, "NaN found in embeddings at position %d\n", nan_idx);
+        fprintf(stderr, "Batch size: %d, Seq len: %d, Embed dim: %u\n", batch_size, seq_len, embed_dim);
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Check attention outputs for NaN
+ */
+bool check_attention_outputs_for_nan(CLLMTraining* training, uint32_t layer) {
+    if (!training || !training->attention_outputs) return false;
+    if (layer >= training->model->num_layers) return false;
+    
+    CLLMModel* model = training->model;
+    int batch_size = training->config.batch_size;
+    int seq_len = training->config.sequence_length;
+    uint32_t embed_dim = model->embedding_dim;
+    
+    size_t total_size = batch_size * seq_len * embed_dim;
+    
+    char name[256];
+    snprintf(name, sizeof(name), "attention_output_layer_%u", layer);
+    int nan_idx = check_array_for_nan_double(training->attention_outputs[layer], total_size, name);
+    
+    if (nan_idx >= 0) {
+        fprintf(stderr, "NaN found in attention output at layer %u, position %d\n", layer, nan_idx);
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Check feedforward outputs for NaN
+ */
+bool check_feedforward_outputs_for_nan(CLLMTraining* training, uint32_t layer) {
+    if (!training || !training->ff_outputs) return false;
+    if (layer >= training->model->num_layers) return false;
+    
+    CLLMModel* model = training->model;
+    int batch_size = training->config.batch_size;
+    int seq_len = training->config.sequence_length;
+    uint32_t embed_dim = model->embedding_dim;
+    
+    size_t total_size = batch_size * seq_len * embed_dim;
+    
+    char name[256];
+    snprintf(name, sizeof(name), "ff_output_layer_%u", layer);
+    int nan_idx = check_array_for_nan_double(training->ff_outputs[layer], total_size, name);
+    
+    if (nan_idx >= 0) {
+        fprintf(stderr, "NaN found in feedforward output at layer %u, position %d\n", layer, nan_idx);
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Check logits for NaN
+ */
+bool check_logits_for_nan(CLLMTraining* training) {
+    if (!training || !training->logits) return false;
+    
+    CLLMModel* model = training->model;
+    int batch_size = training->config.batch_size;
+    int seq_len = training->config.sequence_length;
+    uint32_t vocab_size = model->vocab_size;
+    
+    size_t total_size = batch_size * seq_len * vocab_size;
+    int nan_idx = check_array_for_nan_double(training->logits, total_size, "logits");
+    
+    if (nan_idx >= 0) {
+        fprintf(stderr, "NaN found in logits at position %d\n", nan_idx);
+        fprintf(stderr, "Batch size: %d, Seq len: %d, Vocab size: %u\n", batch_size, seq_len, vocab_size);
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Check gradients for NaN
+ */
+bool check_gradients_for_nan(CLLMTraining* training) {
+    if (!training || !training->gradients) return false;
+    
+    CLLMModel* model = training->model;
+    size_t total_size = model->vocab_size * model->embedding_dim;
+    
+    int nan_idx = check_array_for_nan_double(training->gradients, total_size, "gradients");
+    
+    if (nan_idx >= 0) {
+        fprintf(stderr, "NaN found in gradients at position %d\n", nan_idx);
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Check model weights for NaN
+ */
+bool check_weights_for_nan(CLLMModel* model) {
+    if (!model || !model->embeddings) return false;
+    
+    size_t total_size = model->vocab_size * model->embedding_dim;
+    int nan_idx = check_array_for_nan_double(model->embeddings, total_size, "model_weights");
+    
+    if (nan_idx >= 0) {
+        fprintf(stderr, "NaN found in model weights at position %d\n", nan_idx);
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Comprehensive forward pass NaN check
+ * Returns true if NaN is detected, false otherwise
+ */
+bool check_forward_pass_for_nan(CLLMTraining* training) {
+    if (!training) return false;
+    
+    fprintf(stderr, "\n=== NaN Check: Forward Pass ===\n");
+    
+    // Check embeddings
+    if (check_embeddings_for_nan(training)) {
+        fprintf(stderr, "ERROR: NaN detected in embeddings!\n");
+        return true;
+    }
+    fprintf(stderr, "✓ Embeddings OK\n");
+    
+    // Check each layer
+    for (uint32_t layer = 0; layer < training->model->num_layers; layer++) {
+        // Check attention outputs
+        if (check_attention_outputs_for_nan(training, layer)) {
+            fprintf(stderr, "ERROR: NaN detected in attention output at layer %u!\n", layer);
+            return true;
+        }
+        fprintf(stderr, "✓ Attention layer %u OK\n", layer);
+        
+        // Check feedforward outputs
+        if (check_feedforward_outputs_for_nan(training, layer)) {
+            fprintf(stderr, "ERROR: NaN detected in feedforward output at layer %u!\n", layer);
+            return true;
+        }
+        fprintf(stderr, "✓ Feedforward layer %u OK\n", layer);
+    }
+    
+    // Check logits
+    if (check_logits_for_nan(training)) {
+        fprintf(stderr, "ERROR: NaN detected in logits!\n");
+        return true;
+    }
+    fprintf(stderr, "✓ Logits OK\n");
+    
+    fprintf(stderr, "=== Forward Pass: All checks passed ===\n\n");
+    return false;
+}
+
+/**
+ * Comprehensive backward pass NaN check
+ * Returns true if NaN is detected, false otherwise
+ */
+bool check_backward_pass_for_nan(CLLMTraining* training) {
+    if (!training) return false;
+    
+    fprintf(stderr, "\n=== NaN Check: Backward Pass ===\n");
+    
+    // Check gradients
+    if (check_gradients_for_nan(training)) {
+        fprintf(stderr, "ERROR: NaN detected in gradients!\n");
+        return true;
+    }
+    fprintf(stderr, "✓ Gradients OK\n");
+    
+    // Check model weights
+    if (check_weights_for_nan(training->model)) {
+        fprintf(stderr, "ERROR: NaN detected in model weights!\n");
+        return true;
+    }
+    fprintf(stderr, "✓ Model weights OK\n");
+    
+    fprintf(stderr, "=== Backward Pass: All checks passed ===\n\n");
+    return false;
+}

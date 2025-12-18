@@ -1,0 +1,13 @@
+=== FILE: math/src/compact/platonic_integration.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+uint32_t map_angle_to_vertex(double angle, const PlatonicSolid* solid) {
+MathError map_number_to_solid(
+MathError create_trajectory_for_operation(
+void trajectory_free(GeometricTrajectory* trajectory) {
+MathError create_multi_value_mapping(
+void multi_value_mapping_free(MultiValueMapping* mapping) {
+MathError create_extended_vector(
+
+--- KEY ALGORITHMS ---
+

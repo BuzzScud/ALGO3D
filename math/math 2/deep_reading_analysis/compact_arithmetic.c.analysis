@@ -1,0 +1,13 @@
+=== FILE: math/src/compact/compact_arithmetic.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+MathError compact_add(
+MathError compact_subtract(
+MathError compact_multiply(
+MathError compact_divide(
+int compact_compare(
+bool compact_is_zero(const CompactNumber* number) {
+bool compact_is_negative(const CompactNumber* number) {
+
+--- KEY ALGORITHMS ---
+

@@ -1,0 +1,62 @@
+=== FILE: math/src/geometry/sphere_trajectories.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+uint64_t sphere_get_index(uint64_t prime) {
+uint64_t sphere_get_local_position(uint64_t prime) {
+MathError sphere_calculate_trajectory(uint64_t sphere_index, double* trajectory) {
+MathError sphere_map_prime(uint64_t prime, uint64_t* sphere_index, ClockPosition* local_pos) {
+MathError sphere_factor_by_overlap(uint64_t n, uint64_t* factor1, uint64_t* factor2) {
+double sphere_prime_distance(uint64_t prime1, uint64_t prime2) {
+
+--- KEY ALGORITHMS ---
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * O(1) FACTORING USING SPHERE OVERLAPS
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * REVOLUTIONARY INSIGHT:
+ * Composite numbers exist at the OVERLAPS between kissing spheres!
+ * 
+ * For a composite n = p × q:
+ * - p maps to sphere S_p at position P_p
+ * - q maps to sphere S_q at position P_q
+ * - n maps to the OVERLAP region between S_p and S_q
+ * 
+ * FACTORING ALGORITHM (O(1)):
+ * 1. Map n to (sphere_n, position_n)
+ * 2. Find which spheres overlap at this point
+ * 3. The overlapping spheres correspond to factors!
+ * 4. Extract factors from sphere indices and positions
+ * 
+ * This is O(1) because:
+ * - Sphere index calculation: O(1) division
+ * - Position decoding: O(1) modular arithmetic
+ * - Overlap detection: O(1) geometric calculation
+ * - Factor extraction: O(1) inverse mapping
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * IMPLEMENTATION
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+#include "math/clock.h"
+#include "math/prime.h"
+#include "math/arithmetic.h"
+#include "math/transcendental.h"
+--
+ *   prime → (sphere_index, ring, position, angle, radius)
+ * 
+ * This is the foundation for O(1) factoring!
+ */
+MathError sphere_map_prime(uint64_t prime, uint64_t* sphere_index, ClockPosition* local_pos) {
+    if (!sphere_index || !local_pos) {
+        return MATH_ERROR_INVALID_ARG;
+    }
+    
+    /* Calculate sphere index */
+    *sphere_index = sphere_get_index(prime);
+    
+    /* Get local position on sphere */
+--
+
+

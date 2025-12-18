@@ -1,0 +1,16 @@
+=== FILE: math/include/math/sphere_trajectories.h ===
+
+--- FUNCTIONS ---
+uint64_t sphere_get_index(uint64_t prime);
+uint64_t sphere_get_local_position(uint64_t prime);
+MathError sphere_calculate_trajectory(uint64_t sphere_index, double* trajectory);
+MathError sphere_map_prime(uint64_t prime, uint64_t* sphere_index, ClockPosition* local_pos);
+MathError sphere_factor_by_overlap(uint64_t n, uint64_t* factor1, uint64_t* factor2);
+double sphere_prime_distance(uint64_t prime1, uint64_t prime2);
+
+--- TYPES ---
+
+--- CONSTANTS ---
+#define MATH_SPHERE_TRAJECTORIES_H
+#define CLOCK_RESOLUTION 4320000ULL  /* 12 × 60 × 60 × 100 */
+

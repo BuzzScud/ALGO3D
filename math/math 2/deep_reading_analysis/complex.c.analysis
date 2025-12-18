@@ -1,0 +1,67 @@
+=== FILE: math/src/core/complex.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+MathComplex math_complex_from_cartesian(double real, double imag) {
+MathComplex math_complex_from_polar(double r, double theta) {
+MathComplex math_complex_add(MathComplex a, MathComplex b) {
+MathComplex math_complex_sub(MathComplex a, MathComplex b) {
+MathComplex math_complex_mul(MathComplex a, MathComplex b) {
+MathComplex math_complex_div(MathComplex a, MathComplex b) {
+MathComplex math_complex_conjugate(MathComplex z) {
+double math_complex_magnitude(MathComplex z) {
+double math_complex_magnitude_squared(MathComplex z) {
+double math_complex_phase(MathComplex z) {
+MathComplex math_complex_exp(MathComplex z) {
+MathComplex math_complex_log(MathComplex z) {
+MathComplex math_complex_pow(MathComplex z, double n) {
+MathComplex math_complex_pow_complex(MathComplex z, MathComplex w) {
+MathComplex math_complex_sin(MathComplex z) {
+MathComplex math_complex_cos(MathComplex z) {
+bool math_complex_is_zero(MathComplex z) {
+bool math_complex_is_real(MathComplex z) {
+bool math_complex_is_imaginary(MathComplex z) {
+bool math_complex_equals(MathComplex a, MathComplex b, double epsilon) {
+
+--- KEY ALGORITHMS ---
+ * @brief Implementation of complex number operations
+ * 
+ * All operations are O(1) using geometric transformations on the
+ * Babylonian clock lattice. Complex numbers are represented as
+ * positions with radial (real) and angular (imaginary) components.
+ */
+
+#include "math/complex.h"
+#include "math/transcendental.h"
+#include "math/arithmetic.h"
+#include <string.h>
+
+// Epsilon for floating point comparisons
+--
+
+// ============================================================================
+// BASIC ARITHMETIC (O(1))
+// ============================================================================
+
+MathComplex math_complex_add(MathComplex a, MathComplex b) {
+    MathComplex result;
+    result.real = a.real + b.real;
+    result.imag = a.imag + b.imag;
+    return result;
+}
+
+MathComplex math_complex_sub(MathComplex a, MathComplex b) {
+--
+
+// ============================================================================
+// PROPERTIES (O(1))
+// ============================================================================
+
+MathComplex math_complex_conjugate(MathComplex z) {
+    MathComplex result;
+    result.real = z.real;
+    result.imag = -z.imag;
+    return result;
+}
+
+double math_complex_magnitude(MathComplex z) {
+

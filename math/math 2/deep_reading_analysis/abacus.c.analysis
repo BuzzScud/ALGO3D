@@ -1,0 +1,77 @@
+=== FILE: math/src/bigint/abacus.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+void abacus_free(CrystallineAbacus* abacus) {
+MathError abacus_init_zero(CrystallineAbacus* abacus) {
+MathError abacus_to_uint64(const CrystallineAbacus* abacus, uint64_t* value) {
+MathError abacus_add(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b) {
+MathError abacus_sub(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b) {
+MathError abacus_mul(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b) {
+MathError abacus_div(CrystallineAbacus* quotient, CrystallineAbacus* remainder,
+MathError abacus_shift_left(CrystallineAbacus* result, const CrystallineAbacus* a, size_t n) {
+MathError abacus_shift_right(CrystallineAbacus* result, const CrystallineAbacus* a, size_t n) {
+int abacus_compare(const CrystallineAbacus* a, const CrystallineAbacus* b) {
+bool abacus_is_zero(const CrystallineAbacus* abacus) {
+bool abacus_is_negative(const CrystallineAbacus* abacus) {
+MathError abacus_normalize(CrystallineAbacus* abacus) {
+void abacus_print(const CrystallineAbacus* abacus) {
+MathError abacus_to_double(const CrystallineAbacus* abacus, double* value) {
+MathError abacus_set_precision(CrystallineAbacus* abacus, int32_t precision) {
+int32_t abacus_get_precision(const CrystallineAbacus* abacus) {
+MathError abacus_round(CrystallineAbacus* result, const CrystallineAbacus* a, int32_t precision) {
+MathError abacus_truncate(CrystallineAbacus* result, const CrystallineAbacus* a, int32_t precision) {
+uint32_t abacus_get_base(const CrystallineAbacus* abacus) {
+MathError abacus_convert_base(CrystallineAbacus** result, const CrystallineAbacus* source, uint32_t new_base) {
+
+--- KEY ALGORITHMS ---
+     *   a + b = (mag_a + mag_b)
+     * 
+     * Fast Path (O(1)):
+     * For numbers that fit in uint64_t, we can add magnitudes directly.
+     * 
+     * Slow Path (O(n)):
+     * For larger numbers, we use digit-by-digit addition with carry.
+     * 
+     * Complexity:
+     * - Fast path: O(1) for numbers ≤ 2^64
+     * - Slow path: O(n) where n = number of beads
+     * 
+     * Performance:
+     * - 64-bit numbers: 1000× faster
+     * - 1024-bit numbers: Still uses digit-by-digit (O(n))
+     */
+    
+    /*
+     * Fast path: Both numbers fit in uint64_t
+     */
+--
+     *   a - b = (mag_a - mag_b)
+     * 
+     * Fast Path (O(1)):
+     * For numbers that fit in uint64_t, we can subtract magnitudes directly.
+     * 
+     * Slow Path (O(n)):
+     * For larger numbers, we use addition with negated b.
+     * 
+     * Complexity:
+     * - Fast path: O(1) for numbers ≤ 2^64
+     * - Slow path: O(n) where n = number of beads
+     */
+    
+    /*
+     * Fast path: Both numbers fit in uint64_t
+     */
+    uint64_t mag_a, mag_b;
+    MathError err_a = abacus_to_uint64(a, &mag_a);
+    MathError err_b = abacus_to_uint64(b, &mag_b);
+    
+--
+     *   a × b = (mag_a × mag_b)
+     * 
+     * Fast Path (O(1)):
+     * For numbers that fit in uint64_t, we can multiply magnitudes directly
+     * and convert back to abacus representation.
+     * 
+     * Slow Path (O(n²)):
+     * For larger numbers, we use the school multiplication algorithm.
+

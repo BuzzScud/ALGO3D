@@ -1,0 +1,10 @@
+=== FILE: math/include/math/validation.h ===
+
+--- FUNCTIONS ---
+int math_is_normal(double x);
+
+--- TYPES ---
+
+--- CONSTANTS ---
+#define MATH_VALIDATION_H
+

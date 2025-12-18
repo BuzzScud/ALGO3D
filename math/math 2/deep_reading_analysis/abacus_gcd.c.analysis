@@ -1,0 +1,24 @@
+=== FILE: math/src/bigint/abacus_gcd.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+MathError abacus_gcd(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b) {
+MathError abacus_lcm(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b) {
+bool abacus_coprime(const CrystallineAbacus* a, const CrystallineAbacus* b) {
+MathError abacus_sqrt(CrystallineAbacus* result, const CrystallineAbacus* n) {
+MathError abacus_root(CrystallineAbacus* result, const CrystallineAbacus* n, uint32_t root) {
+
+--- KEY ALGORITHMS ---
+ * - Quadratic convergence: doubles the number of correct digits each iteration
+ * - Typically converges in O(log log n) iterations
+ * - Each iteration is O(1) with geometric arithmetic
+ * 
+ * Geometric Interpretation:
+ * ========================
+ * Finding the side length of a square with area n
+ * 
+ * In Babylonian mathematics:
+ * - The number n is a point on the clock
+ * - √n is the number that, when multiplied by itself, gives n
+ * - Geometrically: finding the edge of a square with area n
+ * 
+

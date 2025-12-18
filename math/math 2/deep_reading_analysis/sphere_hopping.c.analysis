@@ -1,0 +1,17 @@
+=== FILE: math/src/compact/sphere_hopping.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+void create_children_recursive(
+void free_sphere_hierarchy(CompactSphere* root) {
+double calculate_sphere_phase_difference(uint32_t sphere1, uint32_t sphere2) {
+int32_t calculate_magnitude_scale(uint32_t sphere1, uint32_t sphere2) {
+MathError sphere_hop(
+MathError navigate_hierarchy(
+double calculate_sphere_radius(uint64_t magnitude) {
+uint32_t magnitude_to_level(uint64_t magnitude) {
+double get_scale_factor(uint32_t level) {
+size_t calculate_hierarchy_memory(const CompactSphere* root) {
+uint32_t count_spheres(const CompactSphere* root) {
+
+--- KEY ALGORITHMS ---
+

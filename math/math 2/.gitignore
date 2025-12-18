@@ -1,0 +1,128 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+
+# Executables
+hyper_prime_spiral
+cllm_demo
+pretrain_model
+prime_demo
+tools/cllm_crawler
+app/hyper_prime_spiral
+
+# Libraries
+libprimemath.a
+libprimemath.so
+
+# Backup files
+*.backup
+*.old
+*.broken
+*.bak
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test outputs
+test_output/
+*.log
+
+# Runtime directories
+models/
+checkpoints/
+crawler_data/
+test_run/
+data/training/*.txt
+
+# Test executables
+test_*
+!test_*.c
+
+# Agent working files (keep in /workspace root, not in repo)
+*.md
+!README.md
+!ARCHITECTURE.md
+!MASTER_PLAN.md
+!VALIDATION_CHECKLIST.md
+!BUILD_VALIDATION_REPORT.md
+!CONDITIONAL_COMPILATION_REPORT.md
+!SPHERE_IMPLEMENTATIONS_COMPARISON.md
+!OBJECTIVES_STATUS_REPORT.md
+!PHASE2_SUMMARY.md
+!PHASE5_PLAN.md
+!PHASE5_DAY11_COMPLETE.md
+!PHASE5_DAY11_FINAL_STATUS.md
+!SESSION_SUMMARY_PHASE5_DAY11.md
+!COMPREHENSIVE_SESSION_SUMMARY.md
+!ARCHITECTURE_VIOLATION_ANALYSIS.md
+!CURRENT_STATUS_ARCHITECTURE_FIX.md
+!DAY_11_5_ARCHITECTURE_FIX_COMPLETE.md
+outputs/
+summarized_conversations/
+crystalline/
+crystalline-repo/
+
+# Prevent accidental nested repositories
+crystalline/
+crystalline-repo/
+*/.git/
+
+# Large log files and outputs
+test_kissing_spheres.log
+outputs/
+training_data/
+training_logs/
+checkpoints*/
+*.log
+
+# Build artifacts
+*.a
+*.so
+*.o
+
+# Temporary files
+REPOSITORY_INVENTORY.txt
+!CONSOLIDATION_COMPLETE.md
+!CONSOLIDATION_PLAN.md
+!OBJECTIVE_2_ANALYSIS.md
+!PHASE_8_MODEL_LOCK_REMOVED.md
+!THREAD_LOCAL_CONTEXT_DESIGN.md
+!GEOMETRIC_PATTERN_UNDERSTANDING.md
+!GEOMETRIC_PATTERN_IMPLEMENTATION.md
+*.backup
+tmp/
+
+# Model files
+*.cllm
+
+# Training data directories
+data/
+squad_data/
+production_training/
+production_checkpoints/
+training_test/
+repo_training_data/
+test_run_checkpoints/
+
+# Large media files
+*.jpg
+*.png
+*.jpeg
+
+# Tool checkpoints
+tools/checkpoints/
+# Performance analysis
+perf_analysis*/
+checkpoints_quick/
+!IMPLEMENTATION_STATUS.md
+!PI_PHI_INVESTIGATION.md

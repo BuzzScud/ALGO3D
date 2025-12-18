@@ -1,7 +1,7 @@
 // Google Keep-like Notes Management
 let allNotes = [];
 let currentNoteId = null;
-let selectedColor = '#cfe2ff';
+let selectedColor = '#2563eb';
 let currentView = 'grid';
 let searchQuery = '';
 
@@ -62,6 +62,14 @@ function setupEventListeners() {
             document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             currentView = this.dataset.view;
+            const notesGrid = document.getElementById('notes-grid');
+            if (notesGrid) {
+                if (currentView === 'list') {
+                    notesGrid.classList.add('list-view');
+                } else {
+                    notesGrid.classList.remove('list-view');
+                }
+            }
             displayNotes(allNotes);
         });
     });
@@ -96,10 +104,10 @@ function setupEventListeners() {
     }
     
     // Color buttons in quick note
-    document.querySelectorAll('.color-btn').forEach(btn => {
+    document.querySelectorAll('.color-btn-modern, .color-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             selectedColor = this.dataset.color;
-            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.color-btn-modern, .color-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
         });
     });
@@ -130,12 +138,40 @@ function setupEventListeners() {
         });
     }
     
-    // Color options in modal
-    document.querySelectorAll('.color-option').forEach(option => {
-        option.addEventListener('click', function() {
-            document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('active'));
+    // Color options in modal - setup dynamically when modal opens
+    setupModalColorOptions();
+}
+
+// Setup color option listeners for modal (called when modal opens)
+function setupModalColorOptions() {
+    // Use event delegation on the modal for better reliability
+    const modal = document.getElementById('note-modal');
+    if (!modal) return;
+    
+    // Remove any existing listeners by using a data attribute to track
+    const colorOptions = modal.querySelectorAll('.color-option-modern, .color-option');
+    
+    colorOptions.forEach(option => {
+        // Remove existing listener by cloning
+        const newOption = option.cloneNode(true);
+        option.parentNode.replaceChild(newOption, option);
+        
+        // Add click listener
+        newOption.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Remove active class from all options
+            modal.querySelectorAll('.color-option-modern, .color-option').forEach(opt => {
+                opt.classList.remove('active');
+            });
+            
+            // Add active class to clicked option
             this.classList.add('active');
-            selectedColor = this.dataset.color;
+            
+            // Update selected color
+            selectedColor = this.dataset.color || '#2563eb';
+            console.log('Color selected:', selectedColor);
         });
     });
 }
@@ -163,6 +199,9 @@ async function fetchNotes() {
 function displayNotes(notes) {
     const notesGrid = document.getElementById('notes-grid');
     if (!notesGrid) return;
+    
+    // Ensure modern grid class is applied
+    notesGrid.classList.add('notes-grid-modern');
     
     // Filter by search
     let filtered = [...notes];
@@ -194,6 +233,11 @@ function displayNotes(notes) {
         notesGrid.classList.remove('list-view');
     }
     
+    // Ensure grid has modern class
+    if (!notesGrid.classList.contains('notes-grid-modern')) {
+        notesGrid.classList.add('notes-grid-modern');
+    }
+    
     notesGrid.innerHTML = filtered.map(note => createNoteCard(note)).join('');
     
     // Attach event listeners to note cards
@@ -204,7 +248,7 @@ function displayNotes(notes) {
 function createNoteCard(note) {
     const title = note.title || 'Untitled Note';
     const content = note.content || '';
-    const color = note.color || '#cfe2ff';
+    const color = note.color || '#2563eb';
     const pinned = note.pinned || false;
     const labels = Array.isArray(note.labels) ? note.labels : [];
     const date = formatDate(note.updated_at || note.created_at);
@@ -275,8 +319,11 @@ async function saveQuickNote() {
             // Clear inputs
             titleInput.value = '';
             contentInput.value = '';
-            selectedColor = '#cfe2ff';
-            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            selectedColor = '#2563eb';
+            document.querySelectorAll('.color-btn-modern, .color-btn').forEach(b => {
+                b.classList.remove('active');
+                if (b.dataset.color === '#2563eb') b.classList.add('active');
+            });
             if (expanded) expanded.style.display = 'none';
             
             // Refresh notes
@@ -297,7 +344,10 @@ function closeQuickNote() {
     if (titleInput) titleInput.value = '';
     if (contentInput) contentInput.value = '';
     selectedColor = '#cfe2ff';
-    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.color-btn-modern, .color-btn').forEach(b => {
+        b.classList.remove('active');
+        if (b.dataset.color === '#2563eb') b.classList.add('active');
+    });
     if (expanded) expanded.style.display = 'none';
 }
 
@@ -318,7 +368,7 @@ async function editNote(noteId, event) {
         }
         
         currentNoteId = note.id;
-        selectedColor = note.color || '#cfe2ff';
+        selectedColor = note.color || '#2563eb';
         
         // Populate modal
         const titleInput = document.getElementById('note-title-input');
@@ -333,22 +383,22 @@ async function editNote(noteId, event) {
         }
         
         // Set color - check both exact match and closest match
-        document.querySelectorAll('.color-option').forEach(opt => {
+        document.querySelectorAll('.color-option-modern, .color-option').forEach(opt => {
             opt.classList.remove('active');
             const optColor = opt.dataset.color.toLowerCase();
-            const noteColor = (selectedColor || '#cfe2ff').toLowerCase();
+            const noteColor = (selectedColor || '#2563eb').toLowerCase();
             if (optColor === noteColor) {
                 opt.classList.add('active');
             }
         });
         
         // If no exact match, set blue as default
-        const hasActive = document.querySelector('.color-option.active');
+        const hasActive = document.querySelector('.color-option-modern.active, .color-option.active');
         if (!hasActive) {
-            const blueOption = document.querySelector('.color-option[data-color="#cfe2ff"]');
+            const blueOption = document.querySelector('.color-option-modern[data-color="#2563eb"], .color-option[data-color="#2563eb"]');
             if (blueOption) {
                 blueOption.classList.add('active');
-                selectedColor = '#cfe2ff';
+                selectedColor = '#2563eb';
             }
         }
         
@@ -357,6 +407,10 @@ async function editNote(noteId, event) {
         if (modal) {
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
+            // Setup color option listeners when modal opens
+            setTimeout(() => {
+                setupModalColorOptions();
+            }, 100);
         }
     } catch (error) {
         console.error('Error loading note:', error);
@@ -381,7 +435,7 @@ async function saveNote() {
         const body = {
                 title: title,
                 content: content,
-                color: selectedColor || '#cfe2ff',
+                color: selectedColor || '#2563eb',
                 labels: labels,
                 pinned: 0,
                 notes_type: 'note'
@@ -432,7 +486,7 @@ async function togglePinNote(noteId, event) {
                 id: noteId,
                 title: note.title || 'Untitled Note',
                 content: note.content || '',
-                color: note.color || '#cfe2ff',
+                color: note.color || '#2563eb',
                 pinned: newPinned ? 1 : 0,
                 labels: Array.isArray(note.labels) ? note.labels : [],
                 notes_type: 'note'

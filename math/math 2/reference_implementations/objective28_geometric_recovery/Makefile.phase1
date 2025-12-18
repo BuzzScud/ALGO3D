@@ -1,0 +1,100 @@
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -g -I./include -I../../include
+LDFLAGS = -lm -lssl -lcrypto -lpthread
+
+BUILD_DIR = build
+SRC_DIR = src
+TEST_DIR = tests
+
+.PHONY: all clean test-phase1
+
+all: test-phase1
+
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+
+# Compile prime_float_math from main repo
+/tmp/prime_float_math.o:
+	cd ../.. && gcc -Wall -Wextra -O2 -g -I./include -c src/transcendental/prime_float_math.c -o /tmp/prime_float_math.o
+
+$(BUILD_DIR)/crystal_abacus.o: $(SRC_DIR)/crystal_abacus.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/kissing_spheres.o: $(SRC_DIR)/kissing_spheres.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/test_phase1_foundation: $(TEST_DIR)/test_phase1_foundation.c $(BUILD_DIR)/crystal_abacus.o $(BUILD_DIR)/kissing_spheres.o /tmp/prime_float_math.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+test-phase1: $(BUILD_DIR)/test_phase1_foundation
+	@echo "Running Phase 1 Foundation Tests..."
+	@$(BUILD_DIR)/test_phase1_foundation
+
+clean:
+	rm -rf $(BUILD_DIR)
+	rm -f /tmp/prime_float_math.o
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#                     PHASE 2: TETRATION ATTRACTORS
+# ═══════════════════════════════════════════════════════════════════════
+
+$(BUILD_DIR)/tetration_attractors.o: $(SRC_DIR)/tetration_attractors.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/test_phase2_tetration: $(TEST_DIR)/test_phase2_tetration.c $(BUILD_DIR)/tetration_attractors.o $(BUILD_DIR)/crystal_abacus.o $(BUILD_DIR)/kissing_spheres.o /tmp/prime_float_math.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+.PHONY: test-phase2
+test-phase2: $(BUILD_DIR)/test_phase2_tetration
+	@echo "Running Phase 2 Tetration Tests..."
+	@$(BUILD_DIR)/test_phase2_tetration
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#                     PHASE 3: ECDLP INTEGRATION
+# ═══════════════════════════════════════════════════════════════════════════
+
+$(BUILD_DIR)/ecdlp_integration.o: $(SRC_DIR)/ecdlp_integration.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/test_phase3_ecdlp: $(TEST_DIR)/test_phase3_ecdlp.c $(BUILD_DIR)/ecdlp_integration.o $(BUILD_DIR)/tetration_attractors.o $(BUILD_DIR)/crystal_abacus.o $(BUILD_DIR)/kissing_spheres.o /tmp/prime_float_math.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+.PHONY: test-phase3
+test-phase3: $(BUILD_DIR)/test_phase3_ecdlp
+	@echo "Running Phase 3 ECDLP Integration Tests..."
+	@$(BUILD_DIR)/test_phase3_ecdlp
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#                     PHASE 4: OSCILLATION DETECTION
+# ═══════════════════════════════════════════════════════════════════════════
+
+$(BUILD_DIR)/oscillation_detection.o: $(SRC_DIR)/oscillation_detection.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/test_phase4_oscillation: $(TEST_DIR)/test_phase4_oscillation.c $(BUILD_DIR)/oscillation_detection.o $(BUILD_DIR)/ecdlp_integration.o $(BUILD_DIR)/tetration_attractors.o $(BUILD_DIR)/crystal_abacus.o $(BUILD_DIR)/kissing_spheres.o /tmp/prime_float_math.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+.PHONY: test-phase4
+test-phase4: $(BUILD_DIR)/test_phase4_oscillation
+	@echo "Running Phase 4 Oscillation Detection Tests..."
+	@$(BUILD_DIR)/test_phase4_oscillation
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#                     PHASE 5: RECURSIVE SEARCH
+# ═══════════════════════════════════════════════════════════════════════════
+
+$(BUILD_DIR)/recursive_search.o: $(SRC_DIR)/recursive_search.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/test_phase5_recursive: $(TEST_DIR)/test_phase5_recursive.c $(BUILD_DIR)/recursive_search.o $(BUILD_DIR)/oscillation_detection.o $(BUILD_DIR)/ecdlp_integration.o $(BUILD_DIR)/tetration_attractors.o $(BUILD_DIR)/crystal_abacus.o $(BUILD_DIR)/kissing_spheres.o /tmp/prime_float_math.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+.PHONY: test-phase5
+test-phase5: $(BUILD_DIR)/test_phase5_recursive
+	@echo "Running Phase 5 Recursive Search Tests..."
+	@$(BUILD_DIR)/test_phase5_recursive
+

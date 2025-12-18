@@ -1,0 +1,13 @@
+=== FILE: math/include/math/polytope.h ===
+
+--- FUNCTIONS ---
+void platonic_free(PlatonicSolid* solid);
+void platonic_print(const PlatonicSolid* solid);
+void platonic_print_detailed(const PlatonicSolid* solid);
+
+--- TYPES ---
+typedef struct {
+
+--- CONSTANTS ---
+#define MATH_POLYTOPE_H
+

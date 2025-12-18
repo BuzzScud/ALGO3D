@@ -1,0 +1,15 @@
+=== FILE: math/src/geometry/clock_projection_optimized.c ===
+
+--- FUNCTIONS IMPLEMENTED ---
+MathError clock_to_sphere_optimized(const ClockPosition* pos, SphereCoord* sphere) {
+MathError clock_from_sphere_optimized(const SphereCoord* sphere, ClockPosition* pos) {
+MathError clock_to_sphere_batch(const ClockPosition* positions, 
+MathError clock_from_sphere_batch(const SphereCoord* spheres,
+MathError clock_to_sphere_batch_simd(const ClockPosition* positions,
+MathError clock_interpolate(const ClockPosition* start,
+MathError clock_to_cartesian(const ClockPosition* pos, Point2D* cart) {
+MathError clock_from_cartesian(const Point2D* cart, ClockPosition* pos) {
+MathError clock_to_cartesian_batch(const ClockPosition* positions,
+
+--- KEY ALGORITHMS ---
+

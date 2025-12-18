@@ -1,0 +1,43 @@
+=== FILE: math/include/math/abacus.h ===
+
+--- FUNCTIONS ---
+void abacus_free(CrystallineAbacus* abacus);
+MathError abacus_init_zero(CrystallineAbacus* abacus);
+MathError abacus_to_uint64(const CrystallineAbacus* abacus, uint64_t* value);
+MathError abacus_to_double(const CrystallineAbacus* abacus, double* value);
+MathError abacus_set_precision(CrystallineAbacus* abacus, int32_t precision);
+int32_t abacus_get_precision(const CrystallineAbacus* abacus);
+MathError abacus_round(CrystallineAbacus* result, const CrystallineAbacus* a, int32_t precision);
+MathError abacus_truncate(CrystallineAbacus* result, const CrystallineAbacus* a, int32_t precision);
+MathError abacus_add(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b);
+MathError abacus_sub(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b);
+MathError abacus_mul(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b);
+MathError abacus_div(CrystallineAbacus* quotient, CrystallineAbacus* remainder,
+MathError abacus_shift_left(CrystallineAbacus* result, const CrystallineAbacus* a, size_t n);
+MathError abacus_shift_right(CrystallineAbacus* result, const CrystallineAbacus* a, size_t n);
+int abacus_compare(const CrystallineAbacus* a, const CrystallineAbacus* b);
+bool abacus_is_zero(const CrystallineAbacus* abacus);
+bool abacus_is_negative(const CrystallineAbacus* abacus);
+MathError abacus_normalize(CrystallineAbacus* abacus);
+void abacus_print(const CrystallineAbacus* abacus);
+MathError abacus_mod(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* modulus);
+MathError abacus_mod_add(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b, const CrystallineAbacus* modulus);
+MathError abacus_mod_sub(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b, const CrystallineAbacus* modulus);
+MathError abacus_mod_mul(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b, const CrystallineAbacus* modulus);
+MathError abacus_mod_exp(CrystallineAbacus* result, const CrystallineAbacus* base, const CrystallineAbacus* exponent, const CrystallineAbacus* modulus);
+MathError abacus_mod_inverse(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* modulus);
+MathError abacus_gcd(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b);
+MathError abacus_lcm(CrystallineAbacus* result, const CrystallineAbacus* a, const CrystallineAbacus* b);
+bool abacus_coprime(const CrystallineAbacus* a, const CrystallineAbacus* b);
+MathError abacus_sqrt(CrystallineAbacus* result, const CrystallineAbacus* n);
+MathError abacus_root(CrystallineAbacus* result, const CrystallineAbacus* n, uint32_t root);
+MathError abacus_convert_base(CrystallineAbacus** result, const CrystallineAbacus* source, uint32_t new_base);
+uint32_t abacus_get_base(const CrystallineAbacus* abacus);
+
+--- TYPES ---
+typedef struct {
+typedef struct {
+
+--- CONSTANTS ---
+#define MATH_ABACUS_H
+

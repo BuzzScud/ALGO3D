@@ -1,0 +1,26 @@
+=== FILE: math/include/math/rainbow.h ===
+
+--- FUNCTIONS ---
+MathError rainbow_init(RainbowTable* table, size_t initial_capacity);
+void rainbow_cleanup(RainbowTable* table);
+MathError rainbow_populate_to_prime(RainbowTable* table, uint64_t max_prime);
+MathError rainbow_populate_count(RainbowTable* table, uint64_t n);
+MathError rainbow_lookup_by_index(const RainbowTable* table, uint64_t index, uint64_t* prime);
+MathError rainbow_lookup_by_position(const RainbowTable* table, const ClockPosition* pos, uint64_t* prime);
+MathError rainbow_lookup_position(const RainbowTable* table, uint64_t prime, ClockPosition* pos);
+MathError rainbow_lookup_index(const RainbowTable* table, uint64_t prime, uint64_t* index);
+MathError rainbow_next_prime(const RainbowTable* table, uint64_t prime, uint64_t* next);
+MathError rainbow_prev_prime(const RainbowTable* table, uint64_t prime, uint64_t* prev);
+bool rainbow_contains(const RainbowTable* table, uint64_t prime);
+size_t rainbow_size(const RainbowTable* table);
+uint64_t rainbow_max_prime(const RainbowTable* table);
+MathError rainbow_populate_with_o1(RainbowTable* table, uint32_t position, 
+MathError rainbow_populate_all_positions_o1(RainbowTable* table, uint64_t max_magnitude);
+
+--- TYPES ---
+typedef struct {
+typedef struct {
+
+--- CONSTANTS ---
+#define MATH_RAINBOW_H
+

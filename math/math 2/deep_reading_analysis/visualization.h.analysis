@@ -1,0 +1,26 @@
+=== FILE: math/include/math/visualization.h ===
+
+--- FUNCTIONS ---
+MathError clock_to_sphere_optimized(const ClockPosition* pos, SphereCoord* sphere);
+MathError clock_from_sphere_optimized(const SphereCoord* sphere, ClockPosition* pos);
+MathError clock_to_cartesian(const ClockPosition* pos, Point2D* cart);
+MathError clock_from_cartesian(const Point2D* cart, ClockPosition* pos);
+MathError clock_to_sphere_batch(const ClockPosition* positions,
+MathError clock_from_sphere_batch(const SphereCoord* spheres,
+MathError clock_to_cartesian_batch(const ClockPosition* positions,
+MathError clock_to_sphere_batch_simd(const ClockPosition* positions,
+MathError clock_interpolate(const ClockPosition* start,
+MathError abacus_to_ascii(const CrystallineAbacus* abacus, 
+void abacus_print_ascii(const CrystallineAbacus* abacus);
+MathError clock_position_to_ascii(const ClockPosition* pos,
+MathError abacus_to_svg(const CrystallineAbacus* abacus,
+MathError clock_lattice_to_svg(const char* filename,
+MathError abacus_to_json(const CrystallineAbacus* abacus, const char* filename);
+MathError clock_position_to_json(const ClockPosition* pos, const char* filename);
+MathError sphere_coords_to_obj(const SphereCoord* spheres,
+
+--- TYPES ---
+
+--- CONSTANTS ---
+#define MATH_VISUALIZATION_H
+

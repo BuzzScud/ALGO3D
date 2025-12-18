@@ -1,0 +1,86 @@
+=== Comparing all .c files ===
+batch_accumulator.c: cllm=4547 (2025-12-17) vs src=4546 (2025-12-17)
+cllm_adaptive_hierarchy.c: cllm=14511 (2025-12-17) vs src=15347 (2025-12-17)
+cllm_advanced.c: cllm=11915 (2025-12-17) vs src=12079 (2025-12-17)
+cllm_attention.c: cllm=17748 (2025-12-17) vs src=41486 (2025-12-17)
+cllm_batch.c: cllm=14163 (2025-12-17) vs src=14162 (2025-12-17)
+cllm_batch_splitting.c: cllm=16806 (2025-12-17) vs src=16833 (2025-12-17)
+cllm_benchmark.c: cllm=18545 (2025-12-17) vs src=18544 (2025-12-17)
+cllm_blind_recovery.c: cllm=14883 (2025-12-17) vs src=15038 (2025-12-17)
+cllm_cache.c: cllm=795 (2025-12-17) vs src=794 (2025-12-17)
+cllm_cache_aware_distribution.c: cllm=16001 (2025-12-17) vs src=16028 (2025-12-17)
+cllm_cache_optimization.c: cllm=8913 (2025-12-17) vs src=9049 (2025-12-17)
+cllm_create.c: cllm=27222 (2025-12-17) vs src=29072 (2025-12-17)
+cllm_crystalline_memory.c: cllm=14437 (2025-12-17) vs src=14436 (2025-12-17)
+cllm_cymatic_frequencies.c: cllm=8002 (2025-12-17) vs src=8122 (2025-12-17)
+cllm_cymatic_sync.c: cllm=10823 (2025-12-17) vs src=10822 (2025-12-17)
+cllm_data_loader.c: cllm=25066 (2025-12-17) vs src=25024 (2025-12-17)
+cllm_embedding.c: cllm=35471 (2025-12-17) vs src=37868 (2025-12-17)
+cllm_embeddings.c: cllm=13103 (2025-12-17) vs src=8151 (2025-12-17)
+cllm_entropy_allocation.c: cllm=15059 (2025-12-17) vs src=15146 (2025-12-17)
+cllm_entropy_integration.c: cllm=10486 (2025-12-17) vs src=10698 (2025-12-17)
+cllm_entropy_work_distribution.c: cllm=13918 (2025-12-17) vs src=13946 (2025-12-17)
+cllm_epoch_sync.c: cllm=11745 (2025-12-17) vs src=11744 (2025-12-17)
+cllm_feedforward.c: cllm=10200 (2025-12-17) vs src=10406 (2025-12-17)
+cllm_format.c: cllm=16207 (2025-12-17) vs src=20222 (2025-12-17)
+cllm_fp16.c: cllm=4125 (2025-12-17) vs src=4311 (2025-12-17)
+cllm_free.c: cllm=10419 (2025-12-17) vs src=11876 (2025-12-17)
+cllm_global_progress.c: cllm=9977 (2025-12-17) vs src=9976 (2025-12-17)
+cllm_hierarchical_memory.c: cllm=13538 (2025-12-17) vs src=13537 (2025-12-17)
+cllm_inference.c: cllm=26634 (2025-12-17) vs src=26321 (2025-12-17)
+cllm_kissing_boundaries.c: cllm=14808 (2025-12-17) vs src=14807 (2025-12-17)
+cllm_lattice_conversion.c: cllm=4045 (2025-12-17) vs src=6804 (2025-12-17)
+cllm_lattice_entropy.c: cllm=7421 (2025-12-17) vs src=7424 (2025-12-17)
+cllm_lattice_formula.c: cllm=10157 (2025-12-17) vs src=10358 (2025-12-17)
+cllm_lattice_lookup.c: cllm=6188 (2025-12-17) vs src=6417 (2025-12-17)
+cllm_layernorm.c: cllm=8671 (2025-12-17) vs src=8699 (2025-12-17)
+cllm_lockfree_memory.c: cllm=12806 (2025-12-17) vs src=12805 (2025-12-17)
+cllm_loss.c: cllm=5040 (2025-12-17) vs src=5269 (2025-12-17)
+cllm_metrics.c: cllm=11646 (2025-12-17) vs src=11645 (2025-12-17)
+cllm_model_manager.c: cllm=34208 (2025-12-17) vs src=34208 (2025-12-17)
+cllm_model_metadata.c: cllm=3901 (2025-12-17) vs src=3901 (2025-12-17)
+cllm_model_registry.c: cllm=18142 (2025-12-17) vs src=18141 (2025-12-17)
+cllm_model_rename.c: cllm=3255 (2025-12-17) vs src=3254 (2025-12-17)
+cllm_nan_checker.c: ONLY in cllm/
+cllm_optimizer.c: cllm=13051 (2025-12-17) vs src=13079 (2025-12-17)
+cllm_plimpton_integration.c: cllm=8660 (2025-12-17) vs src=8659 (2025-12-17)
+cllm_plimpton_relationships.c: cllm=12064 (2025-12-17) vs src=12597 (2025-12-17)
+cllm_production.c: cllm=14504 (2025-12-17) vs src=14783 (2025-12-17)
+cllm_progress.c: cllm=5191 (2025-12-17) vs src=5190 (2025-12-17)
+cllm_root_word_modeling.c: cllm=10664 (2025-12-17) vs src=10777 (2025-12-17)
+cllm_sieve.c: cllm=9216 (2025-12-17) vs src=9285 (2025-12-17)
+cllm_simd_gradient_ops.c: cllm=6377 (2025-12-17) vs src=6376 (2025-12-17)
+cllm_simd_utils.c: cllm=9073 (2025-12-17) vs src=9072 (2025-12-17)
+cllm_symmetry.c: cllm=11358 (2025-12-17) vs src=11522 (2025-12-17)
+cllm_thread_pool.c: ONLY in cllm/
+cllm_threads.c: ONLY in cllm/
+cllm_threads_dynamic.c: ONLY in cllm/
+cllm_threads_spawn.c: ONLY in cllm/
+cllm_token.c: cllm=21192 (2025-12-17) vs src=8895 (2025-12-17)
+cllm_tokenizer.c: cllm=13778 (2025-12-17) vs src=13777 (2025-12-17)
+cllm_tokenizer_threadsafe.c: cllm=9525 (2025-12-17) vs src=9525 (2025-12-17)
+cllm_training_functions.c: cllm=12224 (2025-12-17) vs src=20606 (2025-12-17)
+cllm_training_threaded.c: ONLY in cllm/
+cllm_vocab_builder.c: ONLY in cllm/
+cllm_work_distribution.c: cllm=15846 (2025-12-17) vs src=15883 (2025-12-17)
+cllm_work_distribution_timing.c: cllm=12672 (2025-12-17) vs src=12671 (2025-12-17)
+cllm_workload_detector.c: cllm=8461 (2025-12-17) vs src=8488 (2025-12-17)
+model_history_manager.c: cllm=7051 (2025-12-17) vs src=7050 (2025-12-17)
+model_queue_manager.c: cllm=5956 (2025-12-17) vs src=5956 (2025-12-17)
+
+=== Files ONLY in src/ai/ ===
+array_utils.c
+cllm_88d_integration.c
+cllm_abacus_matrix.c
+cllm_clock_memory.c
+cllm_create_from_schlafli.c
+cllm_hierarchical_embeddings.c
+cllm_hierarchical_training.c
+cllm_inference_transformer.c
+cllm_lattice_helpers.c
+cllm_platonic_generator.c
+cllm_training_system.c
+cllm_vocabulary.c
+cllm_vocabulary_integration.c
+rainbow_table_compat.c
+space_88d.c

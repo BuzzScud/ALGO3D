@@ -1,0 +1,15 @@
+numpy>=1.19.0
+scipy>=1.5.0
+
+[audio]
+soundfile>=0.10.0
+
+[dev]
+pytest>=6.0
+pytest-cov>=2.10
+black>=20.8b1
+flake8>=3.8
+mypy>=0.800
+
+[visualization]
+matplotlib>=3.3.0
