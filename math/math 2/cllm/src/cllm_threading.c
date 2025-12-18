@@ -1,6 +1,6 @@
 /**
  * @file cllm_threading.c
- * @brief CLLM Threading System - Core Implementation
+ * @brief CLLM 88D Threading System - Core Implementation
  * 
  * THREAD-CENTRIC ARCHITECTURE (88D):
  * - Threading is MANDATORY and initialized in cllm_create_model()
@@ -11,98 +11,49 @@
  */
 
 #include "ai/cllm_threading.h"
-#include "hierarchical_threading.h"
-#include "message_passing.h"
+#include "../../algorithms/include/hierarchical_threading.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
 // ============================================================================
-// INITIALIZATION & CLEANUP
+// CORE 88D THREADING API
 // ============================================================================
 
-bool cllm_initialize_threading(CLLMModel* model, uint32_t base) {
+HierarchicalThreadPool* cllm_get_thread_pool(CLLMModel* model) {
     if (!model) {
-        fprintf(stderr, "cllm_initialize_threading: NULL model\n");
-        return false;
+        fprintf(stderr, "ERROR: NULL model in cllm_get_thread_pool\n");
+        return NULL;
     }
     
-    // Check if already initialized
-    if (model->threads) {
-        fprintf(stderr, "cllm_initialize_threading: Already initialized\n");
-        return true;  // Already initialized is not an error
-    }
-    
-    printf("Initializing 88D threading system for CLLM model...\n");
-    
-    // Create 88D thread pool (96 threads: 8 layers × 12 threads per layer)
-    model->threads = hierarchical_thread_pool_create(base);
+    // In 88D architecture, threading is ALWAYS enabled
     if (!model->threads) {
-        fprintf(stderr, "Failed to create 88D thread pool\n");
-        return false;
+        fprintf(stderr, "FATAL: Model has no thread pool - this should never happen in 88D\n");
+        return NULL;
     }
     
-    printf("  ✓ Created 88D thread pool (96 threads)\n");
-    
-    // Initialize statistics
-    model->threading.total_work_units = 0;
-    model->threading.work_stolen = 0;
-    model->threading.parallel_efficiency = 0.0;
-    model->threading.load_balance_score = 0.0;
-    
-    printf("88D threading system initialized successfully!\n");
-    printf("  - Threads: 96 (8 layers × 12 threads)\n");
-    printf("  - Base: %u (for CrystallineAbacus)\n", base);
-    
-    return true;
+    return model->threads;
 }
 
-void cllm_cleanup_threading(CLLMModel* model) {
-    if (!model) return;
+HierarchicalThread* cllm_get_thread(CLLMModel* model, uint8_t layer, uint8_t position) {
+    HierarchicalThreadPool* pool = cllm_get_thread_pool(model);
+    if (!pool) return NULL;
     
-    printf("Cleaning up 88D threading system...\n");
-    
-    // Free geometry mappings
-    if (model->threading.vertex_to_thread) {
-        free(model->threading.vertex_to_thread);
-        model->threading.vertex_to_thread = NULL;
-    }
-    if (model->threading.edge_to_boundary) {
-        free(model->threading.edge_to_boundary);
-        model->threading.edge_to_boundary = NULL;
-    }
-    if (model->threading.face_to_layer) {
-        free(model->threading.face_to_layer);
-        model->threading.face_to_layer = NULL;
-    }
-    printf("  ✓ Freed geometry mappings\n");
-    
-    // Free threading barriers
-    if (model->threading.forward_barrier) {
-        pthread_barrier_destroy(model->threading.forward_barrier);
-        free(model->threading.forward_barrier);
-        model->threading.forward_barrier = NULL;
-    }
-    if (model->threading.backward_barrier) {
-        pthread_barrier_destroy(model->threading.backward_barrier);
-        free(model->threading.backward_barrier);
-        model->threading.backward_barrier = NULL;
-    }
-    if (model->threading.optimizer_barrier) {
-        pthread_barrier_destroy(model->threading.optimizer_barrier);
-        free(model->threading.optimizer_barrier);
-        model->threading.optimizer_barrier = NULL;
-    }
-    printf("  ✓ Destroyed threading barriers\n");
-    
-    // Stop and destroy thread pool
-    if (model->threads) {
-        hierarchical_thread_pool_free(model->threads);
-        model->threads = NULL;
-        printf("  ✓ Freed thread pool\n");
+    // Validate layer and position
+    if (layer >= 8 || position >= 12) {
+        fprintf(stderr, "ERROR: Invalid layer=%u or position=%u\n", layer, position);
+        return NULL;
     }
     
-    printf("88D threading system cleaned up successfully!\n");
+    return hierarchical_thread_get(pool, layer, position);
+}
+
+HierarchicalThread* cllm_get_token_thread(CLLMModel* model, uint32_t token_id) {
+    if (!model || token_id >= model->vocab_size) {
+        return NULL;
+    }
+    
+    return model->token_assignments[token_id].thread;
 }
 
 // ============================================================================
@@ -132,103 +83,134 @@ bool cllm_map_geometry_to_threads(CLLMModel* model) {
         model->threading.vertex_to_thread[i] = i % 88;
     }
     
-    // Map edges to boundaries (distribute across boundaries)
+    // Map edges to boundaries (use control threads)
     for (uint32_t i = 0; i < num_edges; i++) {
-        model->threading.edge_to_boundary[i] = i % 88;
+        uint8_t layer = (i % 8);  // Distribute across 8 layers
+        model->threading.edge_to_boundary[i] = layer * 12;  // Position 0 = control
     }
     
-    // Map faces to layers (distribute across 8 layers)
+    // Map faces to layers (geometric folding)
     for (uint32_t i = 0; i < num_faces; i++) {
         model->threading.face_to_layer[i] = i % 8;
     }
     
-    printf("  ✓ Mapped %u vertices to threads\n", num_vertices);
-    printf("  ✓ Mapped %u edges to boundaries\n", num_edges);
-    printf("  ✓ Mapped %u faces to layers\n", num_faces);
+    printf("  ✓ Mapped geometry to 88D threads\n");
+    printf("    Vertices: %u → threads\n", num_vertices);
+    printf("    Edges: %u → boundaries\n", num_edges);
+    printf("    Faces: %u → layers\n", num_faces);
     
     return true;
 }
 
 // ============================================================================
-// TOKEN → THREAD MAPPING (NEW)
+// WORK DISTRIBUTION
 // ============================================================================
 
-uint32_t cllm_get_thread_for_token(const CLLMModel* model, uint32_t token_id) {
-    if (!model || !model->token_assignments) return UINT32_MAX;
-    if (token_id >= model->vocab_size) return UINT32_MAX;
+int cllm_start_threads(CLLMModel* model) {
+    HierarchicalThreadPool* pool = cllm_get_thread_pool(model);
+    if (!pool) return -1;
     
-    return model->token_assignments[token_id].thread_id;
+    return hierarchical_thread_pool_start(pool);
 }
 
-HierarchicalThread* cllm_get_thread_for_token_direct(const CLLMModel* model, uint32_t token_id) {
-    if (!model || !model->token_assignments) return NULL;
-    if (token_id >= model->vocab_size) return NULL;
+int cllm_stop_threads(CLLMModel* model) {
+    HierarchicalThreadPool* pool = cllm_get_thread_pool(model);
+    if (!pool) return -1;
     
-    return model->token_assignments[token_id].thread;
+    return hierarchical_thread_pool_stop(pool);
+}
+
+int cllm_wait_for_threads(CLLMModel* model) {
+    HierarchicalThreadPool* pool = cllm_get_thread_pool(model);
+    if (!pool) return -1;
+    
+    return hierarchical_thread_pool_wait(pool);
 }
 
 // ============================================================================
-// WORK DISTRIBUTION (SIMPLIFIED)
+// THREAD-CENTRIC OPERATIONS
 // ============================================================================
 
-bool cllm_distribute_work(CLLMModel* model, void* work_items, size_t num_items) {
-    if (!model || !model->threads) return false;
+int cllm_start_thread(HierarchicalThread* thread) {
+    if (!thread) return -1;
     
-    // Work distribution is handled by the thread pool
-    // This is a placeholder for future work distribution logic
-    (void)work_items;
-    (void)num_items;
-    
-    return true;
+    return hierarchical_thread_start(thread, NULL, NULL);
 }
 
-bool cllm_submit_work_item(CLLMModel* model, void* work_item) {
-    if (!model || !model->threads || !work_item) return false;
+int cllm_stop_thread(HierarchicalThread* thread) {
+    if (!thread) return -1;
     
-    // Work submission is handled by the thread pool
-    // This is a placeholder for future work submission logic
-    
-    return true;
+    return hierarchical_thread_stop(thread);
 }
 
-bool cllm_wait_for_work_completion(CLLMModel* model) {
-    if (!model || !model->threads) return false;
+StateType cllm_get_thread_state(HierarchicalThread* thread) {
+    if (!thread) return STATE_IDLE;
     
-    // Wait for all threads to complete
-    // This uses the global barrier
-    if (model->threading.forward_barrier) {
-        pthread_barrier_wait(model->threading.forward_barrier);
+    return hierarchical_thread_get_state(thread);
+}
+
+// ============================================================================
+// VALIDATION
+// ============================================================================
+
+bool cllm_validate_threading(CLLMModel* model) {
+    if (!model) {
+        fprintf(stderr, "ERROR: NULL model\n");
+        return false;
     }
     
+    if (!model->threads) {
+        fprintf(stderr, "ERROR: No thread pool - threading is mandatory in 88D\n");
+        return false;
+    }
+    
+    // Validate thread pool structure
+    HierarchicalThreadPool* pool = model->threads;
+    if (pool->num_levels != 8) {
+        fprintf(stderr, "ERROR: Expected 8 layers, got %u\n", pool->num_levels);
+        return false;
+    }
+    
+    if (pool->threads_per_level != 12) {
+        fprintf(stderr, "ERROR: Expected 12 threads per layer, got %u\n", pool->threads_per_level);
+        return false;
+    }
+    
+    // Validate token assignments
+    for (uint32_t i = 0; i < model->vocab_size; i++) {
+        if (!model->token_assignments[i].thread) {
+            fprintf(stderr, "ERROR: Token %u has no thread assignment\n", i);
+            return false;
+        }
+    }
+    
+    printf("✓ 88D threading configuration validated\n");
     return true;
 }
 
 // ============================================================================
-// STATISTICS
+// UTILITY FUNCTIONS
 // ============================================================================
 
-void cllm_update_threading_stats(CLLMModel* model) {
-    if (!model || !model->threads) return;
+void cllm_print_threading_info(CLLMModel* model) {
+    if (!model) {
+        fprintf(stderr, "ERROR: NULL model\n");
+        return;
+    }
     
-    HierarchicalThreadPool* pool = model->threads;
+    HierarchicalThreadPool* pool = cllm_get_thread_pool(model);
+    if (!pool) {
+        fprintf(stderr, "ERROR: No thread pool\n");
+        return;
+    }
     
-    // Update statistics from thread pool
-    model->threading.total_work_units = pool->total_work_items;
-    model->threading.work_stolen = pool->total_work_stolen;
-    
-    // Calculate parallel efficiency (placeholder)
-    // TODO: Implement actual efficiency calculation
-    model->threading.parallel_efficiency = 0.95;  // Placeholder
-    model->threading.load_balance_score = 0.90;   // Placeholder
-}
-
-void cllm_print_threading_stats(const CLLMModel* model) {
-    if (!model) return;
-    
-    printf("\n=== 88D Threading Statistics ===\n");
-    printf("Total work units: %lu\n", model->threading.total_work_units);
-    printf("Work stolen: %lu\n", model->threading.work_stolen);
-    printf("Parallel efficiency: %.2f%%\n", model->threading.parallel_efficiency * 100);
-    printf("Load balance score: %.2f%%\n", model->threading.load_balance_score * 100);
-    printf("================================\n\n");
+    printf("\n=== 88D Threading Information ===\n");
+    printf("Total Threads: %u\n", pool->num_levels * pool->threads_per_level);
+    printf("Layers: %u\n", pool->num_levels);
+    printf("Threads per Layer: %u\n", pool->threads_per_level);
+    printf("Worker Threads: %u\n", pool->num_levels * (pool->threads_per_level - 1));
+    printf("Control Threads: %u\n", pool->num_levels);
+    printf("Vocabulary Size: %u\n", model->vocab_size);
+    printf("Token Assignments: %s\n", model->token_assignments ? "Complete" : "Incomplete");
+    printf("==================================\n\n");
 }

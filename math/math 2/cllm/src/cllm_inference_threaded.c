@@ -306,11 +306,13 @@ int cllm_generate(CLLMInference* inference,
     }
     
     CLLMModel* model = inference->model;
-    if (!model || !model->threads) {
-        fprintf(stderr, "ERROR: Model or 88D thread pool is NULL\n");
+    if (!model) {
+        fprintf(stderr, "ERROR: Model is NULL\n");
         strcpy(output, "Error: Invalid model state");
         return -1;
     }
+    
+    // Threading is ALWAYS enabled in 88D architecture
     
     // ========================================================================
     // STEP 1: TOKENIZE PROMPT
