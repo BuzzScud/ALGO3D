@@ -155,7 +155,7 @@ HierarchicalThreadPool* hierarchical_thread_pool_create_88d_adaptive(
     
     // Create base 88D pool structure
     // This creates the logical thread structures but we'll control physical threads
-    HierarchicalThreadPool* pool = hierarchical_thread_pool_create_88d(base);
+    HierarchicalThreadPool* pool = hierarchical_thread_pool_create(base);
     
     if (!pool) {
         fprintf(stderr, "Failed to create 88D thread pool\n");

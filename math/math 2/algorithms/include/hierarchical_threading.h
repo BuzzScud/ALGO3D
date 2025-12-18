@@ -962,7 +962,7 @@ uint32_t hierarchical_thread_find_nearest_neighbors(
  * @param base Abacus base (typically 60 for base-60)
  * @return Thread pool or NULL on error
  */
-HierarchicalThreadPool* hierarchical_thread_pool_create_88d(uint32_t base);
+HierarchicalThreadPool* hierarchical_thread_pool_create(uint32_t base);
 
 /**
  * Get thread by position

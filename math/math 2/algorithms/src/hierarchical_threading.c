@@ -1140,7 +1140,7 @@ uint32_t hierarchical_thread_find_nearest_neighbors(
 // 88D-SPECIFIC FUNCTIONS
 // ============================================================================
 
-HierarchicalThreadPool* hierarchical_thread_pool_create_88d(uint32_t base) {
+HierarchicalThreadPool* hierarchical_thread_pool_create(uint32_t base) {
     // Create pool with 88D configuration
     HierarchicalThreadPool* pool = hierarchical_thread_pool_create(
         HIERARCHICAL_88D_TOTAL_THREADS,   // 96 threads

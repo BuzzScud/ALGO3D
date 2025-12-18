@@ -95,7 +95,7 @@ static bool allocate_model_parameters(CLLMModel* model) {
     // ========================================================================
     
     printf("  → Creating 88D thread pool (MANDATORY)...\n");
-    model->threads = hierarchical_thread_pool_create_88d(60);  // Base 60 for CrystallineAbacus
+    model->threads = hierarchical_thread_pool_create(60);  // Base 60 for CrystallineAbacus
     if (!model->threads) {
         fprintf(stderr, "FATAL: Failed to create 88D thread pool\n");
         fprintf(stderr, "Threading is MANDATORY in the new architecture\n");

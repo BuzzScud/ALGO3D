@@ -21,22 +21,22 @@
 // INITIALIZATION & CLEANUP
 // ============================================================================
 
-bool cllm_initialize_threading(CLLMModel* model, uint32_t base) {
+bool cllm_initialize_88d_threading(CLLMModel* model, uint32_t base) {
     if (!model) {
-        fprintf(stderr, "cllm_initialize_threading: NULL model\n");
+        fprintf(stderr, "cllm_initialize_88d_threading: NULL model\n");
         return false;
     }
     
     // Check if already initialized
     if (model->threads) {
-        fprintf(stderr, "cllm_initialize_threading: Already initialized\n");
+        fprintf(stderr, "cllm_initialize_88d_threading: Already initialized\n");
         return true;  // Already initialized is not an error
     }
     
     printf("Initializing 88D threading system for CLLM model...\n");
     
     // Create 88D thread pool (96 threads: 8 layers × 12 threads per layer)
-    model->threads = hierarchical_thread_pool_create(base);
+    model->threads = hierarchical_thread_pool_create_88d(base);
     if (!model->threads) {
         fprintf(stderr, "Failed to create 88D thread pool\n");
         return false;
@@ -57,7 +57,7 @@ bool cllm_initialize_threading(CLLMModel* model, uint32_t base) {
     return true;
 }
 
-void cllm_cleanup_threading(CLLMModel* model) {
+void cllm_cleanup_88d_threading(CLLMModel* model) {
     if (!model) return;
     
     printf("Cleaning up 88D threading system...\n");
@@ -171,7 +171,7 @@ HierarchicalThread* cllm_get_thread_for_token_direct(const CLLMModel* model, uin
 // WORK DISTRIBUTION (SIMPLIFIED)
 // ============================================================================
 
-bool cllm_distribute_work(CLLMModel* model, void* work_items, size_t num_items) {
+bool cllm_distribute_work_88d(CLLMModel* model, void* work_items, size_t num_items) {
     if (!model || !model->threads) return false;
     
     // Work distribution is handled by the thread pool

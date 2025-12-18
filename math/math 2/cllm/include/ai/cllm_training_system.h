@@ -184,7 +184,7 @@ void cllm_training_system_free(CLLMTrainingSystem* ctx);
  * @param num_heads Number of attention heads
  * @return Thread-local context, or NULL on error
  */
-ThreadLocalTrainingContext* thread_local_training_create_88d(
+ThreadLocalTrainingContext* thread_local_training_create(
     int batch_size,
     int seq_len,
     int num_layers,
@@ -199,7 +199,7 @@ ThreadLocalTrainingContext* thread_local_training_create_88d(
  * 
  * @param ctx Thread-local context to free
  */
-void thread_local_training_free_88d(ThreadLocalTrainingContext* ctx);
+void thread_local_training_free(ThreadLocalTrainingContext* ctx);
 
 /**
  * Train one epoch using 88D system
@@ -229,7 +229,7 @@ double cllm_system_train_epoch(
  * @param num_epochs Number of epochs to train
  * @return Final epoch loss
  */
-double cllm_train_88d(
+double cllm_train(
     CLLMTrainingSystem* ctx,
     int num_epochs
 );
@@ -252,7 +252,7 @@ double cllm_train_88d(
  * @param item Work item containing batch
  * @param user_data Training context (CLLMTrainingSystem*)
  */
-void cllm_process_batch_88d(
+void cllm_process_batch(
     WorkItem* item,
     void* user_data
 );
@@ -318,7 +318,7 @@ void cllm_system_print_training_stats(const CLLMTrainingSystem* ctx);
  * @param ctx Training context
  * @param stats Output statistics structure
  */
-void cllm_get_thread_pool_stats_88d(
+void cllm_get_thread_pool_stats(
     const CLLMTrainingSystem* ctx,
     HierarchicalThreadPoolStats* stats
 );
@@ -368,7 +368,7 @@ void cllm_system_set_batch_size(CLLMTrainingSystem* ctx, uint32_t batch_size);
  * @param num_threads Number of threads
  * @return Number of levels (1-8)
  */
-int cllm_calculate_num_levels_88d(uint32_t num_threads);
+int cllm_calculate_num_levels(uint32_t num_threads);
 
 /**
  * Calculate gradient size for model
@@ -376,7 +376,7 @@ int cllm_calculate_num_levels_88d(uint32_t num_threads);
  * @param model CLLM model
  * @return Total gradient size in doubles
  */
-size_t cllm_calculate_gradient_size_88d(const CLLMModel* model);
+size_t cllm_calculate_gradient_size(const CLLMModel* model);
 
 /**
  * Adjust thread count for 12-fold symmetry
@@ -384,6 +384,6 @@ size_t cllm_calculate_gradient_size_88d(const CLLMModel* model);
  * @param requested Number of threads requested
  * @return Adjusted number (multiple of 12 or 12n+1)
  */
-uint32_t cllm_adjust_thread_count_88d(uint32_t requested);
+uint32_t cllm_adjust_thread_count(uint32_t requested);
 
 #endif // CLLM_TRAINING_SYSTEM_H
