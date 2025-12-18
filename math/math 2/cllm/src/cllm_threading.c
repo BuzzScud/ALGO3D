@@ -9,7 +9,7 @@
  * - All parameters stored in thread CrystallineAbacus
  */
 
-#include "ai/cllm_88d_integration.h"
+#include "ai/cllm_threading.h"
 #include "hierarchical_threading.h"
 #include "message_passing.h"
 #include <stdlib.h>
