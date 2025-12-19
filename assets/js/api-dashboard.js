@@ -73,6 +73,78 @@ const APIDashboard = (function() {
                 });
             });
         }
+        
+        // API Key Modal event listeners
+        const modal = document.getElementById('api-key-modal');
+        const modalClose = document.getElementById('api-key-modal-close');
+        const modalCancel = document.getElementById('api-key-cancel-btn');
+        const modalSave = document.getElementById('api-key-save-btn');
+        const modalOverlay = modal?.querySelector('.api-key-modal-overlay');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const apiKeyToggle = document.getElementById('api-key-toggle');
+        
+        // Close modal handlers
+        if (modalClose) {
+            modalClose.addEventListener('click', closeKeyConfig);
+        }
+        if (modalCancel) {
+            modalCancel.addEventListener('click', closeKeyConfig);
+        }
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', closeKeyConfig);
+        }
+        
+        // Save API key
+        if (modalSave) {
+            modalSave.addEventListener('click', function() {
+                const apiId = modal?.dataset?.apiId;
+                const apiKey = apiKeyInput?.value;
+                if (apiId && apiKey) {
+                    saveAPIKey(apiId, apiKey);
+                }
+            });
+        }
+        
+        // Enter key to save
+        if (apiKeyInput) {
+            apiKeyInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const apiId = modal?.dataset?.apiId;
+                    const apiKey = this.value;
+                    if (apiId && apiKey) {
+                        saveAPIKey(apiId, apiKey);
+                    }
+                }
+            });
+        }
+        
+        // Toggle password visibility
+        if (apiKeyToggle) {
+            apiKeyToggle.addEventListener('click', function() {
+                const input = apiKeyInput;
+                const icon = this.querySelector('i');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    if (icon) {
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    }
+                } else {
+                    input.type = 'password';
+                    if (icon) {
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                }
+            });
+        }
+        
+        // Close on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal?.classList.contains('active')) {
+                closeKeyConfig();
+            }
+        });
     }
 
     // Load API data
@@ -449,9 +521,128 @@ const APIDashboard = (function() {
 
     // Show key configuration modal
     function showKeyConfig(apiId) {
-        // This would open a modal for API key configuration
-        // For now, redirect to settings
-        alert(`Please configure your API key in the Settings page.`);
+        const modal = document.getElementById('api-key-modal');
+        const apiName = apiData?.apis?.find(api => api.id === apiId)?.name || apiId;
+        const modalTitle = document.getElementById('api-key-modal-api-name');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const saveBtn = document.getElementById('api-key-save-btn');
+        const statusDiv = document.getElementById('api-key-modal-status');
+        
+        if (!modal) {
+            console.error('API key modal not found');
+            return;
+        }
+        
+        // Set API name in modal
+        if (modalTitle) {
+            modalTitle.textContent = `${apiName} API Key`;
+        }
+        
+        // Clear previous values
+        if (apiKeyInput) {
+            apiKeyInput.value = '';
+            apiKeyInput.type = 'password';
+        }
+        
+        if (statusDiv) {
+            statusDiv.innerHTML = '';
+            statusDiv.className = 'api-key-modal-status';
+        }
+        
+        // Store current API ID for save action
+        modal.dataset.apiId = apiId;
+        
+        // Show modal
+        modal.classList.add('active');
+        
+        // Focus on input
+        setTimeout(() => {
+            if (apiKeyInput) {
+                apiKeyInput.focus();
+            }
+        }, 100);
+    }
+    
+    // Close key configuration modal
+    function closeKeyConfig() {
+        const modal = document.getElementById('api-key-modal');
+        if (modal) {
+            modal.classList.remove('active');
+            const statusDiv = document.getElementById('api-key-modal-status');
+            if (statusDiv) {
+                statusDiv.innerHTML = '';
+                statusDiv.className = 'api-key-modal-status';
+            }
+        }
+    }
+    
+    // Save API key
+    async function saveAPIKey(apiId, apiKey) {
+        const statusDiv = document.getElementById('api-key-modal-status');
+        const saveBtn = document.getElementById('api-key-save-btn');
+        
+        if (!apiKey || apiKey.trim().length < 10) {
+            if (statusDiv) {
+                statusDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Please enter a valid API key';
+                statusDiv.className = 'api-key-modal-status error';
+            }
+            return;
+        }
+        
+        // Show loading state
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        }
+        
+        if (statusDiv) {
+            statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving API key...';
+            statusDiv.className = 'api-key-modal-status info';
+        }
+        
+        try {
+            const response = await fetch('api/update_api_key.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    api_id: apiId,
+                    api_key: apiKey.trim()
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                if (statusDiv) {
+                    statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> API key saved successfully!';
+                    statusDiv.className = 'api-key-modal-status success';
+                }
+                
+                // Reload API data after a short delay
+                setTimeout(() => {
+                    loadAPIData().then(() => {
+                        setTimeout(() => {
+                            closeKeyConfig();
+                        }, 1000);
+                    });
+                }, 500);
+            } else {
+                throw new Error(result.message || 'Failed to save API key');
+            }
+        } catch (error) {
+            console.error('Error saving API key:', error);
+            if (statusDiv) {
+                statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${escapeHtml(error.message)}`;
+                statusDiv.className = 'api-key-modal-status error';
+            }
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> Save API Key';
+            }
+        }
     }
 
     // Helper functions
@@ -562,6 +753,8 @@ const APIDashboard = (function() {
         init: init,
         setAsDefault: setAsDefault,
         showKeyConfig: showKeyConfig,
+        closeKeyConfig: closeKeyConfig,
+        saveAPIKey: saveAPIKey,
         loadAPIData: loadAPIData,
         watchPageActivation: watchPageActivation
     };

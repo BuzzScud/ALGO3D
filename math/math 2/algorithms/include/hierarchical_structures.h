@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include "pthread_barrier_compat.h"  // For macOS compatibility
 
 /**
  * Generic Hierarchical Structures

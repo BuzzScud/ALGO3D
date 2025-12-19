@@ -19,7 +19,7 @@
 const ProjectionsModule = (function() {
     let projectionChart = null;
     let currentSymbol = '';
-    let currentInterval = '1D'; // Changed to match timeframe format (15MIN, 1H, 4H, 1D)
+    let currentInterval = '1H'; // ONLY 1H TIMEFRAME ALLOWED
     let historicalPrices = [];
     let historicalLabels = [];
     let historicalCandles = [];
@@ -573,7 +573,224 @@ const ProjectionsModule = (function() {
     }
     
     // Calculate projections using multiple triads
-    function calculateProjections(historicalPrices, params) {
+    /**
+     * Calculate projections using CLLM with 88D threading via PHP backend
+     * 
+     * This function calls the PHP backend which uses C functions from the math2 library.
+     * Falls back to JavaScript implementation if PHP backend fails.
+     */
+    async function calculateProjections(historicalPrices, params) {
+        const lastPrice = historicalPrices[historicalPrices.length - 1];
+        const depthPrime = parseInt(params.depthPrime) || 31;
+        const base = parseFloat(params.base) || lastPrice;
+        const projectionCount = parseInt(params.projectionCount) || 12;
+        const steps = parseInt(params.steps) || 20;
+        const omegaHz = parseFloat(params.omegaHz) || 432.0;
+        
+        // Try PHP backend first (uses CLLM with 88D threading)
+        try {
+            console.log('Calling PHP backend for price projections (CLLM with 88D threading)...');
+            
+            const response = await fetch('api/price_projection.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    historical_prices: historicalPrices,
+                    depth_prime: depthPrime,
+                    base: base,
+                    steps: steps,
+                    projection_count: projectionCount,
+                    omega_hz: omegaHz,
+                    decimals: 8
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success && result.projection_lines) {
+                const method = result.method || 'CLLM';
+                const methodDisplay = method === 'ffi' ? 'CLLM (FFI - Direct C)' : 
+                                     method === 'exec' ? 'CLLM (Exec - C Binary)' : 
+                                     method === 'fallback' ? 'PHP Fallback' : 'CLLM';
+                
+                const numLines = result.num_lines || result.projection_lines.length;
+                const stepsPerLine = result.steps_per_line || (result.projection_lines[0] ? result.projection_lines[0].length : 0);
+                
+                console.log(`✓ Projections computed via ${methodDisplay} (${numLines} lines, ${stepsPerLine} steps each)`);
+                
+                // Store method info for UI display
+                window.lastProjectionMethod = {
+                    method: method,
+                    display: methodDisplay,
+                    uses88D: method === 'ffi' || method === 'exec',
+                    numLines: numLines,
+                    stepsPerLine: stepsPerLine
+                };
+                
+                // Show status notification
+                showProjectionStatus(methodDisplay, method === 'ffi' || method === 'exec');
+                
+                // Convert to expected format - ensure all points are valid numbers
+                const projectionLines = result.projection_lines.map((points, idx) => {
+                    // Ensure points is an array
+                    if (!Array.isArray(points)) {
+                        console.warn(`Projection line ${idx} is not an array:`, points);
+                        return null;
+                    }
+                    
+                    // Filter and validate points
+                    const validPoints = points
+                        .map(p => {
+                            const num = typeof p === 'number' ? p : parseFloat(p);
+                            return !isNaN(num) && num > 0 ? num : null;
+                        })
+                        .filter(p => p !== null);
+                    
+                    if (validPoints.length === 0) {
+                        console.warn(`Projection line ${idx} has no valid points`);
+                        return null;
+                    }
+                    
+                    // Generate triad for this projection (for display purposes)
+                    const triads = generateTriadsAroundPrime(depthPrime, projectionCount, PRIMES_500);
+                    const triad = triads[idx] || [2, 5, 7];
+                    
+                    return {
+                        triad: triad,
+                        points: validPoints
+                    };
+                }).filter(line => line !== null); // Remove invalid lines
+                
+                if (projectionLines.length === 0) {
+                    throw new Error('No valid projection lines generated');
+                }
+                
+                console.log(`✓ Converted ${projectionLines.length} valid projection lines for display`);
+                
+                return projectionLines;
+            } else {
+                throw new Error(result.error || result.message || 'Unknown error from PHP backend');
+            }
+            
+        } catch (error) {
+            console.warn('PHP backend failed, falling back to JavaScript implementation:', error);
+            
+            // Store method info
+            window.lastProjectionMethod = {
+                method: 'js',
+                display: 'JavaScript Fallback',
+                uses88D: false,
+                numLines: 0,
+                stepsPerLine: 0
+            };
+            
+            // Show status notification
+            showProjectionStatus('JavaScript Fallback', false);
+            
+            // Fallback to JavaScript implementation
+            return calculateProjectionsJS(historicalPrices, params);
+        }
+    }
+    
+    /**
+     * Update computation method display in UI
+     */
+    function updateComputationMethodDisplay() {
+        const infoEl = document.getElementById('projection-computation-info');
+        const methodTextEl = document.getElementById('computation-method-text');
+        const methodIconEl = document.getElementById('computation-method-icon');
+        const badgeEl = document.getElementById('computation-88d-badge');
+        
+        if (!infoEl || !methodTextEl || !methodIconEl) return;
+        
+        const methodInfo = window.lastProjectionMethod;
+        if (!methodInfo) {
+            infoEl.style.display = 'none';
+            return;
+        }
+        
+        infoEl.style.display = 'block';
+        methodTextEl.textContent = methodInfo.display;
+        
+        if (methodInfo.uses88D) {
+            methodIconEl.textContent = '⚡';
+            methodIconEl.style.color = '#22c55e';
+            if (badgeEl) {
+                badgeEl.style.display = 'block';
+            }
+        } else {
+            methodIconEl.textContent = '📊';
+            methodIconEl.style.color = '';
+            if (badgeEl) {
+                badgeEl.style.display = 'none';
+            }
+        }
+    }
+    
+    /**
+     * Show projection computation status
+     */
+    function showProjectionStatus(method, uses88D) {
+        // Create or update status indicator
+        let statusEl = document.getElementById('projection-method-status');
+        if (!statusEl) {
+            statusEl = document.createElement('div');
+            statusEl.id = 'projection-method-status';
+            statusEl.className = 'projection-method-status';
+            statusEl.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: var(--dark-bg, #1a1a1a);
+                border: 1px solid var(--border-color, #333);
+                border-radius: 8px;
+                padding: 12px 16px;
+                z-index: 10000;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                font-size: 13px;
+                max-width: 300px;
+                transition: opacity 0.3s;
+            `;
+            document.body.appendChild(statusEl);
+        }
+        
+        const icon = uses88D ? '⚡' : '📊';
+        const badge = uses88D ? '<span style="color: #22c55e; font-weight: bold;">88D Active</span>' : '';
+        statusEl.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">${icon}</span>
+                <div>
+                    <div style="font-weight: 600; color: var(--text-color, #e0e0e0);">${method}</div>
+                    ${badge ? `<div style="font-size: 11px; margin-top: 4px;">${badge}</div>` : ''}
+                </div>
+            </div>
+        `;
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            if (statusEl) {
+                statusEl.style.opacity = '0';
+                setTimeout(() => {
+                    if (statusEl && statusEl.parentNode) {
+                        statusEl.parentNode.removeChild(statusEl);
+                    }
+                }, 300);
+            }
+        }, 5000);
+    }
+    
+    /**
+     * JavaScript fallback implementation (original code)
+     * This is kept as a fallback if PHP backend is unavailable
+     */
+    function calculateProjectionsJS(historicalPrices, params) {
         const lastPrice = historicalPrices[historicalPrices.length - 1];
         const depthPrime = parseInt(params.depthPrime) || 31;
         const base = parseFloat(params.base) || 3;
@@ -786,9 +1003,8 @@ const ProjectionsModule = (function() {
         }
         
         currentSymbol = symbol;
-        // Get timeframe from active button
-        const activeTimeframeBtn = document.querySelector('.projection-timeframe-selector .timeframe-btn.active');
-        currentInterval = activeTimeframeBtn ? activeTimeframeBtn.dataset.timeframe : '1D';
+        // FORCE 1H TIMEFRAME - only allowed timeframe
+        currentInterval = '1H';
         
         isRefreshing = true;
         showLoading(true);
@@ -824,10 +1040,30 @@ const ProjectionsModule = (function() {
                 const low = parseFloat(candle.low || close);
                 
                 // Validate and set prices
+                // CRITICAL: Ensure proper OHLC relationships to avoid doji candles
                 candle.close = !isNaN(close) && close > 0 ? close : null;
-                candle.open = !isNaN(open) && open > 0 ? open : close;
-                candle.high = !isNaN(high) && high > 0 ? high : close;
-                candle.low = !isNaN(low) && low > 0 ? low : close;
+                
+                if (!candle.close) {
+                    return null; // Skip invalid candles
+                }
+                
+                // Set open: use provided open or previous candle's close, or current close
+                candle.open = !isNaN(open) && open > 0 ? open : candle.close;
+                
+                // Set high: must be >= max(open, close) to avoid doji
+                const minHigh = Math.max(candle.open, candle.close);
+                candle.high = !isNaN(high) && high >= minHigh ? high : minHigh;
+                
+                // Set low: must be <= min(open, close) to avoid doji
+                const maxLow = Math.min(candle.open, candle.close);
+                candle.low = !isNaN(low) && low <= maxLow ? low : maxLow;
+                
+                // Final validation: if high == low == open == close (doji), add minimal spread
+                if (candle.high === candle.low && candle.open === candle.close && candle.high === candle.open) {
+                    const spread = candle.close * 0.0001; // 0.01% spread
+                    candle.high = candle.close + spread;
+                    candle.low = candle.close - spread;
+                }
                 candle.volume = parseInt(candle.volume || 0) || 0;
                 
                 // Keep original timestamps - API already converts to EST
@@ -982,9 +1218,33 @@ const ProjectionsModule = (function() {
                         console.log(`Added real-time price $${realTimePrice.toFixed(2)} as starting point`);
                     }
                     
-                    // Update the last label with current time
-                    const currentTime = new Date();
-                    const estTimeString = currentTime.toLocaleString('en-US', {
+                    // Update the last label to show 4:00 PM EST (market close) for the last session candle
+                    // The last candle represents the market close, not the current time
+                    const now = new Date();
+                    const estDateString = now.toLocaleString('en-US', {
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    });
+                    
+                    // Parse EST date string
+                    const [datePart, timePart] = estDateString.split(', ');
+                    const [month, day, year] = datePart.split('/');
+                    
+                    // Check if we're in daylight saving time (EDT)
+                    const testDate = new Date(`${year}-${month}-${day}T12:00:00`);
+                    const estOffset = testDate.toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' });
+                    const isDST = estOffset.includes('EDT');
+                    
+                    // Create 4:00 PM EST/EDT timestamp
+                    const marketCloseTimestamp = new Date(`${year}-${month}-${day}T16:00:00${isDST ? '-04:00' : '-05:00'}`);
+                    
+                    const marketCloseString = marketCloseTimestamp.toLocaleString('en-US', {
                         timeZone: 'America/New_York',
                         year: 'numeric',
                         month: 'short',
@@ -995,28 +1255,132 @@ const ProjectionsModule = (function() {
                     });
                     
                     if (historicalLabels.length > 0) {
-                        // For intraday timeframes, show time
+                        // For intraday timeframes, show 4:00 PM EST (market close)
                         if (currentInterval === '15MIN' || currentInterval === '1H' || currentInterval === '4H') {
-                            historicalLabels[historicalLabels.length - 1] = `${estTimeString} EST (Live)`;
+                            historicalLabels[historicalLabels.length - 1] = `${marketCloseString} EST (Close)`;
                         } else {
-                            historicalLabels[historicalLabels.length - 1] = `${estTimeString} EST (Live)`;
+                            historicalLabels[historicalLabels.length - 1] = `${marketCloseString} EST (Close)`;
                         }
                     } else {
-                        historicalLabels.push(`${estTimeString} EST (Live)`);
+                        historicalLabels.push(`${marketCloseString} EST (Close)`);
                     }
                     
-                    // Update the last candle with real-time data
+                    // Update the last candle with real-time data - CRITICAL: ensure exact match
                     if (historicalCandles.length > 0) {
                         const lastCandle = historicalCandles[historicalCandles.length - 1];
+                        // Update close price to match real-time quote exactly
                         lastCandle.close = realTimePrice;
                         lastCandle.price = realTimePrice;
+                        
+                        // Update high/low if available from quote
+                        // CRITICAL: Preserve proper OHLC relationships to avoid doji candles
                         if (quoteData.high && quoteData.high > realTimePrice) {
                             lastCandle.high = quoteData.high;
+                        } else if (!lastCandle.high || lastCandle.high < realTimePrice) {
+                            // Ensure high is at least the current price, but add small spread to avoid doji
+                            const minHigh = Math.max(lastCandle.open || realTimePrice, realTimePrice);
+                            lastCandle.high = minHigh + (realTimePrice * 0.0001); // 0.01% spread
                         }
+                        
                         if (quoteData.low && quoteData.low < realTimePrice) {
                             lastCandle.low = quoteData.low;
+                        } else if (!lastCandle.low || lastCandle.low > realTimePrice) {
+                            // Ensure low is at most the current price, but subtract small spread to avoid doji
+                            const maxLow = Math.min(lastCandle.open || realTimePrice, realTimePrice);
+                            lastCandle.low = maxLow - (realTimePrice * 0.0001); // 0.01% spread
                         }
-                        lastCandle.time = quoteData.timestamp ? quoteData.timestamp * 1000 : Date.now();
+                        
+                        // Update open if not set - use previous candle's close if available
+                        if (!lastCandle.open || lastCandle.open <= 0) {
+                            // Try to use previous candle's close
+                            if (historicalCandles.length > 1) {
+                                const prevCandle = historicalCandles[historicalCandles.length - 2];
+                                if (prevCandle && prevCandle.close) {
+                                    lastCandle.open = parseFloat(prevCandle.close);
+                                } else {
+                                    lastCandle.open = realTimePrice;
+                                }
+                            } else {
+                                lastCandle.open = realTimePrice;
+                            }
+                        }
+                        
+                        // Final validation: ensure high >= max(open, close) and low <= min(open, close)
+                        const finalOpen = parseFloat(lastCandle.open);
+                        const finalClose = realTimePrice;
+                        lastCandle.high = Math.max(parseFloat(lastCandle.high), Math.max(finalOpen, finalClose));
+                        lastCandle.low = Math.min(parseFloat(lastCandle.low), Math.min(finalOpen, finalClose));
+                        
+                        // CRITICAL: Set last session candle timestamp to 4:00 PM EST (market close)
+                        // The last candle of the regular trading session must be at 4:00 PM EST
+                        // Get current date in EST timezone
+                        const now = new Date();
+                        const estDateString = now.toLocaleString('en-US', {
+                            timeZone: 'America/New_York',
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false
+                        });
+                        
+                        // Parse EST date string: "MM/DD/YYYY, HH:MM:SS"
+                        const [datePart, timePart] = estDateString.split(', ');
+                        const [month, day, year] = datePart.split('/');
+                        const [hour, minute, second] = timePart.split(':');
+                        
+                        // Create a date object for 4:00 PM EST (16:00) today
+                        // Use Intl.DateTimeFormat to properly handle EST/EDT
+                        const estDate = new Date(`${year}-${month}-${day}T16:00:00`);
+                        
+                        // Calculate the UTC timestamp for 4:00 PM EST
+                        // EST is UTC-5, EDT is UTC-4 (daylight saving)
+                        // Use a more reliable method: create date in EST and convert
+                        const estFormatter = new Intl.DateTimeFormat('en-US', {
+                            timeZone: 'America/New_York',
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                        });
+                        
+                        // Create date string for 4:00 PM EST today
+                        const marketCloseDate = new Date(`${year}-${month}-${day}T16:00:00-05:00`); // EST offset
+                        
+                        // Check if we're in daylight saving time (EDT)
+                        const testDate = new Date(`${year}-${month}-${day}T12:00:00`);
+                        const estOffset = testDate.toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' });
+                        const isDST = estOffset.includes('EDT');
+                        
+                        // Create proper timestamp for 4:00 PM EST/EDT
+                        const marketCloseTimestamp = new Date(`${year}-${month}-${day}T16:00:00${isDST ? '-04:00' : '-05:00'}`);
+                        
+                        // Use the market close time (4:00 PM EST) for the last session candle
+                        lastCandle.time = marketCloseTimestamp.getTime();
+                        
+                        const displayTime = marketCloseTimestamp.toLocaleString('en-US', {
+                            timeZone: 'America/New_York',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                        });
+                        console.log(`✓ Last session candle timestamp set to 4:00 PM EST: ${displayTime} EST`);
+                        
+                        // CRITICAL: Ensure historicalPrices array matches the last candle's close
+                        // This ensures projections connect correctly
+                        if (historicalPrices.length > 0) {
+                            historicalPrices[historicalPrices.length - 1] = realTimePrice;
+                        }
+                        
+                        // Log for debugging
+                        console.log(`✓ Updated last candle: close=${realTimePrice.toFixed(2)}, high=${lastCandle.high.toFixed(2)}, low=${lastCandle.low.toFixed(2)}, historicalPrices[last]=${historicalPrices[historicalPrices.length - 1].toFixed(2)}`);
                     }
                 } else {
                     console.warn('Real-time quote data is invalid, using last historical price');
@@ -1118,7 +1482,7 @@ const ProjectionsModule = (function() {
                 } else {
                     // Fallback to original method if unified engine not available
                     console.warn('Unified Projection Engine not available, using fallback method');
-                    projectionLines = calculateProjections(historicalPrices, params);
+                    projectionLines = await calculateProjections(historicalPrices, params);
                     
                     // Validate with ProjectionValidator if available
                     if (typeof ProjectionValidator !== 'undefined') {
@@ -1134,7 +1498,7 @@ const ProjectionsModule = (function() {
                 console.error('Error in unified projection engine:', error);
                 // Fallback to original method with error handling
                 try {
-                    projectionLines = calculateProjections(historicalPrices, params);
+                    projectionLines = await calculateProjections(historicalPrices, params);
                     
                     if (typeof ProjectionValidator !== 'undefined') {
                         try {
@@ -1158,6 +1522,34 @@ const ProjectionsModule = (function() {
                 return;
             }
             
+            // Validate projection lines have valid data
+            const validProjectionLines = projectionLines.filter(line => {
+                if (!line || !line.points) {
+                    console.warn('Invalid projection line (missing points):', line);
+                    return false;
+                }
+                if (!Array.isArray(line.points) || line.points.length === 0) {
+                    console.warn('Invalid projection line (empty points):', line);
+                    return false;
+                }
+                const validPoints = line.points.filter(p => p !== null && !isNaN(p) && p > 0);
+                if (validPoints.length === 0) {
+                    console.warn('Invalid projection line (no valid points):', line);
+                    return false;
+                }
+                return true;
+            });
+            
+            if (validProjectionLines.length === 0) {
+                console.error('No valid projection lines after validation');
+                showError('All projection lines are invalid. Please check your parameters.');
+                return;
+            }
+            
+            // Use validated lines
+            projectionLines = validProjectionLines;
+            console.log(`✓ Using ${projectionLines.length} valid projection lines for chart`);
+            
             // Log projection summary with preset info
             const currentPreset = document.querySelector('input[name="projection-preset"]:checked');
             const presetLabel = currentPreset && currentPreset.value !== 'custom' 
@@ -1176,6 +1568,7 @@ const ProjectionsModule = (function() {
             
             renderChart(historicalPrices, historicalLabels, projectionLines, params);
             updateMetrics(historicalPrices, projectionLines, params);
+            updateComputationMethodDisplay();
             
             // Update validation metrics if available
             // Always try to validate, even if ensemble wasn't used
@@ -1195,7 +1588,7 @@ const ProjectionsModule = (function() {
             }
             
             document.getElementById('projection-refresh-btn').style.display = 'inline-block';
-            document.getElementById('reset-zoom-btn').style.display = 'inline-block';
+            // Reset zoom button is always visible, no need to show it
             document.getElementById('save-projection-btn').style.display = 'inline-block';
             // Metrics sections are now always visible, no need to show them
             
@@ -1210,7 +1603,7 @@ const ProjectionsModule = (function() {
             // Reset metrics to placeholders on error (keep sections visible)
             resetMetricsToPlaceholders();
             document.getElementById('projection-refresh-btn').style.display = 'none';
-            document.getElementById('reset-zoom-btn').style.display = 'none';
+            // Reset zoom button stays visible even on error
             document.getElementById('save-projection-btn').style.display = 'none';
             
             // Stop auto-refresh on error
@@ -1328,12 +1721,20 @@ const ProjectionsModule = (function() {
         if (projectionLines && projectionLines.length > 0) {
             projectionLines.forEach(line => {
                 if (line.points && line.points.length > 0) {
-                    const validPoints = line.points.filter(p => p !== null && !isNaN(p) && p > 0);
+                    const validPoints = line.points
+                        .map(p => {
+                            if (p === null || p === undefined) return null;
+                            const num = typeof p === 'number' ? p : parseFloat(p);
+                            return !isNaN(num) && isFinite(num) && num > 0 ? num : null;
+                        })
+                        .filter(p => p !== null);
                     if (validPoints.length > 0) {
                         const lineMin = Math.min(...validPoints);
                         const lineMax = Math.max(...validPoints);
-                        minPrice = Math.min(minPrice, lineMin);
-                        maxPrice = Math.max(maxPrice, lineMax);
+                        if (!isNaN(lineMin) && !isNaN(lineMax) && isFinite(lineMin) && isFinite(lineMax)) {
+                            minPrice = Math.min(minPrice, lineMin);
+                            maxPrice = Math.max(maxPrice, lineMax);
+                        }
                     }
                 }
             });
@@ -1341,12 +1742,20 @@ const ProjectionsModule = (function() {
         
         // Include actual prices if available
         if (actualPrices && actualPrices.length > 0) {
-            const validActualPrices = actualPrices.filter(p => p !== null && !isNaN(p) && p > 0);
+            const validActualPrices = actualPrices
+                .map(p => {
+                    if (p === null || p === undefined) return null;
+                    const num = typeof p === 'number' ? p : parseFloat(p);
+                    return !isNaN(num) && isFinite(num) && num > 0 ? num : null;
+                })
+                .filter(p => p !== null);
             if (validActualPrices.length > 0) {
                 const actualMin = Math.min(...validActualPrices);
                 const actualMax = Math.max(...validActualPrices);
-                minPrice = Math.min(minPrice, actualMin);
-                maxPrice = Math.max(maxPrice, actualMax);
+                if (!isNaN(actualMin) && !isNaN(actualMax) && isFinite(actualMin) && isFinite(actualMax)) {
+                    minPrice = Math.min(minPrice, actualMin);
+                    maxPrice = Math.max(maxPrice, actualMax);
+                }
             }
         }
         
@@ -1391,13 +1800,60 @@ const ProjectionsModule = (function() {
             const candlestickData = [];
             
             // Add historical candles with proper validation
+            // CRITICAL: Ensure the last candle's close price matches the current price exactly
             for (let i = 0; i < historicalCandles.length; i++) {
                 const c = historicalCandles[i];
-                const open = parseFloat(c.open);
-                const high = parseFloat(c.high);
-                const low = parseFloat(c.low);
-                const close = parseFloat(c.close);
+                let open = parseFloat(c.open);
+                let high = parseFloat(c.high);
+                let low = parseFloat(c.low);
+                let close = parseFloat(c.close);
                 const time = c.time || c.timestamp;
+                
+                // For the last candle, ensure it matches the current price from historicalPrices
+                // CRITICAL: Preserve proper OHLC relationships to avoid doji candles
+                if (i === historicalCandles.length - 1 && historicalPrices.length > 0) {
+                    const currentPrice = historicalPrices[historicalPrices.length - 1];
+                    if (currentPrice && !isNaN(currentPrice) && currentPrice > 0) {
+                        // Update close to match current price exactly
+                        close = currentPrice;
+                        
+                        // Preserve original open if valid, otherwise use previous candle's close or current price
+                        if (isNaN(open) || open <= 0) {
+                            // Try to use previous candle's close as open
+                            if (i > 0 && historicalCandles[i - 1] && historicalCandles[i - 1].close) {
+                                open = parseFloat(historicalCandles[i - 1].close);
+                            } else {
+                                open = currentPrice;
+                            }
+                        }
+                        
+                        // Ensure high is at least max(open, close) to avoid doji
+                        const minHigh = Math.max(open, close);
+                        if (isNaN(high) || high < minHigh) {
+                            // If high would create a doji, add a small spread (0.01% of price)
+                            high = minHigh + (currentPrice * 0.0001);
+                        } else {
+                            // Ensure high is at least the current price
+                            high = Math.max(high, currentPrice);
+                        }
+                        
+                        // Ensure low is at most min(open, close) to avoid doji
+                        const maxLow = Math.min(open, close);
+                        if (isNaN(low) || low > maxLow) {
+                            // If low would create a doji, subtract a small spread (0.01% of price)
+                            low = maxLow - (currentPrice * 0.0001);
+                        } else {
+                            // Ensure low is at most the current price
+                            low = Math.min(low, currentPrice);
+                        }
+                        
+                        // Final validation: ensure high >= max(open, close) and low <= min(open, close)
+                        high = Math.max(high, Math.max(open, close));
+                        low = Math.min(low, Math.min(open, close));
+                        
+                        console.log(`✓ Last candle validated: open=${open.toFixed(2)}, high=${high.toFixed(2)}, low=${low.toFixed(2)}, close=${close.toFixed(2)}`);
+                    }
+                }
                 
                 // Validate all required fields
                 if (!isNaN(open) && !isNaN(high) && !isNaN(low) && !isNaN(close) && 
@@ -1413,7 +1869,7 @@ const ProjectionsModule = (function() {
                         c: close
                     });
                 } else {
-                    console.warn(`Invalid candlestick data at index ${i}:`, c);
+                    console.warn(`Invalid candlestick data at index ${i}:`, {open, high, low, close, time});
                 }
             }
             
@@ -1513,9 +1969,16 @@ const ProjectionsModule = (function() {
                 return;
             }
             
+            // Validate all historical data points are numbers
+            const validatedHistoricalData = historicalData.map(p => {
+                if (p === null || p === undefined) return null;
+                const num = typeof p === 'number' ? p : parseFloat(p);
+                return !isNaN(num) && isFinite(num) && num > 0 ? num : null;
+            });
+            
             // Add nulls for projection period to match labels array
             const projectionNulls = new Array(steps).fill(null);
-            historicalData = [...historicalData, ...projectionNulls];
+            historicalData = [...validatedHistoricalData, ...projectionNulls];
             
             datasets.push({
                 label: `${currentSymbol} Historical`,
@@ -1551,28 +2014,45 @@ const ProjectionsModule = (function() {
                 lineData.push(null);
             }
             
-            // Validate and add projection points
-            const validPoints = line.points.filter(p => p !== null && !isNaN(p) && p > 0);
+            // Validate and add projection points - ensure all are proper numbers
+            const validPoints = line.points
+                .map(p => {
+                    if (p === null || p === undefined) return null;
+                    const num = typeof p === 'number' ? p : parseFloat(p);
+                    return !isNaN(num) && isFinite(num) && num > 0 ? num : null;
+                })
+                .filter(p => p !== null);
             
             if (validPoints.length === 0) {
-                console.warn(`No valid points in projection line at index ${idx}`);
+                console.warn(`No valid points in projection line at index ${idx}`, line);
                 return;
             }
             
-            // First point connects to last historical price
+            // First point MUST connect directly to last historical price for accurate visualization
+            // This ensures the projection starts exactly where the historical data ends
             const firstProjected = validPoints[0];
-            if (lastPrice > 0 && firstProjected > 0) {
-                // Smooth transition: 80% last price, 20% first projected
-                const connectionPrice = lastPrice * 0.8 + firstProjected * 0.2;
-                lineData.push(connectionPrice);
-            } else {
-                // Fallback: use first projected point directly
+            if (lastPrice > 0 && !isNaN(lastPrice) && isFinite(lastPrice)) {
+                // Connect directly to last historical price (100% accuracy)
+                lineData.push(lastPrice);
+            } else if (firstProjected > 0 && !isNaN(firstProjected) && isFinite(firstProjected)) {
+                // Fallback: use first projected point if lastPrice is invalid
+                console.warn('Using first projected point as connection point (lastPrice invalid)');
                 lineData.push(firstProjected);
+            } else {
+                // Last resort: skip this projection line
+                console.error('Cannot connect projection line: invalid lastPrice and firstProjected');
+                return;
             }
             
             // Add rest of projection points
             for (let i = 1; i < validPoints.length; i++) {
-                lineData.push(validPoints[i]);
+                const point = validPoints[i];
+                if (point !== null && !isNaN(point) && isFinite(point) && point > 0) {
+                    lineData.push(point);
+                } else {
+                    // Fill with null if point is invalid (Chart.js will skip it)
+                    lineData.push(null);
+                }
             }
             
             // Fill remaining with nulls to match labels array length
@@ -1766,7 +2246,36 @@ const ProjectionsModule = (function() {
                         callbacks: {
                             title: function(context) {
                                 if (context.length > 0) {
-                                    const index = context[0].dataIndex;
+                                    const ctx = context[0];
+                                    const index = ctx.dataIndex;
+                                    
+                                    // For candlestick data, use the timestamp from raw.x
+                                    if (ctx.dataset.type === 'candlestick' && ctx.raw && typeof ctx.raw === 'object' && ctx.raw.x !== undefined) {
+                                        const timestamp = ctx.raw.x;
+                                        const date = new Date(timestamp);
+                                        
+                                        if (!isNaN(date.getTime())) {
+                                            // Format in EST timezone for 1H timeframe
+                                            const estDateString = date.toLocaleString('en-US', {
+                                                timeZone: 'America/New_York',
+                                                year: 'numeric',
+                                                month: 'short',
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                                hour12: false
+                                            });
+                                            
+                                            // Parse and format: "Dec 18, 2025, 16:00" -> "Dec 18 2025 at 16:00 EST"
+                                            const [datePart, timePart] = estDateString.split(', ');
+                                            if (datePart && timePart) {
+                                                return `${datePart} at ${timePart} EST`;
+                                            }
+                                            return estDateString + ' EST';
+                                        }
+                                    }
+                                    
+                                    // Fallback to label from allLabels
                                     const label = allLabels[index];
                                     return label || `Point ${index + 1}`;
                                 }
@@ -1983,7 +2492,7 @@ const ProjectionsModule = (function() {
         const zoomInBtn = document.getElementById('zoom-in-btn');
         const zoomOutBtn = document.getElementById('zoom-out-btn');
         
-        if (resetZoomBtn) resetZoomBtn.style.display = 'inline-block';
+        // Reset zoom button is always visible
         if (zoomInBtn) zoomInBtn.style.display = 'inline-block';
         if (zoomOutBtn) zoomOutBtn.style.display = 'inline-block';
         
@@ -2606,8 +3115,8 @@ const ProjectionsModule = (function() {
             const symbolInput = document.getElementById('projection-symbol-input');
             if (symbolInput) symbolInput.value = currentSymbol;
             
-            // Update active timeframe button
-            const timeframeBtns = document.querySelectorAll('.projection-timeframe-selector .timeframe-btn');
+            // Update active timeframe button (using chart-timeframe-selector like Trading Charts tab)
+            const timeframeBtns = document.querySelectorAll('#tab-projections .chart-timeframe-selector .timeframe-btn');
             timeframeBtns.forEach(btn => {
                 btn.classList.remove('active');
                 if (btn.dataset.timeframe === currentInterval) {
@@ -2615,14 +3124,11 @@ const ProjectionsModule = (function() {
                 }
             });
             
-            // If no matching button found, default to 1D
-            const activeBtn = document.querySelector('.projection-timeframe-selector .timeframe-btn.active');
-            if (!activeBtn) {
-                currentInterval = '1D';
-                const defaultBtn = document.querySelector('.projection-timeframe-selector .timeframe-btn[data-timeframe="1D"]');
-                if (defaultBtn) {
-                    defaultBtn.classList.add('active');
-                }
+            // FORCE 1H TIMEFRAME - only allowed timeframe
+            currentInterval = '1H';
+            const oneHourBtn = document.querySelector('#tab-projections .chart-timeframe-selector .timeframe-btn[data-timeframe="1H"]');
+            if (oneHourBtn) {
+                oneHourBtn.classList.add('active');
             }
             
             // Use saved historical data
@@ -2696,6 +3202,7 @@ const ProjectionsModule = (function() {
             
             // Update metrics
             updateMetrics(historicalPrices, savedProjectionLines, savedParams);
+            updateComputationMethodDisplay();
             
             showLoading(false);
             hideError();
@@ -2906,6 +3413,7 @@ const ProjectionsModule = (function() {
     function resetZoom() {
         if (!projectionChart) {
             console.warn('No chart available to reset zoom');
+            showError('No chart available. Please load a projection first.');
             return;
         }
         
@@ -2913,7 +3421,7 @@ const ProjectionsModule = (function() {
             // Try zoom plugin's resetZoom method first
             if (typeof projectionChart.resetZoom === 'function') {
                 projectionChart.resetZoom();
-                console.log('Zoom reset using plugin method');
+                console.log('✓ Zoom reset using plugin method');
                 return;
             }
             
@@ -2930,13 +3438,14 @@ const ProjectionsModule = (function() {
                 yScale.options.max = undefined;
             }
             
-            projectionChart.update('none');
-            console.log('Zoom reset using manual method');
+            // Force chart update with animation
+            projectionChart.update('active');
+            console.log('✓ Zoom reset using manual method');
         } catch (error) {
             console.error('Error resetting zoom:', error);
             // Fallback: update chart
             if (projectionChart) {
-                projectionChart.update('none');
+                projectionChart.update('active');
             }
         }
     }
@@ -2969,7 +3478,7 @@ const ProjectionsModule = (function() {
                 };
             }
             
-            const projectionLines = calculateProjections(historicalPrices, params);
+            const projectionLines = await calculateProjections(historicalPrices, params);
             
             // Get chart data if available
             let chartData = null;
@@ -3421,14 +3930,15 @@ const ProjectionsModule = (function() {
     
     // Initialize
     function init() {
-        const searchBtn = document.getElementById('projection-search-btn');
+        const loadBtn = document.getElementById('projection-load-btn');
         const refreshBtn = document.getElementById('projection-refresh-btn');
         const resetZoomBtn = document.getElementById('reset-zoom-btn');
         const saveBtn = document.getElementById('save-projection-btn');
         const symbolInput = document.getElementById('projection-symbol-input');
         
-        if (searchBtn) {
-            searchBtn.addEventListener('click', loadProjectionData);
+        // Load button (replaces search button)
+        if (loadBtn) {
+            loadBtn.addEventListener('click', loadProjectionData);
         }
         
         if (refreshBtn) {
@@ -3455,20 +3965,44 @@ const ProjectionsModule = (function() {
         }
         
         // Setup timeframe buttons (matching Trading Charts tab)
-        document.querySelectorAll('.projection-timeframe-selector .timeframe-btn').forEach(btn => {
+        // ONLY ALLOW 1H TIMEFRAME - disable others
+        document.querySelectorAll('#tab-projections .chart-timeframe-selector .timeframe-btn').forEach(btn => {
+            const timeframe = btn.dataset.timeframe;
+            
+            // Disable all timeframes except 1H
+            if (timeframe !== '1H') {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+                return; // Skip event listener for disabled buttons
+            }
+            
+            // Only 1H is enabled
             btn.addEventListener('click', () => {
-                // Remove active class from all timeframe buttons
-                document.querySelectorAll('.projection-timeframe-selector .timeframe-btn').forEach(b => b.classList.remove('active'));
+                // Remove active class from all timeframe buttons in this selector
+                document.querySelectorAll('#tab-projections .chart-timeframe-selector .timeframe-btn').forEach(b => {
+                    if (!b.disabled) {
+                        b.classList.remove('active');
+                    }
+                });
                 // Add active class to clicked button
                 btn.classList.add('active');
                 // Update current interval
-                currentInterval = btn.dataset.timeframe;
+                currentInterval = '1H'; // Force to 1H
+                console.log(`Timeframe set to: ${currentInterval} (only allowed timeframe)`);
                 // Reload projection data if we have a symbol loaded
                 if (currentSymbol) {
                     loadProjectionData();
                 }
             });
         });
+        
+        // Force 1H timeframe on initialization
+        currentInterval = '1H';
+        const oneHourBtn = document.querySelector('#tab-projections .chart-timeframe-selector .timeframe-btn[data-timeframe="1H"]');
+        if (oneHourBtn) {
+            oneHourBtn.classList.add('active');
+        }
         
         // Setup parameter toggle switches
         setupParameterToggles();

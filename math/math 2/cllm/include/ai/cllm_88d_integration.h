@@ -73,7 +73,9 @@ typedef struct {
 // ============================================================================
 
 /**
- * Initialize 88D threading for a CLLM model
+ * Initialize threading for a CLLM model
+ * 
+ * CRITICAL: Threading is MANDATORY - this function will fail if threading cannot be initialized.
  * 
  * This function:
  * 1. Creates a HierarchicalThreadPool with 96 threads (8 layers × 12 threads)
@@ -82,12 +84,13 @@ typedef struct {
  * 4. Initializes shared memory regions for thread communication
  * 
  * @param model CLLM model to initialize threading for
- * @return true on success, false on failure
+ * @param base Abacus base (typically 60 for base-60)
+ * @return true on success, false on failure (threading is mandatory)
  */
-bool cllm_initialize_88d_threading(CLLMModel* model, uint32_t base);
+bool cllm_initialize_threading(CLLMModel* model, uint32_t base);
 
 /**
- * Cleanup 88D threading for a CLLM model
+ * Cleanup threading for a CLLM model
  * 
  * This function:
  * 1. Stops all threads gracefully
@@ -98,7 +101,7 @@ bool cllm_initialize_88d_threading(CLLMModel* model, uint32_t base);
  * 
  * @param model CLLM model to cleanup threading for
  */
-void cllm_cleanup_88d_threading(CLLMModel* model);
+void cllm_cleanup_threading(CLLMModel* model);
 
 // ============================================================================
 // GEOMETRY MAPPING
@@ -153,18 +156,17 @@ uint32_t cllm_get_layer_for_face(const CLLMModel* model, uint32_t face_idx);
 // ============================================================================
 
 /**
- * Distribute work across 88D threads
+ * Distribute work across threads
  * 
  * This function takes a work type and distributes it across the thread pool.
  * Work is automatically balanced based on thread load and geometry.
  * 
  * @param model CLLM model
- * @param work_type Type of work to distribute
- * @param work_data Work-specific data
+ * @param work_items Work items to distribute
  * @param num_items Number of work items
  * @return true on success, false on failure
  */
-bool cllm_distribute_work_88d(CLLMModel* model, void* work_items, size_t num_items);
+bool cllm_distribute_work(CLLMModel* model, void* work_items, size_t num_items);
 
 /**
  * Submit a single work item to the thread pool

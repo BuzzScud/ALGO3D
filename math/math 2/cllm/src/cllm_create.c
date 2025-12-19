@@ -94,15 +94,24 @@ static bool allocate_model_parameters(CLLMModel* model) {
     // STEP 1: CREATE 88D THREAD POOL (MANDATORY)
     // ========================================================================
     
-    printf("  → Creating 88D thread pool (MANDATORY)...\n");
+    printf("  → Creating thread pool (MANDATORY)...\n");
     model->threads = hierarchical_thread_pool_create_88d(60);  // Base 60 for CrystallineAbacus
     if (!model->threads) {
-        fprintf(stderr, "FATAL: Failed to create 88D thread pool\n");
-        fprintf(stderr, "Threading is MANDATORY in the new architecture\n");
+        fprintf(stderr, "FATAL ERROR: Failed to create thread pool\n");
+        fprintf(stderr, "Threading is MANDATORY - cannot create model without threads\n");
         return false;
     }
     
-    printf("  ✓ Created 88D thread pool: 96 threads (8 layers × 12 threads per layer)\n");
+    // Verify thread pool is valid
+    if (model->threads->num_threads != 96) {
+        fprintf(stderr, "FATAL ERROR: Thread pool has wrong size (%u, expected 96)\n",
+                model->threads->num_threads);
+        hierarchical_thread_pool_free(model->threads);
+        model->threads = NULL;
+        return false;
+    }
+    
+    printf("  ✓ Created thread pool: 96 threads (8 layers × 12 threads per layer)\n");
     
     // Create generic model interface (NO circular dependency!)
     GenericModel* generic = cllm_create_generic_interface(model);

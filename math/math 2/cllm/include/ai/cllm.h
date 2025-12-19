@@ -34,6 +34,8 @@
 
 // Include hierarchical threading for 88D integration
 #include "hierarchical_threading.h"
+#include <pthread.h>  // For pthread_barrier_t
+#include <math.h>     // For math functions
 
 // Include vocabulary
 #include "cllm_vocabulary.h"

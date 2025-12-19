@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
+#include "../../../algorithms/include/pthread_barrier_compat.h"  // For macOS compatibility
 
 #ifdef __cplusplus
 extern "C" {

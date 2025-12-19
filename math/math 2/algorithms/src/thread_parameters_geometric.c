@@ -4,7 +4,7 @@
  */
 
 #define _USE_MATH_DEFINES
-#include <math.h>
+#include <math.h>  // Include standard math.h first
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -12,6 +12,7 @@
 #include "thread_parameters_geometric.h"
 #include "geometric_matrix.h"
 #include "hierarchical_threading.h"
+#include "math/transcendental.h"  // For math_pow, math_sqrt
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -396,8 +397,8 @@ int thread_apply_geometric_optimizer(
     thread->optimizer_step++;
     
     // Bias correction
-    double bias_correction1 = 1.0 - pow(beta1, (double)thread->optimizer_step);
-    double bias_correction2 = 1.0 - pow(beta2, (double)thread->optimizer_step);
+    double bias_correction1 = 1.0 - math_pow(beta1, (double)thread->optimizer_step);  // Use custom math library
+    double bias_correction2 = 1.0 - math_pow(beta2, (double)thread->optimizer_step);  // Use custom math library
     
     // Apply Adam optimizer to each parameter's vertices
     for (uint32_t p = 0; p < thread->num_geometric_params; p++) {
@@ -435,7 +436,7 @@ int thread_apply_geometric_optimizer(
             
             // Update parameter
             // param -= lr * m_hat / (√v_hat + ε)
-            p_double -= learning_rate * m_hat / (sqrt(v_hat) + epsilon);
+            p_double -= learning_rate * m_hat / (math_sqrt(v_hat) + epsilon);  // Use custom math library
             
             // Convert back to abacus
             CrystallineAbacus* new_p = abacus_from_double(p_double, 60, 10);

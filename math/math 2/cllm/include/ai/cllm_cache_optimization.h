@@ -4,6 +4,19 @@
 #include <stdint.h>
 #include <pthread.h>
 
+// CPU affinity support (Linux-specific)
+#ifdef __linux__
+#include <sched.h>
+#else
+// macOS doesn't have cpu_set_t - use a simple alternative
+typedef struct {
+    uint64_t bits[16];  // Support up to 1024 CPUs
+} cpu_set_t;
+#define CPU_ZERO(set) memset((set), 0, sizeof(cpu_set_t))
+#define CPU_SET(cpu, set) ((set)->bits[(cpu) / 64] |= (1ULL << ((cpu) % 64)))
+#define CPU_ISSET(cpu, set) (((set)->bits[(cpu) / 64] & (1ULL << ((cpu) % 64))) != 0)
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

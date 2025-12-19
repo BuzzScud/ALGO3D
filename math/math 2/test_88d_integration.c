@@ -34,15 +34,15 @@ int main() {
     printf("  Num layers: %u\n", model->num_layers);
     printf("  Num heads: %u\n", model->num_heads);
     
-    // Initialize 88D threading
-    bool result = cllm_initialize_88d_threading(model);
-    if (!result) {
-        fprintf(stderr, "Failed to initialize 88D threading\n");
+    // Note: Threading is now initialized automatically in cllm_create_model()
+    // This test verifies that threading was created successfully
+    if (!model->threads) {
+        fprintf(stderr, "FATAL: Threading was not initialized (threading is mandatory)\n");
         cllm_free_model(model);
         return 1;
     }
     
-    printf("\n✓ 88D threading initialized successfully\n");
+    printf("\n✓ Threading initialized successfully (mandatory)\n");
     
     // Print threading statistics
     printf("\nThreading Statistics:\n");
@@ -67,9 +67,8 @@ int main() {
         printf("  Vertex %d -> Thread %d\n", i, thread_id);
     }
     
-    // Cleanup
-    cllm_cleanup_88d_threading(model);
-    printf("\n✓ 88D threading cleaned up successfully\n");
+    // Cleanup (threading is cleaned up in cllm_free_model)
+    printf("\n✓ Threading will be cleaned up in cllm_free_model()\n");
     
     cllm_free_model(model);
     printf("✓ CLLM model freed successfully\n");

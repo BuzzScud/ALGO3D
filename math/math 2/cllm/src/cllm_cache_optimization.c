@@ -7,15 +7,15 @@
 #include "ai/cllm_cache_optimization.h"
 #include "math/constants.h"
 #include "math/transcendental.h"
-#include "math/constants.h"
 #include "math/arithmetic.h"
-#include "math/constants.h"
-#include "math/types.h"  // For mathematical constants
-#include "math/constants.h"
+#include "math/types.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+#ifdef __linux__
 #include <sched.h>
+#endif
 
 // ============================================================================
 // CACHE MAPPING
@@ -183,13 +183,20 @@ int set_thread_cpu_affinity(pthread_t thread, const CPUAffinityMask* mask) {
         return -1;
     }
     
+    #ifdef __linux__
+    // Linux: Use pthread_setaffinity_np
     int result = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &mask->cpu_set);
     if (result != 0) {
         fprintf(stderr, "Warning: Failed to set CPU affinity (error %d)\n", result);
         return -1;
     }
-    
     return 0;
+    #else
+    // macOS: CPU affinity not supported, but mask is still created for compatibility
+    // The mask can be used for scheduling hints if needed
+    (void)thread;  // Suppress unused parameter warning
+    return 0;  // Success (no-op on macOS)
+    #endif
 }
 
 // ============================================================================

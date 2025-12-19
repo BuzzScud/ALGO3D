@@ -4,6 +4,10 @@
 CC = gcc
 AR = ar
 CFLAGS = -Wall -Wextra -O2 -fPIC -std=c11 -D_GNU_SOURCE
+# Enable pthread barriers on macOS
+ifeq ($(shell uname),Darwin)
+CFLAGS += -D_DARWIN_C_SOURCE -D_POSIX_C_SOURCE=200112L
+endif
 CFLAGS += -I./include -I./include/ai
 CFLAGS += -I./include -I../algorithms/include -I../math/include
 LDFLAGS = -shared

@@ -546,7 +546,6 @@ CrystallineAbacus* abacus_from_uint64(uint64_t value, uint32_t base) {
     
     /* Extract digits (least significant first) */
     temp = value;
-    uint32_t weight = 1;
     
     for (size_t i = 0; i < num_digits; i++) {
         uint32_t digit = temp % base;
@@ -560,7 +559,7 @@ CrystallineAbacus* abacus_from_uint64(uint64_t value, uint32_t base) {
         }
         
         temp /= base;
-        weight *= base;
+        // weight variable removed - was calculated but never used
     }
     
     abacus->num_beads = num_digits;

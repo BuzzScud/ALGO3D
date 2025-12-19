@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Projection API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #3b82f6;
+        }
+        h2 {
+            color: #60a5fa;
+            margin-top: 0;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        .result {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #22c55e;
+        }
+        .error {
+            color: #ef4444;
+        }
+        .info {
+            color: #60a5fa;
+        }
+        input, select {
+            background: #1a1a1a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        label {
+            display: inline-block;
+            width: 150px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Price Projection API Test</h1>
+    
+    <div class="container">
+        <h2>Test Configuration</h2>
+        <div>
+            <label>Depth Prime:</label>
+            <input type="number" id="depthPrime" value="127" min="2">
+        </div>
+        <div>
+            <label>Base Price:</label>
+            <input type="number" id="base" value="105.0" step="0.01">
+        </div>
+        <div>
+            <label>Steps:</label>
+            <input type="number" id="steps" value="20" min="1" max="200">
+        </div>
+        <div>
+            <label>Projection Count:</label>
+            <input type="number" id="projectionCount" value="3" min="1" max="20">
+        </div>
+        <div>
+            <label>Omega Hz:</label>
+            <input type="number" id="omegaHz" value="432.0" step="0.1">
+        </div>
+        <div>
+            <label>Historical Prices:</label>
+            <input type="text" id="historicalPrices" value="100,101,102,103,104,105" style="width: 300px;">
+        </div>
+        <button onclick="runTest()">Run Test</button>
+        <button onclick="clearResults()">Clear</button>
+    </div>
+    
+    <div class="container">
+        <h2>Test Results</h2>
+        <div id="results" class="result">Click "Run Test" to test the API...</div>
+    </div>
+    
+    <script>
+        async function runTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<span class="info">Testing API...</span>\n';
+            
+            try {
+                // Get configuration
+                const depthPrime = parseInt(document.getElementById('depthPrime').value);
+                const base = parseFloat(document.getElementById('base').value);
+                const steps = parseInt(document.getElementById('steps').value);
+                const projectionCount = parseInt(document.getElementById('projectionCount').value);
+                const omegaHz = parseFloat(document.getElementById('omegaHz').value);
+                const historicalPricesStr = document.getElementById('historicalPrices').value;
+                const historicalPrices = historicalPricesStr.split(',').map(p => parseFloat(p.trim()));
+                
+                // Validate
+                if (isNaN(depthPrime) || isNaN(base) || isNaN(steps) || isNaN(projectionCount)) {
+                    throw new Error('Invalid configuration values');
+                }
+                
+                resultsDiv.innerHTML += `<span class="info">Sending request to API...</span>\n`;
+                resultsDiv.innerHTML += `  Depth Prime: ${depthPrime}\n`;
+                resultsDiv.innerHTML += `  Base: ${base}\n`;
+                resultsDiv.innerHTML += `  Steps: ${steps}\n`;
+                resultsDiv.innerHTML += `  Projection Count: ${projectionCount}\n`;
+                resultsDiv.innerHTML += `  Omega Hz: ${omegaHz}\n`;
+                resultsDiv.innerHTML += `  Historical Prices: ${historicalPrices.length} points\n\n`;
+                
+                // Call API
+                const startTime = performance.now();
+                const response = await fetch('api/price_projection.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        historical_prices: historicalPrices,
+                        depth_prime: depthPrime,
+                        base: base,
+                        steps: steps,
+                        projection_count: projectionCount,
+                        omega_hz: omegaHz,
+                        decimals: 8
+                    })
+                });
+                
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                // Display results
+                if (result.success) {
+                    resultsDiv.innerHTML += `<span class="success">✓ SUCCESS</span>\n\n`;
+                    resultsDiv.innerHTML += `Method used: ${result.method || 'unknown'}\n`;
+                    resultsDiv.innerHTML += `Response time: ${duration}ms\n\n`;
+                    resultsDiv.innerHTML += `Projection Lines: ${result.num_lines || 0}\n`;
+                    resultsDiv.innerHTML += `Steps per line: ${result.steps_per_line || 0}\n\n`;
+                    
+                    if (result.projection_lines && result.projection_lines.length > 0) {
+                        resultsDiv.innerHTML += `<span class="info">Projection Results:</span>\n`;
+                        result.projection_lines.forEach((line, idx) => {
+                            resultsDiv.innerHTML += `\nLine ${idx + 1} (first 10 points):\n`;
+                            const preview = line.slice(0, 10);
+                            preview.forEach((point, i) => {
+                                resultsDiv.innerHTML += `  Step ${i}: ${point.toFixed(2)}\n`;
+                            });
+                            if (line.length > 10) {
+                                resultsDiv.innerHTML += `  ... (${line.length - 10} more points)\n`;
+                            }
+                        });
+                    }
+                } else {
+                    resultsDiv.innerHTML += `<span class="error">✗ FAILED</span>\n`;
+                    resultsDiv.innerHTML += `Error: ${result.error || 'Unknown error'}\n`;
+                }
+                
+            } catch (error) {
+                resultsDiv.innerHTML += `<span class="error">✗ EXCEPTION</span>\n`;
+                resultsDiv.innerHTML += `Error: ${error.message}\n`;
+                console.error('Test error:', error);
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = 'Click "Run Test" to test the API...';
+        }
+    </script>
+</body>
+</html>
+

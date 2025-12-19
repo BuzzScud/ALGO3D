@@ -256,3 +256,4 @@ function calculateFibonacci($symbol, $precision) {
 
 
 
+

@@ -915,32 +915,26 @@ require_once 'includes/database.php';
             <!-- Price Projections Tab -->
             <section class="chart-tab-content" id="tab-projections">
                 <div class="projections-container">
-                    <!-- Search and Controls Section -->
-                    <div class="projections-controls-panel">
-                        <div class="projections-search-section">
-                            <div class="search-input-group">
-                                <input type="text" id="projection-symbol-input" class="projection-input" placeholder="Enter symbol (e.g., AAPL, TSLA, SPY)" value="">
-                                <button id="projection-search-btn" class="btn btn-primary">
-                                    <i class="fas fa-search"></i>
-                                    Search
-                                </button>
-                                <button id="projection-refresh-btn" class="btn btn-secondary" style="display: none;">
-                                    <i class="fas fa-sync-alt"></i>
-                                    Refresh
-                                </button>
-                            </div>
-                            <div class="projection-interval-selector">
-                                <label>Interval:</label>
-                                <select id="projection-interval-select" class="projection-select">
-                                    <option value="1d">1 Day</option>
-                                    <option value="5d">5 Days</option>
-                                    <option value="1mo">1 Month</option>
-                                    <option value="3mo">3 Months</option>
-                                    <option value="6mo">6 Months</option>
-                                    <option value="1y">1 Year</option>
-                                </select>
+                    <!-- Search and Controls Section (Matching Trading Charts Tab) -->
+                    <div class="chart-controls-panel">
+                        <div class="chart-symbol-search">
+                            <div class="symbol-input-wrapper">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="projection-symbol-input" class="chart-symbol-input" placeholder="Enter symbol (e.g., AAPL, SPY)">
+                                <button class="btn btn-primary btn-sm" id="projection-load-btn">Load</button>
                             </div>
                         </div>
+                        <div class="chart-timeframe-selector">
+                            <button class="timeframe-btn" data-timeframe="15MIN" disabled style="opacity: 0.5; cursor: not-allowed;">15 MIN</button>
+                            <button class="timeframe-btn active" data-timeframe="1H">1H</button>
+                            <button class="timeframe-btn" data-timeframe="4H" disabled style="opacity: 0.5; cursor: not-allowed;">4H</button>
+                            <button class="timeframe-btn" data-timeframe="1D" disabled style="opacity: 0.5; cursor: not-allowed;">1D</button>
+                        </div>
+                        <button id="projection-refresh-btn" class="btn btn-secondary btn-sm" style="display: none;">
+                            <i class="fas fa-sync-alt"></i>
+                            Refresh
+                        </button>
+                    </div>
                         
                         <!-- Two Column Layout -->
                         <div class="projections-two-column-layout">
@@ -968,6 +962,22 @@ require_once 'includes/database.php';
                             <!-- Parameters Tab Content -->
                             <div class="projection-tab-content active" id="projection-tab-parameters">
                                 <div class="projection-parameters-content">
+                                    
+                                    <!-- Computation Method Status -->
+                                    <div id="projection-computation-info" style="background: var(--card-bg, #2a2a2a); border: 1px solid var(--border-color, #444); border-radius: 8px; padding: 12px; margin-bottom: 16px; display: none;">
+                                        <div style="display: flex; align-items: center; gap: 10px; font-size: 13px;">
+                                            <span id="computation-method-icon" style="font-size: 18px;">📊</span>
+                                            <div style="flex: 1;">
+                                                <div style="font-weight: 600; color: var(--text-color, #e0e0e0);">
+                                                    Computation Method: <span id="computation-method-text">--</span>
+                                                </div>
+                                                <div id="computation-88d-badge" style="font-size: 11px; margin-top: 4px; color: #22c55e; display: none;">
+                                                    ⚡ 88D Threading Active (96 threads, 8 layers × 12 dimensions)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
                                     <div class="params-toggle-grid">
                                         <!-- Standard Preset -->
                                         <div class="param-toggle-item">
@@ -1274,8 +1284,9 @@ require_once 'includes/database.php';
                                         <button id="zoom-out-btn" class="btn btn-small" title="Zoom Out" style="display: none;">
                                             <i class="fas fa-search-minus"></i>
                                         </button>
-                                        <button id="reset-zoom-btn" class="btn btn-small" style="display: none;" title="Reset Zoom">
-                                            <i class="fas fa-expand"></i>
+                                        <button id="reset-zoom-btn" class="btn btn-small" title="Reset Zoom">
+                                            <i class="fas fa-expand-arrows-alt"></i>
+                                            Reset Zoom
                                         </button>
                                     </div>
                                     <div class="chart-export-controls">
@@ -1779,6 +1790,51 @@ require_once 'includes/database.php';
                     </div>
                 </div>
             </div>
+            
+            <!-- API Key Configuration Modal -->
+            <div class="api-key-modal" id="api-key-modal">
+                <div class="api-key-modal-overlay"></div>
+                <div class="api-key-modal-content">
+                    <div class="api-key-modal-header">
+                        <h3 id="api-key-modal-title">
+                            <i class="fas fa-key"></i>
+                            <span id="api-key-modal-api-name">Configure API Key</span>
+                        </h3>
+                        <button class="api-key-modal-close" id="api-key-modal-close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="api-key-modal-body">
+                        <div class="api-key-form-group">
+                            <label for="api-key-input">API Key</label>
+                            <div class="api-key-input-wrapper">
+                                <input 
+                                    type="password" 
+                                    id="api-key-input" 
+                                    class="api-key-input-field" 
+                                    placeholder="Enter your API key"
+                                    autocomplete="off"
+                                >
+                                <button type="button" class="api-key-toggle-btn" id="api-key-toggle">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <p class="api-key-help-text">
+                                <i class="fas fa-info-circle"></i>
+                                Get your free API key from <a href="https://finnhub.io/register" target="_blank">finnhub.io</a>
+                            </p>
+                        </div>
+                        <div class="api-key-modal-status" id="api-key-modal-status"></div>
+                    </div>
+                    <div class="api-key-modal-footer">
+                        <button class="api-key-btn api-key-btn-cancel" id="api-key-cancel-btn">Cancel</button>
+                        <button class="api-key-btn api-key-btn-save" id="api-key-save-btn">
+                            <i class="fas fa-save"></i>
+                            Save API Key
+                        </button>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- Data Page -->
@@ -1808,11 +1864,28 @@ require_once 'includes/database.php';
                             <i class="fas fa-cube"></i>
                             Data Visualization
                         </h3>
-                        <div class="data-viz-info">
-                            <span id="data-viz-count">0</span> projections
-                            <span class="data-viz-hint" title="Drag to rotate, scroll to zoom">
-                                <i class="fas fa-info-circle"></i>
-                            </span>
+                        <div class="data-viz-controls">
+                            <div class="data-viz-info">
+                                <span id="data-viz-count">0</span> projections
+                                <span class="data-viz-hint" title="Drag to rotate, scroll to zoom">
+                                    <i class="fas fa-info-circle"></i>
+                                </span>
+                            </div>
+                            <div class="data-viz-model-selector">
+                                <label for="data-viz-model-select" class="data-viz-model-label">
+                                    <i class="fas fa-shapes"></i>
+                                    Model:
+                                </label>
+                                <select id="data-viz-model-select" class="data-viz-model-select">
+                                    <option value="dodecahedron">Dodecahedron</option>
+                                    <option value="icosahedron">Icosahedron</option>
+                                    <option value="octahedron">Octahedron</option>
+                                    <option value="tetrahedron">Tetrahedron</option>
+                                    <option value="cube">Cube</option>
+                                    <option value="sphere">Sphere</option>
+                                    <option value="torus">Torus</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <div class="data-viz-canvas-wrapper">

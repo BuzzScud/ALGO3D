@@ -4,6 +4,7 @@
  */
 
 #define _USE_MATH_DEFINES
+#include <math.h>  // Include math.h FIRST for exp() and other functions
 #include "hierarchical_threading.h"
 #include "generic_model.h"
 #include "math/transcendental.h"
@@ -12,7 +13,6 @@
 #include <time.h>
 #include <errno.h>
 #include <stdio.h>
-#include <math.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -2506,9 +2506,11 @@ int apply_softmax_to_logits(double* logits, uint32_t vocab_size) {
     }
     
     // Compute exp(logit - max_logit) and sum
+    // Use math_exp from custom math library (math/transcendental.h is included)
     double sum = 0.0;
     for (uint32_t i = 0; i < vocab_size; i++) {
-        double exp_value = exp(logits[i] - max_logit);
+        double diff = logits[i] - max_logit;
+        double exp_value = math_exp(diff);  // Use custom math library's exp
         logits[i] = exp_value;
         sum += exp_value;
     }

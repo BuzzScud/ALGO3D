@@ -59,6 +59,10 @@ struct GeometricMatrix;
 #include <stddef.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <math.h>  // For exp() and other math functions
+
+// Include pthread_barrier compatibility for macOS
+#include "pthread_barrier_compat.h"
 
 #ifdef __cplusplus
 extern "C" {

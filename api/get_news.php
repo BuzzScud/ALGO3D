@@ -5,7 +5,7 @@ require_once '../includes/config.php';
 require_once '../includes/database.php';
 
 // Finnhub API Key
-$apiKey = 'd18ueuhr01qkcat4uip0d18ueuhr01qkcat4uipg';
+$apiKey = FINNHUB_API_KEY;
 
 // Cache file
 $cacheFile = '../cache/news_cache.json';
@@ -47,7 +47,7 @@ curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curlError = curl_error($ch);
-curl_close($ch);
+// curl_close() is deprecated in PHP 8.0+ - resources are automatically closed
 
 if ($curlError) {
     echo json_encode([

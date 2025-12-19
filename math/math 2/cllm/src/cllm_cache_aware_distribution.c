@@ -33,6 +33,8 @@ CpuTopology detect_cpu_topology(void) {
     topology.numa_nodes[0].is_available = true;
     
     // Detect cache sizes (using sysconf)
+    // Note: macOS doesn't support _SC_LEVEL*_CACHE_SIZE, use defaults
+    #ifdef __linux__
     // L1 cache
     long l1_size = sysconf(_SC_LEVEL1_DCACHE_SIZE);
     if (l1_size > 0) {
@@ -59,6 +61,23 @@ CpuTopology detect_cpu_topology(void) {
         topology.cache_levels[2].line_size = CACHE_LINE_SIZE;
         topology.cache_levels[2].is_shared = true;
     }
+    #else
+    // macOS: Use reasonable defaults
+    topology.cache_levels[0].level = 1;
+    topology.cache_levels[0].size = 32 * 1024;  // 32KB L1 (typical)
+    topology.cache_levels[0].line_size = CACHE_LINE_SIZE;
+    topology.cache_levels[0].is_shared = false;
+    
+    topology.cache_levels[1].level = 2;
+    topology.cache_levels[1].size = 256 * 1024;  // 256KB L2 (typical)
+    topology.cache_levels[1].line_size = CACHE_LINE_SIZE;
+    topology.cache_levels[1].is_shared = false;
+    
+    topology.cache_levels[2].level = 3;
+    topology.cache_levels[2].size = 8 * 1024 * 1024;  // 8MB L3 (typical)
+    topology.cache_levels[2].line_size = CACHE_LINE_SIZE;
+    topology.cache_levels[2].is_shared = true;
+    #endif
     
     return topology;
 }

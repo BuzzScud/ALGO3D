@@ -1,0 +1,43 @@
+<?php
+/**
+ * Configuration file for ALGO3D
+ * API keys and configuration constants
+ */
+
+// Finnhub API Configuration
+// Check environment variable first, then database, then default to 'demo'
+$finnhubKey = getenv('FINNHUB_API_KEY');
+if (!$finnhubKey || $finnhubKey === 'demo') {
+    // Try to get from database
+    try {
+        require_once __DIR__ . '/database.php';
+        $db = new Database();
+        $conn = $db->getConnection();
+        if ($conn) {
+            $stmt = $conn->prepare("SELECT setting_value FROM settings WHERE setting_key = 'finnhub_key'");
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result && !empty($result['setting_value']) && $result['setting_value'] !== 'demo') {
+                $finnhubKey = $result['setting_value'];
+            }
+        }
+    } catch (Exception $e) {
+        // Database not available or error, use default
+    }
+}
+define('FINNHUB_API_KEY', $finnhubKey ?: 'demo');
+define('FINNHUB_BASE_URL', 'https://finnhub.io/api/v1');
+define('FINNHUB_RATE_LIMIT', 60); // 60 calls per minute
+
+// Yahoo Finance API Configuration
+define('YAHOO_FINANCE_BASE_URL', 'https://query1.finance.yahoo.com/v8/finance/chart');
+
+// Default API source
+define('DEFAULT_API_SOURCE', 'finnhub');
+
+// Cache duration in seconds (5 minutes)
+define('CACHE_DURATION', 300);
+
+// Alpha Vantage API (if needed in the future)
+define('ALPHA_VANTAGE_API_KEY', getenv('ALPHA_VANTAGE_API_KEY') ?: 'demo');
+?>

@@ -15,33 +15,44 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <pthread.h>  // For pthread_barrier functions
 
 // ============================================================================
 // INITIALIZATION & CLEANUP
 // ============================================================================
 
-bool cllm_initialize_88d_threading(CLLMModel* model, uint32_t base) {
+bool cllm_initialize_threading(CLLMModel* model, uint32_t base) {
     if (!model) {
-        fprintf(stderr, "cllm_initialize_88d_threading: NULL model\n");
+        fprintf(stderr, "cllm_initialize_threading: NULL model\n");
         return false;
     }
     
     // Check if already initialized
     if (model->threads) {
-        fprintf(stderr, "cllm_initialize_88d_threading: Already initialized\n");
+        fprintf(stderr, "cllm_initialize_threading: Already initialized\n");
         return true;  // Already initialized is not an error
     }
     
-    printf("Initializing 88D threading system for CLLM model...\n");
+    printf("Initializing threading system for CLLM model...\n");
     
-    // Create 88D thread pool (96 threads: 8 layers × 12 threads per layer)
+    // CRITICAL: Threading is MANDATORY - create 88D thread pool (96 threads: 8 layers × 12 threads per layer)
     model->threads = hierarchical_thread_pool_create_88d(base);
     if (!model->threads) {
-        fprintf(stderr, "Failed to create 88D thread pool\n");
+        fprintf(stderr, "FATAL ERROR: Failed to create thread pool\n");
+        fprintf(stderr, "Threading is MANDATORY - cannot proceed without threads\n");
         return false;
     }
     
-    printf("  ✓ Created 88D thread pool (96 threads)\n");
+    // Verify thread pool is valid
+    if (model->threads->num_threads != 96) {
+        fprintf(stderr, "FATAL ERROR: Thread pool has wrong size (%u, expected 96)\n",
+                model->threads->num_threads);
+        hierarchical_thread_pool_free(model->threads);
+        model->threads = NULL;
+        return false;
+    }
+    
+    printf("  ✓ Created thread pool (96 threads: 8 layers × 12 threads per layer)\n");
     
     // Initialize statistics
     model->threading.total_work_units = 0;
@@ -49,17 +60,17 @@ bool cllm_initialize_88d_threading(CLLMModel* model, uint32_t base) {
     model->threading.parallel_efficiency = 0.0;
     model->threading.load_balance_score = 0.0;
     
-    printf("88D threading system initialized successfully!\n");
+    printf("Threading system initialized successfully!\n");
     printf("  - Threads: 96 (8 layers × 12 threads)\n");
     printf("  - Base: %u (for CrystallineAbacus)\n", base);
     
     return true;
 }
 
-void cllm_cleanup_88d_threading(CLLMModel* model) {
+void cllm_cleanup_threading(CLLMModel* model) {
     if (!model) return;
     
-    printf("Cleaning up 88D threading system...\n");
+    printf("Cleaning up threading system...\n");
     
     // Free geometry mappings
     if (model->threading.vertex_to_thread) {
@@ -101,7 +112,7 @@ void cllm_cleanup_88d_threading(CLLMModel* model) {
         printf("  ✓ Freed thread pool\n");
     }
     
-    printf("88D threading system cleaned up successfully!\n");
+    printf("Threading system cleaned up successfully!\n");
 }
 
 // ============================================================================
@@ -170,7 +181,7 @@ HierarchicalThread* cllm_get_thread_for_token_direct(const CLLMModel* model, uin
 // WORK DISTRIBUTION (SIMPLIFIED)
 // ============================================================================
 
-bool cllm_distribute_work_88d(CLLMModel* model, void* work_items, size_t num_items) {
+bool cllm_distribute_work(CLLMModel* model, void* work_items, size_t num_items) {
     if (!model || !model->threads) return false;
     
     // Work distribution is handled by the thread pool
@@ -224,7 +235,7 @@ void cllm_update_threading_stats(CLLMModel* model) {
 void cllm_print_threading_stats(const CLLMModel* model) {
     if (!model) return;
     
-    printf("\n=== 88D Threading Statistics ===\n");
+    printf("\n=== Threading Statistics ===\n");
     printf("Total work units: %lu\n", model->threading.total_work_units);
     printf("Work stolen: %lu\n", model->threading.work_stolen);
     printf("Parallel efficiency: %.2f%%\n", model->threading.parallel_efficiency * 100);

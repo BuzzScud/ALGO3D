@@ -1278,6 +1278,7 @@ const DataPageModule = (function() {
     let dataControls = null;
     let isDragging = false;
     let previousMousePosition = { x: 0, y: 0 };
+    let currentModelType = 'dodecahedron';
     
     /**
      * Initialize 3D visualization
@@ -1328,11 +1329,14 @@ const DataPageModule = (function() {
         pointLight.position.set(-5, -5, 5);
         dataScene.add(pointLight);
         
-        // Create platonic solid (Dodecahedron)
-        createPlatonicSolid();
+        // Create platonic solid (default: Dodecahedron)
+        createPlatonicSolid(currentModelType);
         
         // Setup interactive controls (mouse drag to rotate, wheel to zoom)
         setupInteractiveControls(canvas);
+        
+        // Setup model selector
+        setupModelSelector();
         
         // Hide loading
         if (loading) loading.style.display = 'none';
@@ -1348,6 +1352,29 @@ const DataPageModule = (function() {
                 dataCamera.aspect = newWidth / newHeight;
                 dataCamera.updateProjectionMatrix();
                 dataRenderer.setSize(newWidth, newHeight);
+            }
+        });
+    }
+    
+    /**
+     * Setup model selector
+     */
+    function setupModelSelector() {
+        const modelSelect = document.getElementById('data-viz-model-select');
+        if (!modelSelect) return;
+        
+        // Set initial value
+        modelSelect.value = currentModelType;
+        
+        // Add change listener
+        modelSelect.addEventListener('change', function() {
+            currentModelType = this.value;
+            if (dataScene) {
+                // Save current fill level
+                const savedFillLevel = targetFillLevel;
+                createPlatonicSolid(currentModelType);
+                // Restore fill level
+                targetFillLevel = savedFillLevel;
             }
         });
     }
@@ -1415,16 +1442,50 @@ const DataPageModule = (function() {
     }
     
     /**
-     * Create platonic solid (Dodecahedron)
+     * Create platonic solid based on model type
      */
-    function createPlatonicSolid() {
+    function createPlatonicSolid(modelType = 'dodecahedron') {
         // Remove existing solids
         if (dataSolid) dataScene.remove(dataSolid);
         if (dataFillSolid) dataScene.remove(dataFillSolid);
         if (dataParticles) dataScene.remove(dataParticles);
         
-        // Create dodecahedron geometry
-        const geometry = new THREE.DodecahedronGeometry(2, 0);
+        // Create geometry based on model type
+        let geometry, fillGeometry;
+        const outerSize = 2;
+        const innerSize = 0.1;
+        
+        switch (modelType) {
+            case 'tetrahedron':
+                geometry = new THREE.TetrahedronGeometry(outerSize, 0);
+                fillGeometry = new THREE.TetrahedronGeometry(innerSize, 0);
+                break;
+            case 'octahedron':
+                geometry = new THREE.OctahedronGeometry(outerSize, 0);
+                fillGeometry = new THREE.OctahedronGeometry(innerSize, 0);
+                break;
+            case 'icosahedron':
+                geometry = new THREE.IcosahedronGeometry(outerSize, 0);
+                fillGeometry = new THREE.IcosahedronGeometry(innerSize, 0);
+                break;
+            case 'cube':
+                geometry = new THREE.BoxGeometry(outerSize * 1.2, outerSize * 1.2, outerSize * 1.2);
+                fillGeometry = new THREE.BoxGeometry(innerSize * 1.2, innerSize * 1.2, innerSize * 1.2);
+                break;
+            case 'sphere':
+                geometry = new THREE.SphereGeometry(outerSize, 32, 32);
+                fillGeometry = new THREE.SphereGeometry(innerSize, 16, 16);
+                break;
+            case 'torus':
+                geometry = new THREE.TorusGeometry(outerSize, 0.4, 16, 100);
+                fillGeometry = new THREE.TorusGeometry(innerSize, 0.02, 16, 100);
+                break;
+            case 'dodecahedron':
+            default:
+                geometry = new THREE.DodecahedronGeometry(outerSize, 0);
+                fillGeometry = new THREE.DodecahedronGeometry(innerSize, 0);
+                break;
+        }
         
         // Outer wireframe solid
         const wireframeMaterial = new THREE.MeshBasicMaterial({
@@ -1437,7 +1498,6 @@ const DataPageModule = (function() {
         dataScene.add(dataSolid);
         
         // Inner fill solid (starts empty)
-        const fillGeometry = new THREE.DodecahedronGeometry(0.1, 0);
         const fillMaterial = new THREE.MeshPhongMaterial({
             color: 0x3b82f6,
             transparent: true,
