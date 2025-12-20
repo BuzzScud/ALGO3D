@@ -23,6 +23,7 @@
 #include "ai/cllm_generic_interface.h"
 #include "hierarchical_threading.h"
 #include "thread_parameters.h"
+#include "pthread_barrier_compat.h"  // For macOS-compatible barrier functions
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -95,11 +96,18 @@ static bool allocate_model_parameters(CLLMModel* model) {
     // ========================================================================
     
     printf("  → Creating thread pool (MANDATORY)...\n");
-    model->threads = hierarchical_thread_pool_create_88d(60);  // Base 60 for CrystallineAbacus
+    model->threads = hierarchical_thread_pool_create(60);  // Base 60 for CrystallineAbacus
     if (!model->threads) {
-        fprintf(stderr, "FATAL ERROR: Failed to create thread pool\n");
-        fprintf(stderr, "Threading is MANDATORY - cannot create model without threads\n");
-        return false;
+        fprintf(stderr, "\n");
+        fprintf(stderr, "╔════════════════════════════════════════════════════════╗\n");
+        fprintf(stderr, "║        FATAL ERROR: THREAD POOL CREATION FAILED         ║\n");
+        fprintf(stderr, "╚════════════════════════════════════════════════════════╝\n");
+        fprintf(stderr, "\n");
+        fprintf(stderr, "Threading is MANDATORY in this architecture.\n");
+        fprintf(stderr, "There is NO sequential fallback.\n");
+        fprintf(stderr, "Model creation cannot proceed without 88D thread pool.\n");
+        fprintf(stderr, "\n");
+        abort();  // CRITICAL: Abort immediately - no fallback possible
     }
     
     // Verify thread pool is valid
@@ -108,7 +116,8 @@ static bool allocate_model_parameters(CLLMModel* model) {
                 model->threads->num_threads);
         hierarchical_thread_pool_free(model->threads);
         model->threads = NULL;
-        return false;
+        fprintf(stderr, "Threading is MANDATORY - model creation cannot proceed.\n");
+        abort();  // CRITICAL: Abort immediately - no fallback possible
     }
     
     printf("  ✓ Created thread pool: 96 threads (8 layers × 12 threads per layer)\n");
@@ -258,9 +267,9 @@ static bool allocate_model_parameters(CLLMModel* model) {
     
     printf("  → Initializing threading barriers...\n");
     
-    model->threading.forward_barrier = malloc(sizeof(pthread_barrier_t));
-    model->threading.backward_barrier = malloc(sizeof(pthread_barrier_t));
-    model->threading.optimizer_barrier = malloc(sizeof(pthread_barrier_t));
+    model->threading.forward_barrier = malloc(sizeof(pthread_barrier_t_compat));
+    model->threading.backward_barrier = malloc(sizeof(pthread_barrier_t_compat));
+    model->threading.optimizer_barrier = malloc(sizeof(pthread_barrier_t_compat));
     
     if (!model->threading.forward_barrier || !model->threading.backward_barrier || 
         !model->threading.optimizer_barrier) {
@@ -268,10 +277,10 @@ static bool allocate_model_parameters(CLLMModel* model) {
         return false;
     }
     
-    // Initialize barriers for 96 threads (88 workers + 8 control)
-    pthread_barrier_init(model->threading.forward_barrier, NULL, 96);
-    pthread_barrier_init(model->threading.backward_barrier, NULL, 96);
-    pthread_barrier_init(model->threading.optimizer_barrier, NULL, 96);
+    // Initialize barriers for 96 threads (88 workers + 8 control) - macOS compatible
+    pthread_barrier_init_compat(model->threading.forward_barrier, NULL, 96);
+    pthread_barrier_init_compat(model->threading.backward_barrier, NULL, 96);
+    pthread_barrier_init_compat(model->threading.optimizer_barrier, NULL, 96);
     
     printf("  ✓ Initialized threading barriers\n");
     

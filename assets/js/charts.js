@@ -843,16 +843,34 @@ const ChartsModule = (function() {
             const candle = candles[candleIdx];
             const xPos = (-(numCandles * 1.2) / 2) + (i * timeStep * 1.2);
             
-            // Format time
+            // Format time - CRITICAL: Use EST timezone to show correct current time
             const date = new Date(candle.time);
             let timeStr = '';
             if (currentTimeframe === '1D' || currentTimeframe === '15MIN') {
-                timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                timeStr = date.toLocaleTimeString('en-US', { 
+                    timeZone: 'America/New_York',
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    hour12: false 
+                });
             } else if (currentTimeframe === '1H' || currentTimeframe === '4H') {
-                timeStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
-                         date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                timeStr = date.toLocaleDateString('en-US', { 
+                    timeZone: 'America/New_York',
+                    month: 'short', 
+                    day: 'numeric' 
+                }) + ' ' +
+                         date.toLocaleTimeString('en-US', { 
+                             timeZone: 'America/New_York',
+                             hour: '2-digit', 
+                             minute: '2-digit', 
+                             hour12: false 
+                         });
             } else {
-                timeStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                timeStr = date.toLocaleDateString('en-US', { 
+                    timeZone: 'America/New_York',
+                    month: 'short', 
+                    day: 'numeric' 
+                });
             }
             
             // Create label sprite
@@ -1139,12 +1157,17 @@ const ChartsModule = (function() {
         const formatDate = (timestamp) => {
             if (!timestamp) return '--';
             const date = new Date(timestamp);
+            // CRITICAL: Format in EST timezone to show correct current time
             return date.toLocaleString('en-US', {
+                timeZone: 'America/New_York',
                 month: 'short',
                 day: 'numeric',
+                year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
-            });
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            }) + ' EST';
         };
 
         const change = candle.close - candle.open;
@@ -2271,6 +2294,38 @@ const ChartsModule = (function() {
                         borderColor: 'rgba(255, 255, 255, 0.1)',
                         borderWidth: 1,
                         callbacks: {
+                            title: function(context) {
+                                // CRITICAL: Format timestamp in EST timezone to show correct current time
+                                // The timestamp from the API is in UTC milliseconds - we format it for EST display
+                                if (context.length > 0 && context[0].parsed) {
+                                    const candle = candles[context[0].dataIndex];
+                                    if (candle && candle.time) {
+                                        // candle.time is UTC timestamp in milliseconds
+                                        const date = new Date(candle.time);
+                                        
+                                        // Verify date is valid
+                                        if (isNaN(date.getTime())) {
+                                            console.warn('Invalid timestamp:', candle.time);
+                                            return '';
+                                        }
+                                        
+                                        // Format in EST timezone - this correctly converts UTC to EST for display
+                                        const estString = date.toLocaleString('en-US', {
+                                            timeZone: 'America/New_York',
+                                            month: 'short',
+                                            day: 'numeric',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            second: '2-digit',
+                                            hour12: true
+                                        });
+                                        
+                                        return estString + ' EST';
+                                    }
+                                }
+                                return '';
+                            },
                             label: function(context) {
                                 if (currentChartType === 'candlestick' && context.datasetIndex === 0) {
                                     // For candlestick chart, show OHLC data
@@ -2334,7 +2389,17 @@ const ChartsModule = (function() {
                                 day: 'MMM d',
                                 week: 'MMM d',
                                 month: 'MMM yyyy'
-                            }
+                            },
+                            // CRITICAL: Use EST timezone for all time displays
+                            // Note: date-fns adapter may need timezone configuration
+                            parser: function(value) {
+                                // Parse timestamp and return as-is (timestamps are already in milliseconds)
+                                return value;
+                            },
+                            tooltipFormat: 'MMM d, yyyy h:mm:ss a',
+                            unit: currentTimeframe === '15MIN' ? 'minute' : 
+                                  currentTimeframe === '1H' ? 'hour' : 
+                                  currentTimeframe === '4H' ? 'hour' : 'day'
                         },
                         grid: {
                             color: colors.grid,
@@ -2343,7 +2408,36 @@ const ChartsModule = (function() {
                         ticks: {
                             color: colors.text,
                             maxRotation: 0,
-                            padding: 8
+                            padding: 8,
+                            // CRITICAL: Custom callback to format times in EST timezone
+                            callback: function(value, index, ticks) {
+                                if (value === null || value === undefined) return '';
+                                const date = new Date(value);
+                                // Format in EST timezone
+                                if (currentTimeframe === '1D' || currentTimeframe === '15MIN') {
+                                    return date.toLocaleTimeString('en-US', {
+                                        timeZone: 'America/New_York',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        hour12: false
+                                    });
+                                } else if (currentTimeframe === '1H' || currentTimeframe === '4H') {
+                                    return date.toLocaleString('en-US', {
+                                        timeZone: 'America/New_York',
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        hour12: false
+                                    });
+                                } else {
+                                    return date.toLocaleDateString('en-US', {
+                                        timeZone: 'America/New_York',
+                                        month: 'short',
+                                        day: 'numeric'
+                                    });
+                                }
+                            }
                         }
                     },
                     y: {

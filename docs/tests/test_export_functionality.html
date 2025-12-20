@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export Functionality Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1e293b;
+            color: #fff;
+        }
+        .test-section {
+            background: #334155;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .log {
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+        }
+        .success { color: #22c55e; }
+        .error { color: #ef4444; }
+        .info { color: #3b82f6; }
+    </style>
+</head>
+<body>
+    <h1>Export Functionality Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Check if Export Button Exists</h2>
+        <button onclick="testButtonExists()">Test Button</button>
+        <div id="button-test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Check if Export Function is Available</h2>
+        <button onclick="testExportFunction()">Test Function</button>
+        <div id="function-test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Simulate Export Click</h2>
+        <button onclick="testExportClick()">Simulate Click</button>
+        <div id="click-test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div id="test-log" class="log"></div>
+    </div>
+    
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('test-log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function testButtonExists() {
+            log('Testing if export button exists...', 'info');
+            const button = document.getElementById('export-chart-btn');
+            const resultDiv = document.getElementById('button-test-result');
+            
+            if (button) {
+                log('✓ Export button found!', 'success');
+                resultDiv.innerHTML = '<p class="success">✓ Button exists</p>';
+                resultDiv.innerHTML += `<p>Button ID: ${button.id}</p>`;
+                resultDiv.innerHTML += `<p>Button visible: ${button.offsetParent !== null}</p>`;
+                resultDiv.innerHTML += `<p>Button disabled: ${button.disabled}</p>`;
+                resultDiv.innerHTML += `<p>Button HTML: ${button.outerHTML}</p>`;
+            } else {
+                log('✗ Export button NOT found!', 'error');
+                resultDiv.innerHTML = '<p class="error">✗ Button not found</p>';
+            }
+        }
+        
+        function testExportFunction() {
+            log('Testing if export function is available...', 'info');
+            const resultDiv = document.getElementById('function-test-result');
+            
+            if (typeof window.exportProjectionChart === 'function') {
+                log('✓ Export function is available!', 'success');
+                resultDiv.innerHTML = '<p class="success">✓ Function exists</p>';
+                resultDiv.innerHTML += `<p>Function type: ${typeof window.exportProjectionChart}</p>`;
+            } else {
+                log('✗ Export function NOT available!', 'error');
+                resultDiv.innerHTML = '<p class="error">✗ Function not found</p>';
+                resultDiv.innerHTML += '<p>Available on window: ' + Object.keys(window).filter(k => k.includes('export') || k.includes('Export')).join(', ') + '</p>';
+            }
+        }
+        
+        function testExportClick() {
+            log('Simulating export button click...', 'info');
+            const button = document.getElementById('export-chart-btn');
+            const resultDiv = document.getElementById('click-test-result');
+            
+            if (!button) {
+                log('✗ Cannot test click - button not found', 'error');
+                resultDiv.innerHTML = '<p class="error">✗ Button not found</p>';
+                return;
+            }
+            
+            // Try multiple methods
+            try {
+                log('Method 1: Direct click()', 'info');
+                button.click();
+                log('✓ click() executed', 'success');
+            } catch (e) {
+                log('✗ click() failed: ' + e.message, 'error');
+            }
+            
+            try {
+                log('Method 2: Creating click event', 'info');
+                const event = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                });
+                button.dispatchEvent(event);
+                log('✓ dispatchEvent executed', 'success');
+            } catch (e) {
+                log('✗ dispatchEvent failed: ' + e.message, 'error');
+            }
+            
+            resultDiv.innerHTML = '<p class="info">Click simulation completed. Check console and download folder.</p>';
+        }
+        
+        // Auto-run tests when page loads
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                log('Page loaded, running auto-tests...', 'info');
+                testButtonExists();
+                setTimeout(() => testExportFunction(), 500);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
+

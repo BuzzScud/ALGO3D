@@ -28,6 +28,7 @@ const ProjectionsModule = (function() {
     let actualPriceData = null; // Store actual price data for comparison
     let refreshInterval = null; // Auto-refresh interval
     let isRefreshing = false; // Prevent concurrent refreshes
+    let currentProjectionParams = null; // Store current projection parameters for export
     // Unified Projection Engine is now the primary method (replaces ensemble)
     
     // Pan state management (similar to charts.js)
@@ -57,6 +58,20 @@ const ProjectionsModule = (function() {
     function formatPrice(value) {
         if (value === null || value === undefined || isNaN(value)) return '$0.00';
         return '$' + value.toFixed(2);
+    }
+    
+    // Format volume with K, M, B suffixes
+    // CRITICAL: Define early so it's accessible in all callbacks
+    function formatVolume(volume) {
+        if (volume === null || volume === undefined || volume === 0 || isNaN(volume)) return '0';
+        if (volume >= 1000000000) {
+            return (volume / 1000000000).toFixed(2) + 'B';
+        } else if (volume >= 1000000) {
+            return (volume / 1000000).toFixed(2) + 'M';
+        } else if (volume >= 1000) {
+            return (volume / 1000).toFixed(2) + 'K';
+        }
+        return volume.toLocaleString();
     }
     
     /**
@@ -250,39 +265,88 @@ const ProjectionsModule = (function() {
         const intervalConfig = timeframeMap[interval] || timeframeMap['1D'];
         const labels = [];
         
-        for (let i = 1; i <= steps; i++) {
-            // Calculate the projected date by working with EST components
-            // Create a date object from EST components and perform date arithmetic
-            const baseDate = new Date(Date.UTC(estYear, estMonth, estDay, 12, 0, 0));
-            
-            // Add the interval offset using UTC methods to avoid timezone issues
-            let projectedDate = new Date(baseDate);
-            
-            if (intervalConfig.minutes) {
-                projectedDate.setUTCMinutes(projectedDate.getUTCMinutes() + (intervalConfig.minutes * i));
-            } else if (intervalConfig.hours) {
-                projectedDate.setUTCHours(projectedDate.getUTCHours() + (intervalConfig.hours * i));
-            } else if (intervalConfig.days) {
-                projectedDate.setUTCDate(projectedDate.getUTCDate() + (intervalConfig.days * i));
-            } else if (intervalConfig.months) {
-                projectedDate.setUTCMonth(projectedDate.getUTCMonth() + (intervalConfig.months * i));
-            } else if (intervalConfig.years) {
-                projectedDate.setUTCFullYear(projectedDate.getUTCFullYear() + (intervalConfig.years * i));
-            }
-            
-            // Format the date in EST timezone
-            // For intraday timeframes (15MIN, 1H, 4H), include time in the label
-            let formattedDate;
-            if (interval === '15MIN' || interval === '1H' || interval === '4H') {
-                formattedDate = projectedDate.toLocaleString('en-US', {
+        // FIXED: Start from actual last candle timestamp, not a fixed date
+        let startTimestamp;
+        if (historicalCandles && historicalCandles.length > 0) {
+            const lastCandle = historicalCandles[historicalCandles.length - 1];
+            startTimestamp = lastCandle.time || lastCandle.timestamp;
+        }
+        
+        // If no candle timestamp, use current time (when data is loaded)
+        if (!startTimestamp || startTimestamp <= 0) {
+            const now = new Date();
+            startTimestamp = alignToTimeframeBoundary(now.getTime(), interval);
+        } else {
+            // Align to timeframe boundary
+            startTimestamp = alignToTimeframeBoundary(startTimestamp, interval);
+        }
+        
+        // Calculate time increment based on interval
+        let timeIncrement = 60 * 60 * 1000; // Default: 1 hour in milliseconds
+        if (interval === '15MIN') {
+            timeIncrement = 15 * 60 * 1000; // 15 minutes
+        } else if (interval === '1H') {
+            timeIncrement = 60 * 60 * 1000; // 1 hour
+        } else if (interval === '4H') {
+            timeIncrement = 4 * 60 * 60 * 1000; // 4 hours
+        } else if (interval === '1D') {
+            timeIncrement = 24 * 60 * 60 * 1000; // 1 day
+        }
+        
+        // Track last day for projection labels to show dates on new days
+        let lastProjectionDay = null;
+        if (historicalCandles && historicalCandles.length > 0) {
+            const lastCandle = historicalCandles[historicalCandles.length - 1];
+            const lastTimestamp = lastCandle.time || lastCandle.timestamp;
+            if (lastTimestamp) {
+                const lastDate = new Date(lastTimestamp);
+                const lastDateString = lastDate.toLocaleString('en-US', {
                     timeZone: 'America/New_York',
                     year: 'numeric',
                     month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                }) + ' EST';
+                    day: 'numeric'
+                });
+                lastProjectionDay = lastDateString.split(', ')[0]; // e.g., "Dec 19, 2025" -> "Dec 19"
+            }
+        }
+        
+        for (let i = 1; i <= steps; i++) {
+            // Calculate projected time: start from last candle + (interval * i)
+            const projectedTime = startTimestamp + (timeIncrement * i);
+            const projectedDate = new Date(projectedTime);
+            
+            // Get date components in EST timezone
+            const estDateString = projectedDate.toLocaleString('en-US', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            
+            // Parse to get day
+            const [datePart, timePart] = estDateString.split(', ');
+            const currentDay = datePart; // e.g., "Dec 19, 2025"
+            
+            // Check if this is a new day
+            const isNewDay = lastProjectionDay === null || currentDay !== lastProjectionDay;
+            if (isNewDay) {
+                lastProjectionDay = currentDay;
+            }
+            
+            // Format the date in EST timezone
+            // For intraday timeframes (15MIN, 1H, 4H), show date when new day appears
+            let formattedDate;
+            if (interval === '15MIN' || interval === '1H' || interval === '4H') {
+                if (isNewDay) {
+                    // Show date and time for new day: "Dec 19\n14:00" or "Dec 19, 14:00"
+                    formattedDate = `${datePart}\n${timePart}`;
+                } else {
+                    // Same day, just show time
+                    formattedDate = timePart;
+                }
             } else {
                 formattedDate = projectedDate.toLocaleDateString('en-US', {
                     timeZone: 'America/New_York',
@@ -580,12 +644,22 @@ const ProjectionsModule = (function() {
      * Falls back to JavaScript implementation if PHP backend fails.
      */
     async function calculateProjections(historicalPrices, params) {
+        // CRITICAL: Always use the current/last price as the base for projections
         const lastPrice = historicalPrices[historicalPrices.length - 1];
+        
+        // Validate last price
+        if (!lastPrice || isNaN(lastPrice) || lastPrice <= 0) {
+            throw new Error('Invalid current price: cannot project from invalid price');
+        }
+        
         const depthPrime = parseInt(params.depthPrime) || 31;
-        const base = parseFloat(params.base) || lastPrice;
+        // FIXED: Always use current price as base, ignore params.base (which is for algorithm tuning, not starting price)
+        const base = lastPrice; // Always project from current price
         const projectionCount = parseInt(params.projectionCount) || 12;
         const steps = parseInt(params.steps) || 20;
         const omegaHz = parseFloat(params.omegaHz) || 432.0;
+        
+        console.log(`📊 Projecting from current price: $${lastPrice.toFixed(2)} (base parameter: ${base})`);
         
         // Try PHP backend first (uses CLLM with 88D threading)
         try {
@@ -600,7 +674,7 @@ const ProjectionsModule = (function() {
                 body: JSON.stringify({
                     historical_prices: historicalPrices,
                     depth_prime: depthPrime,
-                    base: base,
+                    base: base, // Current price - projections start from here
                     steps: steps,
                     projection_count: projectionCount,
                     omega_hz: omegaHz,
@@ -791,11 +865,21 @@ const ProjectionsModule = (function() {
      * This is kept as a fallback if PHP backend is unavailable
      */
     function calculateProjectionsJS(historicalPrices, params) {
+        // CRITICAL: Always use the current/last price as the base for projections
         const lastPrice = historicalPrices[historicalPrices.length - 1];
+        
+        // Validate last price
+        if (!lastPrice || isNaN(lastPrice) || lastPrice <= 0) {
+            throw new Error('Invalid current price: cannot project from invalid price');
+        }
+        
         const depthPrime = parseInt(params.depthPrime) || 31;
-        const base = parseFloat(params.base) || 3;
+        // Note: params.base is for algorithm tuning, not the starting price
+        // Always project from current price (lastPrice)
         const projectionCount = parseInt(params.projectionCount) || 12;
         const steps = parseInt(params.steps) || 20;
+        
+        console.log(`📊 JS Fallback: Projecting from current price: $${lastPrice.toFixed(2)}`);
         
         // Generate triads around the depth prime
         const triads = generateTriadsAroundPrime(depthPrime, projectionCount, PRIMES_500);
@@ -804,7 +888,7 @@ const ProjectionsModule = (function() {
         
         triads.forEach((triad, idx) => {
             const projectedPrices = computeCrystallineProjection({
-                lastPrice: lastPrice,
+                lastPrice: lastPrice, // Always use current price
                 depthPrime: depthPrime,
                 omegaHz: 432,
                 triad: triad,
@@ -821,7 +905,168 @@ const ProjectionsModule = (function() {
         return projectionLines;
     }
     
-    // Fetch market data with real-time support
+    /**
+     * Align timestamp to timeframe boundary
+     * Ensures candles are properly aligned to their timeframe (e.g., 1H candles at :00 minutes)
+     * Uses proper EST/EDT timezone handling
+     */
+    function alignToTimeframeBoundary(timestamp, timeframe) {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return timestamp;
+        
+        // Get date components in EST timezone
+        const estFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        
+        const parts = estFormatter.formatToParts(date);
+        const getPart = (type) => {
+            const part = parts.find(p => p.type === type);
+            return part ? part.value : '0';
+        };
+        
+        let year = parseInt(getPart('year'));
+        let month = parseInt(getPart('month'));
+        let day = parseInt(getPart('day'));
+        let hour = parseInt(getPart('hour'));
+        let minute = parseInt(getPart('minute'));
+        let second = parseInt(getPart('second'));
+        
+        // Align to timeframe boundaries
+        switch (timeframe) {
+            case '15MIN':
+                // Align to 15-minute boundaries (0, 15, 30, 45)
+                minute = Math.floor(minute / 15) * 15;
+                second = 0;
+                break;
+            case '1H':
+                // Align to hour boundaries (:00)
+                minute = 0;
+                second = 0;
+                break;
+            case '4H':
+                // Align to 4-hour boundaries (0, 4, 8, 12, 16, 20)
+                hour = Math.floor(hour / 4) * 4;
+                minute = 0;
+                second = 0;
+                break;
+            case '1D':
+                // Align to day boundaries (market open: 9:30 AM EST)
+                hour = 9;
+                minute = 30;
+                second = 0;
+                break;
+            default:
+                // Default to hour boundary
+                minute = 0;
+                second = 0;
+        }
+        
+        // Create date string in EST format
+        const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}`;
+        
+        // Check if DST (EDT) by creating a test date
+        const testDate = new Date(`${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T12:00:00`);
+        const dstCheck = testDate.toLocaleString('en-US', { 
+            timeZone: 'America/New_York', 
+            timeZoneName: 'short' 
+        });
+        const isDST = dstCheck.includes('EDT');
+        
+        // Create timestamp with proper timezone offset
+        // EST is UTC-5, EDT is UTC-4
+        const offset = isDST ? '-04:00' : '-05:00';
+        const alignedDate = new Date(`${dateStr}${offset}`);
+        
+        return alignedDate.getTime();
+    }
+    
+    /**
+     * Process and validate candle data for proper timeframe alignment
+     * Ensures each candle has correct timestamp aligned to timeframe boundaries
+     */
+    function processCandlesForTimeframe(candles, timeframe) {
+        if (!candles || !Array.isArray(candles) || candles.length === 0) {
+            return [];
+        }
+        
+        const processedCandles = candles.map(candle => {
+            if (!candle) return null;
+            
+            // Get timestamp
+            let timestamp = candle.time || candle.timestamp || candle.originalTime;
+            if (!timestamp) return null;
+            
+            // Convert to number if string
+            if (typeof timestamp === 'string') {
+                timestamp = parseInt(timestamp);
+            }
+            
+            // Validate timestamp
+            if (isNaN(timestamp) || timestamp <= 0) {
+                return null;
+            }
+            
+            // Align timestamp to timeframe boundary
+            const alignedTimestamp = alignToTimeframeBoundary(timestamp, timeframe);
+            
+            // Get price data
+            const close = parseFloat(candle.close || candle.price || 0);
+            const open = parseFloat(candle.open || close);
+            const high = parseFloat(candle.high || close);
+            const low = parseFloat(candle.low || close);
+            const volume = parseFloat(candle.volume || 0);
+            
+            // Validate price data
+            if (isNaN(close) || close <= 0) {
+                return null;
+            }
+            
+            // Ensure proper OHLC relationships
+            const validHigh = Math.max(open, high, close);
+            const validLow = Math.min(open, low, close);
+            
+            return {
+                time: alignedTimestamp,
+                timestamp: alignedTimestamp,
+                originalTime: timestamp,
+                open: open,
+                high: validHigh,
+                low: validLow,
+                close: close,
+                price: close,
+                volume: volume
+            };
+        }).filter(c => c !== null);
+        
+        // Sort by timestamp (oldest first)
+        processedCandles.sort((a, b) => a.time - b.time);
+        
+        // Remove duplicates (same aligned timestamp)
+        const uniqueCandles = [];
+        const seenTimestamps = new Set();
+        
+        for (const candle of processedCandles) {
+            if (!seenTimestamps.has(candle.time)) {
+                seenTimestamps.add(candle.time);
+                uniqueCandles.push(candle);
+            }
+        }
+        
+        return uniqueCandles;
+    }
+    
+    /**
+     * Fetch market data with real-time support and proper timeframe alignment
+     * Redesigned to ensure correct time and price per timeframe
+     */
     async function fetchMarketData(symbol, interval, forceRefresh = false) {
         try {
             // Validate inputs
@@ -830,12 +1075,13 @@ const ProjectionsModule = (function() {
             }
             
             // Interval is now already in timeframe format (15MIN, 1H, 4H, 1D)
-            const timeframe = interval || '1D';
+            const timeframe = interval || '1H'; // Default to 1H for projections
             
-            // Build URL with cache-busting parameter for real-time data
-            const url = `api/charts.php?action=chart&symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}${forceRefresh ? '&refresh=true' : ''}`;
+            // CRITICAL: For price projections, fetch last 7 days of data
+            // Build URL with days parameter to fetch 7 days
+            const url = `api/charts.php?action=chart&symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}&days=7${forceRefresh ? '&refresh=true' : ''}`;
             
-            console.log('Fetching market data:', { symbol, timeframe, forceRefresh, url });
+            console.log('📊 Fetching market data:', { symbol, timeframe, forceRefresh, url });
             
             const response = await fetch(url, {
                 method: 'GET',
@@ -868,7 +1114,7 @@ const ProjectionsModule = (function() {
             }
             
             // Log the response for debugging
-            console.log('Chart API response:', {
+            console.log('📈 Chart API response:', {
                 success: data.success,
                 hasCandles: !!data.candles,
                 candlesCount: data.candles ? data.candles.length : 0,
@@ -898,38 +1144,31 @@ const ProjectionsModule = (function() {
                 throw new Error(errorMsg);
             }
             
-            // Validate candle data structure
-            const invalidCandles = data.candles.filter(c => {
-                return !c || 
-                       (c.close === undefined && c.price === undefined) ||
-                       (c.time === undefined && c.timestamp === undefined);
-            });
+            // Process candles for proper timeframe alignment
+            console.log(`🔄 Processing ${data.candles.length} candles for timeframe ${timeframe}...`);
+            const processedCandles = processCandlesForTimeframe(data.candles, timeframe);
             
-            if (invalidCandles.length > 0) {
-                console.warn(`Found ${invalidCandles.length} invalid candles out of ${data.candles.length}`);
+            if (processedCandles.length === 0) {
+                throw new Error('No valid candle data after processing. Please try again.');
             }
             
-            // Filter out invalid candles
-            data.candles = data.candles.filter(c => {
-                if (!c) return false;
-                const hasPrice = c.close !== undefined || c.price !== undefined;
-                const hasTime = c.time !== undefined || c.timestamp !== undefined;
-                return hasPrice && hasTime;
-            });
+            // Update data with processed candles
+            data.candles = processedCandles;
             
-            if (data.candles.length === 0) {
-                throw new Error('No valid candle data after validation. Please try again.');
-            }
+            console.log(`✅ Successfully processed ${processedCandles.length} valid candles for ${symbol} (${timeframe})`);
+            console.log(`📅 Time range: ${new Date(processedCandles[0].time).toLocaleString('en-US', { timeZone: 'America/New_York' })} to ${new Date(processedCandles[processedCandles.length - 1].time).toLocaleString('en-US', { timeZone: 'America/New_York' })} EST`);
             
-            console.log(`Successfully fetched ${data.candles.length} valid candles for ${symbol} (${timeframe})`);
             return data;
         } catch (error) {
-            console.error('Error fetching market data:', error);
+            console.error('❌ Error fetching market data:', error);
             throw error;
         }
     }
     
-    // Fetch real-time market quote
+    /**
+     * Fetch real-time market quote with enhanced error handling
+     * This ensures we always get the latest market data for accurate projections
+     */
     async function fetchRealTimeQuote(symbol) {
         try {
             if (!symbol || typeof symbol !== 'string' || symbol.trim() === '') {
@@ -1028,61 +1267,100 @@ const ProjectionsModule = (function() {
                 throw new Error('No historical data available for this symbol');
             }
             
-            // Store candles data for high/low calculations
-            // Note: API already returns timestamps in EST, but we'll ensure they're properly formatted
-            historicalCandles = data.candles.map(c => {
-                const candle = { ...c };
+            /**
+             * REDESIGNED: Process candles with 100% accurate time and price data
+             * Ensures proper OHLC relationships and correct timestamp alignment
+             */
+            historicalCandles = data.candles.map((c, index) => {
+                if (!c) return null;
                 
-                // Ensure we have valid price data
-                const close = parseFloat(candle.close || candle.price || 0);
-                const open = parseFloat(candle.open || close);
-                const high = parseFloat(candle.high || close);
-                const low = parseFloat(candle.low || close);
-                
-                // Validate and set prices
-                // CRITICAL: Ensure proper OHLC relationships to avoid doji candles
-                candle.close = !isNaN(close) && close > 0 ? close : null;
-                
-                if (!candle.close) {
-                    return null; // Skip invalid candles
+                // Get and validate timestamp - CRITICAL for accurate time display
+                let timestamp = c.time || c.timestamp || c.originalTime;
+                if (!timestamp || typeof timestamp !== 'number' || timestamp <= 0) {
+                    console.warn(`Invalid timestamp at index ${index}:`, c);
+                    return null;
                 }
                 
-                // Set open: use provided open or previous candle's close, or current close
-                candle.open = !isNaN(open) && open > 0 ? open : candle.close;
+                // Align timestamp to 1H timeframe boundary (hour boundaries :00)
+                const alignedTimestamp = alignToTimeframeBoundary(timestamp, currentInterval);
                 
-                // Set high: must be >= max(open, close) to avoid doji
-                const minHigh = Math.max(candle.open, candle.close);
-                candle.high = !isNaN(high) && high >= minHigh ? high : minHigh;
-                
-                // Set low: must be <= min(open, close) to avoid doji
-                const maxLow = Math.min(candle.open, candle.close);
-                candle.low = !isNaN(low) && low <= maxLow ? low : maxLow;
-                
-                // Final validation: if high == low == open == close (doji), add minimal spread
-                if (candle.high === candle.low && candle.open === candle.close && candle.high === candle.open) {
-                    const spread = candle.close * 0.0001; // 0.01% spread
-                    candle.high = candle.close + spread;
-                    candle.low = candle.close - spread;
+                // Get and validate price data
+                const close = parseFloat(c.close || c.price || 0);
+                if (isNaN(close) || close <= 0) {
+                    console.warn(`Invalid close price at index ${index}:`, c);
+                    return null;
                 }
-                candle.volume = parseInt(candle.volume || 0) || 0;
                 
-                // Keep original timestamps - API already converts to EST
-                // But ensure we have valid timestamps
-                if (candle.time && typeof candle.time === 'number') {
-                    // Timestamp is already in milliseconds (EST from API)
-                    candle.originalTime = candle.time;
-                } else if (candle.timestamp && typeof candle.timestamp === 'number') {
-                    candle.time = candle.timestamp;
-                    candle.originalTime = candle.timestamp;
-                } else {
-                    // Generate timestamp if missing (shouldn't happen, but handle gracefully)
-                    console.warn('Missing timestamp in candle data:', candle);
-                    candle.time = Date.now();
-                    candle.originalTime = candle.time;
+                // Get OHLC values with proper validation
+                let open = parseFloat(c.open);
+                let high = parseFloat(c.high);
+                let low = parseFloat(c.low);
+                
+                // If open is invalid, use previous candle's close or current close
+                if (isNaN(open) || open <= 0) {
+                    if (index > 0 && historicalCandles[index - 1] && historicalCandles[index - 1].close) {
+                        open = parseFloat(historicalCandles[index - 1].close);
+                    } else {
+                        open = close;
+                    }
+                }
+                
+                // Validate and correct high: must be >= max(open, close)
+                const minHigh = Math.max(open, close);
+                if (isNaN(high) || high < minHigh) {
+                    high = minHigh;
+                }
+                // Ensure high is at least the maximum of all values
+                high = Math.max(high, open, close);
+                
+                // Validate and correct low: must be <= min(open, close)
+                const maxLow = Math.min(open, close);
+                if (isNaN(low) || low > maxLow) {
+                    low = maxLow;
+                }
+                // Ensure low is at most the minimum of all values
+                low = Math.min(low, open, close);
+                
+                // Final validation: prevent doji candles (all values equal)
+                if (high === low && open === close && high === open) {
+                    const spread = close * 0.0001; // 0.01% spread
+                    high = close + spread;
+                    low = close - spread;
+                }
+                
+                // Final OHLC relationship validation
+                high = Math.max(high, open, close);
+                low = Math.min(low, open, close);
+                
+                // Create properly formatted candle object
+                const candle = {
+                    time: alignedTimestamp,
+                    timestamp: alignedTimestamp,
+                    originalTime: timestamp,
+                    open: parseFloat(open.toFixed(2)),
+                    high: parseFloat(high.toFixed(2)),
+                    low: parseFloat(low.toFixed(2)),
+                    close: parseFloat(close.toFixed(2)),
+                    price: parseFloat(close.toFixed(2)),
+                    volume: parseInt(c.volume || 0) || 0
+                };
+                
+                // Log validation for debugging
+                if (index === 0 || index === data.candles.length - 1) {
+                    const estTime = new Date(candle.time).toLocaleString('en-US', {
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                    });
+                    console.log(`✓ Candle ${index === 0 ? 'first' : 'last'}: ${estTime} EST | O:$${candle.open} H:$${candle.high} L:$${candle.low} C:$${candle.close}`);
                 }
                 
                 return candle;
-            }).filter(c => c.close !== null && c.close > 0); // Filter out invalid candles
+            }).filter(c => c !== null && c.close > 0 && c.time > 0); // Filter out invalid candles
             
             if (historicalCandles.length === 0) {
                 throw new Error('No valid candle data found after processing');
@@ -1121,17 +1399,27 @@ const ProjectionsModule = (function() {
             
             console.log(`Processed ${historicalPrices.length} valid price points from ${data.candles.length} candles`);
             
-            // Generate historical labels with proper EST formatting based on interval
-            // Format dates consistently in EST timezone to ensure proper plotting
+            /**
+             * FIXED: Generate historical labels using actual candle timestamps
+             * Shows dates whenever a new day appears on the X-axis
+             */
+            let lastDay = null; // Track the last day to detect day changes
             historicalLabels = historicalCandles.map((c, i) => {
-                // Get timestamp from candle
+                // Get timestamp from candle - use the actual aligned timestamp
                 let timestamp = c.time || c.timestamp || c.originalTime;
                 if (!timestamp) {
                     // Fallback to original data
                     timestamp = data.candles[i]?.time || data.candles[i]?.timestamp;
                     if (!timestamp) {
+                        console.warn(`No timestamp for candle ${i}, using index`);
                         return `Point ${i + 1}`;
                     }
+                }
+                
+                // Ensure timestamp is a number
+                if (typeof timestamp !== 'number' || timestamp <= 0) {
+                    console.warn(`Invalid timestamp for candle ${i}:`, timestamp);
+                    return `Point ${i + 1}`;
                 }
                 
                 // Create Date object from timestamp
@@ -1143,8 +1431,7 @@ const ProjectionsModule = (function() {
                     return `Point ${i + 1}`;
                 }
                 
-                // Format date in EST timezone to ensure accurate date display
-                // This ensures dates are properly plotted on the chart
+                // Get date components in EST timezone
                 const estDateString = date.toLocaleString('en-US', {
                     timeZone: 'America/New_York',
                     year: 'numeric',
@@ -1155,47 +1442,34 @@ const ProjectionsModule = (function() {
                     hour12: false
                 });
                 
-                // Parse the EST date string to extract components
-                const estParts = estDateString.split(', ');
-                if (estParts.length >= 2) {
-                    // Has time component: "Dec 16, 2025, 10:10"
-                    const datePart = estParts[0]; // "Dec 16, 2025"
-                    const timePart = estParts[1]; // "10:10"
-                    
-                    // For intraday timeframes (15MIN, 1H, 4H), always show time
-                    if (currentInterval === '15MIN' || currentInterval === '1H' || currentInterval === '4H') {
-                        return `${datePart} ${timePart} EST`;
+                // Parse to get day
+                const [datePart, timePart] = estDateString.split(', ');
+                const currentDay = datePart; // e.g., "Dec 19, 2025"
+                
+                // Check if this is a new day (or first candle)
+                const isNewDay = lastDay === null || currentDay !== lastDay;
+                lastDay = currentDay;
+                
+                // CRITICAL: Format date in EST timezone - show date when new day appears
+                if (currentInterval === '15MIN' || currentInterval === '1H' || currentInterval === '4H') {
+                    // For intraday timeframes, show date + time when new day, otherwise just time
+                    if (isNewDay) {
+                        // Show date and time for new day: "Dec 19\n14:00" or "Dec 19, 14:00"
+                        return `${datePart}\n${timePart}`;
+                    } else {
+                        // Same day, just show time
+                        return timePart;
                     }
-                    
-                    // For 1D timeframe with many candles, might be intraday - show time if needed
-                    if (currentInterval === '1D' && historicalCandles.length > 50) {
-                        // Likely intraday data - show date and time
-                        return `${datePart} ${timePart} EST`;
+                } else if (currentInterval === '1D') {
+                    // For daily timeframe, show date and time if many candles (intraday data)
+                    if (historicalCandles.length > 50) {
+                        return datePart && timePart ? `${datePart} ${timePart} EST` : estDateString;
                     }
-                    
-                    // For daily+ intervals, show date only
+                    // For daily with few candles, show date only
                     return datePart;
                 } else {
-                    // Fallback: format date only
-                    const dateOnly = date.toLocaleDateString('en-US', {
-                        timeZone: 'America/New_York',
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                    });
-                    
-                    // For 1d interval with many candles, try to include time
-                    if (currentInterval === '1d' && historicalCandles.length > 50) {
-                        const timeOnly = date.toLocaleTimeString('en-US', {
-                            timeZone: 'America/New_York',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false
-                        });
-                        return `${dateOnly} ${timeOnly} EST`;
-                    }
-                    
-                    return dateOnly;
+                    // For other intervals, show date only
+                    return datePart;
                 }
             });
             
@@ -1218,51 +1492,33 @@ const ProjectionsModule = (function() {
                         console.log(`Added real-time price $${realTimePrice.toFixed(2)} as starting point`);
                     }
                     
-                    // Update the last label to show 4:00 PM EST (market close) for the last session candle
-                    // The last candle represents the market close, not the current time
-                    const now = new Date();
-                    const estDateString = now.toLocaleString('en-US', {
-                        timeZone: 'America/New_York',
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: false
-                    });
-                    
-                    // Parse EST date string
-                    const [datePart, timePart] = estDateString.split(', ');
-                    const [month, day, year] = datePart.split('/');
-                    
-                    // Check if we're in daylight saving time (EDT)
-                    const testDate = new Date(`${year}-${month}-${day}T12:00:00`);
-                    const estOffset = testDate.toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' });
-                    const isDST = estOffset.includes('EDT');
-                    
-                    // Create 4:00 PM EST/EDT timestamp
-                    const marketCloseTimestamp = new Date(`${year}-${month}-${day}T16:00:00${isDST ? '-04:00' : '-05:00'}`);
-                    
-                    const marketCloseString = marketCloseTimestamp.toLocaleString('en-US', {
-                        timeZone: 'America/New_York',
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false
-                    });
-                    
-                    if (historicalLabels.length > 0) {
-                        // For intraday timeframes, show 4:00 PM EST (market close)
-                        if (currentInterval === '15MIN' || currentInterval === '1H' || currentInterval === '4H') {
-                            historicalLabels[historicalLabels.length - 1] = `${marketCloseString} EST (Close)`;
-                        } else {
-                            historicalLabels[historicalLabels.length - 1] = `${marketCloseString} EST (Close)`;
+                    // FIXED: Update the last label to show the actual candle time, not forced 4:00 PM
+                    if (historicalCandles.length > 0 && historicalLabels.length > 0) {
+                        const lastCandle = historicalCandles[historicalCandles.length - 1];
+                        const lastCandleTime = lastCandle.time || lastCandle.timestamp;
+                        
+                        if (lastCandleTime && typeof lastCandleTime === 'number' && lastCandleTime > 0) {
+                            const date = new Date(lastCandleTime);
+                            if (!isNaN(date.getTime())) {
+                                const estDateString = date.toLocaleString('en-US', {
+                                    timeZone: 'America/New_York',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false
+                                });
+                                
+                                // Format: "Dec 19, 2025, 14:00" -> "Dec 19, 2025 14:00 EST"
+                                const [datePart, timePart] = estDateString.split(', ');
+                                if (datePart && timePart) {
+                                    historicalLabels[historicalLabels.length - 1] = `${datePart} ${timePart} EST`;
+                                } else {
+                                    historicalLabels[historicalLabels.length - 1] = `${estDateString} EST`;
+                                }
+                            }
                         }
-                    } else {
-                        historicalLabels.push(`${marketCloseString} EST (Close)`);
                     }
                     
                     // Update the last candle with real-time data - CRITICAL: ensure exact match
@@ -1311,58 +1567,22 @@ const ProjectionsModule = (function() {
                         lastCandle.high = Math.max(parseFloat(lastCandle.high), Math.max(finalOpen, finalClose));
                         lastCandle.low = Math.min(parseFloat(lastCandle.low), Math.min(finalOpen, finalClose));
                         
-                        // CRITICAL: Set last session candle timestamp to 4:00 PM EST (market close)
-                        // The last candle of the regular trading session must be at 4:00 PM EST
-                        // Get current date in EST timezone
-                        const now = new Date();
-                        const estDateString = now.toLocaleString('en-US', {
-                            timeZone: 'America/New_York',
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            hour12: false
-                        });
+                        // FIXED: Use the actual candle timestamp, not forced 4:00 PM
+                        // The last candle should show its actual time, not market close
+                        // Only align to 1H boundary if needed, but preserve the actual hour
+                        if (!lastCandle.time || lastCandle.time <= 0) {
+                            // If no timestamp, use current hour aligned to 1H boundary
+                            const now = new Date();
+                            const alignedTime = alignToTimeframeBoundary(now.getTime(), currentInterval);
+                            lastCandle.time = alignedTime;
+                        } else {
+                            // Ensure timestamp is aligned to 1H boundary
+                            const alignedTime = alignToTimeframeBoundary(lastCandle.time, currentInterval);
+                            lastCandle.time = alignedTime;
+                        }
                         
-                        // Parse EST date string: "MM/DD/YYYY, HH:MM:SS"
-                        const [datePart, timePart] = estDateString.split(', ');
-                        const [month, day, year] = datePart.split('/');
-                        const [hour, minute, second] = timePart.split(':');
-                        
-                        // Create a date object for 4:00 PM EST (16:00) today
-                        // Use Intl.DateTimeFormat to properly handle EST/EDT
-                        const estDate = new Date(`${year}-${month}-${day}T16:00:00`);
-                        
-                        // Calculate the UTC timestamp for 4:00 PM EST
-                        // EST is UTC-5, EDT is UTC-4 (daylight saving)
-                        // Use a more reliable method: create date in EST and convert
-                        const estFormatter = new Intl.DateTimeFormat('en-US', {
-                            timeZone: 'America/New_York',
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false
-                        });
-                        
-                        // Create date string for 4:00 PM EST today
-                        const marketCloseDate = new Date(`${year}-${month}-${day}T16:00:00-05:00`); // EST offset
-                        
-                        // Check if we're in daylight saving time (EDT)
-                        const testDate = new Date(`${year}-${month}-${day}T12:00:00`);
-                        const estOffset = testDate.toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' });
-                        const isDST = estOffset.includes('EDT');
-                        
-                        // Create proper timestamp for 4:00 PM EST/EDT
-                        const marketCloseTimestamp = new Date(`${year}-${month}-${day}T16:00:00${isDST ? '-04:00' : '-05:00'}`);
-                        
-                        // Use the market close time (4:00 PM EST) for the last session candle
-                        lastCandle.time = marketCloseTimestamp.getTime();
-                        
-                        const displayTime = marketCloseTimestamp.toLocaleString('en-US', {
+                        // Log the actual timestamp being used
+                        const displayTime = new Date(lastCandle.time).toLocaleString('en-US', {
                             timeZone: 'America/New_York',
                             year: 'numeric',
                             month: 'short',
@@ -1371,7 +1591,7 @@ const ProjectionsModule = (function() {
                             minute: '2-digit',
                             hour12: false
                         });
-                        console.log(`✓ Last session candle timestamp set to 4:00 PM EST: ${displayTime} EST`);
+                        console.log(`✓ Last candle timestamp: ${displayTime} EST (actual candle time, not forced 4:00 PM)`);
                         
                         // CRITICAL: Ensure historicalPrices array matches the last candle's close
                         // This ensures projections connect correctly
@@ -1443,76 +1663,29 @@ const ProjectionsModule = (function() {
                 }
             }
             
-            // Use Unified Projection Engine (FINAL SOLUTION)
+            // Use PHP Fallback FIRST (as requested)
+            // Skip UnifiedProjectionEngine and use PHP API directly
             let projectionLines = [];
             let validationResults = null;
             
             try {
-                // Check for unified engine
-                if (typeof UnifiedProjectionEngine !== 'undefined' && 
-                    UnifiedProjectionEngine.UnifiedProjectionEngine) {
-                    
-                    // Use the unified engine (primary method)
-                    const engine = new UnifiedProjectionEngine.UnifiedProjectionEngine();
-                    const result = engine.project(historicalPrices, params);
-                    
-                    if (result && result.projectionLines) {
-                        // Convert to projection lines format
-                        projectionLines = result.projectionLines.map(line => ({
-                            triad: line.triad || ['Unknown'],
-                            points: line.points || [],
-                            confidence: line.confidence || 0.5
-                        })).filter(line => line.points && line.points.length > 0);
-                        
-                        // Add ensemble line as primary projection (weighted average)
-                        if (result.points && result.points.length > 0) {
-                            projectionLines.unshift({
-                                triad: ['Unified Ensemble'],
-                                points: result.points,
-                                confidence: result.confidence || 0.5,
-                                isEnsemble: true
-                            });
-                        }
-                        
-                        // Use validation from unified engine
-                        validationResults = result.validation;
-                    } else {
-                        throw new Error('Invalid result from unified engine');
-                    }
-                } else {
-                    // Fallback to original method if unified engine not available
-                    console.warn('Unified Projection Engine not available, using fallback method');
-                    projectionLines = await calculateProjections(historicalPrices, params);
-                    
-                    // Validate with ProjectionValidator if available
-                    if (typeof ProjectionValidator !== 'undefined') {
-                        try {
-                            validationResults = ProjectionValidator.validate(historicalPrices, projectionLines, params);
-                        } catch (e) {
-                            console.warn('Validation error:', e);
-                            validationResults = null;
-                        }
+                // Use PHP fallback method first (primary method)
+                console.log('📊 Using PHP Fallback method for projections...');
+                projectionLines = await calculateProjections(historicalPrices, params);
+                
+                // Validate with ProjectionValidator if available
+                if (typeof ProjectionValidator !== 'undefined') {
+                    try {
+                        validationResults = ProjectionValidator.validate(historicalPrices, projectionLines, params);
+                    } catch (e) {
+                        console.warn('Validation error:', e);
+                        validationResults = null;
                     }
                 }
             } catch (error) {
-                console.error('Error in unified projection engine:', error);
-                // Fallback to original method with error handling
-                try {
-                    projectionLines = await calculateProjections(historicalPrices, params);
-                    
-                    if (typeof ProjectionValidator !== 'undefined') {
-                        try {
-                            validationResults = ProjectionValidator.validate(historicalPrices, projectionLines, params);
-                        } catch (e) {
-                            console.warn('Validation error:', e);
-                            validationResults = null;
-                        }
-                    }
-                } catch (fallbackError) {
-                    console.error('Fallback projection also failed:', fallbackError);
-                    showError('Failed to generate projections. Please try again.');
-                    return;
-                }
+                console.error('Error in PHP fallback projection:', error);
+                showError('Failed to generate projections. Please try again.');
+                return;
             }
             
             // Ensure we have at least some projection lines
@@ -1566,6 +1739,9 @@ const ProjectionsModule = (function() {
                 totalPoints: projectionLines.reduce((sum, line) => sum + (line.points ? line.points.length : 0), 0)
             });
             
+            // Store params for export functionality
+            currentProjectionParams = params;
+            
             renderChart(historicalPrices, historicalLabels, projectionLines, params);
             updateMetrics(historicalPrices, projectionLines, params);
             updateComputationMethodDisplay();
@@ -1588,12 +1764,20 @@ const ProjectionsModule = (function() {
             }
             
             document.getElementById('projection-refresh-btn').style.display = 'inline-block';
+            // Show export button when chart is loaded
+            const exportBtn = document.getElementById('export-chart-btn');
+            if (exportBtn) {
+                exportBtn.style.display = 'inline-block';
+                exportBtn.disabled = false;
+                // Re-setup export functionality to ensure handler is attached
+                setupExportFunctionality();
+            }
             // Reset zoom button is always visible, no need to show it
-            document.getElementById('save-projection-btn').style.display = 'inline-block';
             // Metrics sections are now always visible, no need to show them
             
-            // Setup auto-refresh for real-time data
-            setupAutoRefresh();
+            // DO NOT setup auto-refresh - only refresh when user clicks Load button
+            // setupAutoRefresh(); // DISABLED - user must manually click Load button
+            stopAutoRefresh(); // Ensure auto-refresh is stopped
             
         } catch (error) {
             console.error('Error loading projection data:', error);
@@ -1601,10 +1785,12 @@ const ProjectionsModule = (function() {
             showError(errorMessage);
             
             // Reset metrics to placeholders on error (keep sections visible)
-            resetMetricsToPlaceholders();
+            // Use resetValidationMetricsToPlaceholders if available, otherwise just hide error
+            if (typeof resetValidationMetricsToPlaceholders === 'function') {
+                resetValidationMetricsToPlaceholders();
+            }
             document.getElementById('projection-refresh-btn').style.display = 'none';
             // Reset zoom button stays visible even on error
-            document.getElementById('save-projection-btn').style.display = 'none';
             
             // Stop auto-refresh on error
             stopAutoRefresh();
@@ -1614,41 +1800,15 @@ const ProjectionsModule = (function() {
         }
     }
     
-    // Setup auto-refresh for real-time data updates
+    /**
+     * Setup auto-refresh for real-time data updates
+     * DISABLED - Only refresh when user clicks Load button
+     */
     function setupAutoRefresh() {
-        // Clear existing interval
+        // Auto-refresh is disabled - user must manually click Load button
+        // This prevents automatic data fetching and projection switching
         stopAutoRefresh();
-        
-        // Determine refresh interval based on timeframe
-        // More frequent for intraday, less frequent for daily
-        let refreshIntervalMs = 60000; // Default: 1 minute
-        
-        if (currentInterval === '15MIN') {
-            refreshIntervalMs = 30000; // 30 seconds for 15-minute bars
-        } else if (currentInterval === '1H' || currentInterval === '4H') {
-            refreshIntervalMs = 60000; // 1 minute for hourly bars
-        } else if (currentInterval === '1D') {
-            refreshIntervalMs = 120000; // 2 minutes for daily bars
-        }
-        
-        // Only refresh if we have a valid symbol
-        if (currentSymbol && currentSymbol.trim() !== '') {
-            refreshInterval = setInterval(() => {
-                // Only refresh if not already refreshing and chart is visible
-                if (!isRefreshing && projectionChart) {
-                    const chartsPage = document.getElementById('page-charts');
-                    const projectionsTab = document.getElementById('tab-projections');
-                    
-                    if (chartsPage && chartsPage.classList.contains('active') &&
-                        projectionsTab && projectionsTab.classList.contains('active')) {
-                        console.log('Auto-refreshing projection data...');
-                        loadProjectionData(true); // Force refresh
-                    }
-                }
-            }, refreshIntervalMs);
-            
-            console.log(`Auto-refresh enabled: ${refreshIntervalMs / 1000} seconds`);
-        }
+        console.log('ℹ️ Auto-refresh disabled - use Load button to refresh data');
     }
     
     // Stop auto-refresh
@@ -1759,11 +1919,23 @@ const ProjectionsModule = (function() {
             }
         }
         
+        // CRITICAL: Ensure real-time price (lastPrice) is included in Y-axis range
         // Add padding to Y-axis range (5% on each side)
         const priceRange = maxPrice - minPrice;
         const padding = priceRange > 0 ? priceRange * 0.05 : Math.max(minPrice * 0.05, 1);
-        const yAxisMin = Math.max(0, minPrice - padding);
-        const yAxisMax = maxPrice + padding;
+        let yAxisMin = Math.max(0, minPrice - padding);
+        let yAxisMax = maxPrice + padding;
+        
+        // Ensure lastPrice (real-time price) is within Y-axis range
+        if (lastPrice < yAxisMin) {
+            yAxisMin = Math.max(0, lastPrice - padding);
+        }
+        if (lastPrice > yAxisMax) {
+            yAxisMax = lastPrice + padding;
+        }
+        
+        // Log Y-axis range for debugging
+        console.log(`✓ Y-axis range: $${yAxisMin.toFixed(2)} - $${yAxisMax.toFixed(2)} (current price: $${lastPrice.toFixed(2)})`);
         
         // Check if candlestick controller is available
         let chartType = 'line';
@@ -1799,77 +1971,51 @@ const ProjectionsModule = (function() {
             // Create candlestick dataset with OHLC data
             const candlestickData = [];
             
-            // Add historical candles with proper validation
-            // CRITICAL: Ensure the last candle's close price matches the current price exactly
+            /**
+             * REDESIGNED: Build candlestick data with 100% accurate time and price
+             * Uses pre-validated historicalCandles with correct timestamps and OHLC
+             */
             for (let i = 0; i < historicalCandles.length; i++) {
                 const c = historicalCandles[i];
-                let open = parseFloat(c.open);
-                let high = parseFloat(c.high);
-                let low = parseFloat(c.low);
-                let close = parseFloat(c.close);
+                
+                // Use pre-validated data from historicalCandles
+                const open = parseFloat(c.open);
+                const high = parseFloat(c.high);
+                const low = parseFloat(c.low);
+                const close = parseFloat(c.close);
                 const time = c.time || c.timestamp;
                 
-                // For the last candle, ensure it matches the current price from historicalPrices
-                // CRITICAL: Preserve proper OHLC relationships to avoid doji candles
-                if (i === historicalCandles.length - 1 && historicalPrices.length > 0) {
-                    const currentPrice = historicalPrices[historicalPrices.length - 1];
-                    if (currentPrice && !isNaN(currentPrice) && currentPrice > 0) {
-                        // Update close to match current price exactly
-                        close = currentPrice;
-                        
-                        // Preserve original open if valid, otherwise use previous candle's close or current price
-                        if (isNaN(open) || open <= 0) {
-                            // Try to use previous candle's close as open
-                            if (i > 0 && historicalCandles[i - 1] && historicalCandles[i - 1].close) {
-                                open = parseFloat(historicalCandles[i - 1].close);
-                            } else {
-                                open = currentPrice;
-                            }
-                        }
-                        
-                        // Ensure high is at least max(open, close) to avoid doji
-                        const minHigh = Math.max(open, close);
-                        if (isNaN(high) || high < minHigh) {
-                            // If high would create a doji, add a small spread (0.01% of price)
-                            high = minHigh + (currentPrice * 0.0001);
-                        } else {
-                            // Ensure high is at least the current price
-                            high = Math.max(high, currentPrice);
-                        }
-                        
-                        // Ensure low is at most min(open, close) to avoid doji
-                        const maxLow = Math.min(open, close);
-                        if (isNaN(low) || low > maxLow) {
-                            // If low would create a doji, subtract a small spread (0.01% of price)
-                            low = maxLow - (currentPrice * 0.0001);
-                        } else {
-                            // Ensure low is at most the current price
-                            low = Math.min(low, currentPrice);
-                        }
-                        
-                        // Final validation: ensure high >= max(open, close) and low <= min(open, close)
-                        high = Math.max(high, Math.max(open, close));
-                        low = Math.min(low, Math.min(open, close));
-                        
-                        console.log(`✓ Last candle validated: open=${open.toFixed(2)}, high=${high.toFixed(2)}, low=${low.toFixed(2)}, close=${close.toFixed(2)}`);
-                    }
+                // Final validation before adding to chart
+                if (isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close) ||
+                    open <= 0 || high <= 0 || low <= 0 || close <= 0 ||
+                    !time || typeof time !== 'number' || time <= 0) {
+                    console.warn(`⚠️ Invalid candlestick data at index ${i}, skipping:`, c);
+                    continue;
                 }
                 
-                // Validate all required fields
-                if (!isNaN(open) && !isNaN(high) && !isNaN(low) && !isNaN(close) && 
-                    open > 0 && high > 0 && low > 0 && close > 0 &&
-                    time && typeof time === 'number' && time > 0 &&
-                    high >= low && high >= open && high >= close &&
-                    low <= open && low <= close) {
+                // Validate OHLC relationships one more time
+                if (high < Math.max(open, close) || low > Math.min(open, close) || high < low) {
+                    console.warn(`⚠️ OHLC relationship error at index ${i}, correcting:`, {open, high, low, close});
+                    // Correct relationships
+                    const correctedHigh = Math.max(high, open, close);
+                    const correctedLow = Math.min(low, open, close);
+                    
                     candlestickData.push({
                         x: time,
-                        o: open,
-                        h: high,
-                        l: low,
-                        c: close
+                        o: parseFloat(open.toFixed(2)),
+                        h: parseFloat(correctedHigh.toFixed(2)),
+                        l: parseFloat(correctedLow.toFixed(2)),
+                        c: parseFloat(close.toFixed(2))
                     });
                 } else {
-                    console.warn(`Invalid candlestick data at index ${i}:`, {open, high, low, close, time});
+                    // Data is valid, add as-is
+                    candlestickData.push({
+                        x: time,
+                        o: parseFloat(open.toFixed(2)),
+                        h: parseFloat(high.toFixed(2)),
+                        l: parseFloat(low.toFixed(2)),
+                        c: parseFloat(close.toFixed(2))
+                    });
                 }
             }
             
@@ -2028,12 +2174,26 @@ const ProjectionsModule = (function() {
                 return;
             }
             
-            // First point MUST connect directly to last historical price for accurate visualization
-            // This ensures the projection starts exactly where the historical data ends
+            // CRITICAL: First projection point MUST start from current price
+            // The projection algorithm calculates points relative to the starting price
+            // We ensure the first point connects from the current price
             const firstProjected = validPoints[0];
+            
+            // Validate that first projected point is close to current price (within 5% tolerance)
+            // This ensures projections are starting from current price
+            const priceDiff = Math.abs(firstProjected - lastPrice);
+            const priceTolerance = lastPrice * 0.05; // 5% tolerance
+            
+            if (priceDiff > priceTolerance) {
+                console.warn(`First projection point ($${firstProjected.toFixed(2)}) differs from current price ($${lastPrice.toFixed(2)}) by ${((priceDiff / lastPrice) * 100).toFixed(2)}%. Adjusting to start from current price.`);
+            }
+            
+            // Always connect from current price - this is the starting point
             if (lastPrice > 0 && !isNaN(lastPrice) && isFinite(lastPrice)) {
-                // Connect directly to last historical price (100% accuracy)
+                // Connect directly to last historical price (current price)
+                // This ensures projections start from the current price only
                 lineData.push(lastPrice);
+                console.log(`✓ Projection line ${idx} starts from current price: $${lastPrice.toFixed(2)}`);
             } else if (firstProjected > 0 && !isNaN(firstProjected) && isFinite(firstProjected)) {
                 // Fallback: use first projected point if lastPrice is invalid
                 console.warn('Using first projected point as connection point (lastPrice invalid)');
@@ -2044,8 +2204,11 @@ const ProjectionsModule = (function() {
                 return;
             }
             
-            // Add rest of projection points
-            for (let i = 1; i < validPoints.length; i++) {
+            // Add projection points - these are calculated from the current price
+            // The first point in validPoints is the first future projection (after current price)
+            // We already added the connection point (current price), so start from index 0
+            // This ensures projections start from current price and extend forward
+            for (let i = 0; i < validPoints.length; i++) {
                 const point = validPoints[i];
                 if (point !== null && !isNaN(point) && isFinite(point) && point > 0) {
                     lineData.push(point);
@@ -2245,33 +2408,43 @@ const ProjectionsModule = (function() {
                         borderWidth: 1,
                         callbacks: {
                             title: function(context) {
+                                // CRITICAL: Format timestamp in EST timezone to show correct current time
+                                // Matching Trading Charts tab format: "Dec 19, 2025 at 3:14:27 PM EST"
                                 if (context.length > 0) {
                                     const ctx = context[0];
                                     const index = ctx.dataIndex;
                                     
-                                    // For candlestick data, use the timestamp from raw.x
+                                    // Get timestamp from candlestick data (most accurate)
+                                    let timestamp = null;
+                                    
                                     if (ctx.dataset.type === 'candlestick' && ctx.raw && typeof ctx.raw === 'object' && ctx.raw.x !== undefined) {
-                                        const timestamp = ctx.raw.x;
+                                        timestamp = ctx.raw.x;
+                                    } else if (index < historicalCandles.length && historicalCandles[index]) {
+                                        // Fallback: use historicalCandles data
+                                        const candle = historicalCandles[index];
+                                        timestamp = candle.time || candle.timestamp;
+                                    }
+                                    
+                                    // Format timestamp in EST timezone
+                                    if (timestamp && typeof timestamp === 'number' && timestamp > 0) {
                                         const date = new Date(timestamp);
                                         
+                                        // Verify date is valid
                                         if (!isNaN(date.getTime())) {
-                                            // Format in EST timezone for 1H timeframe
-                                            const estDateString = date.toLocaleString('en-US', {
+                                            // Format in EST timezone - matching Trading Charts format
+                                            const estString = date.toLocaleString('en-US', {
                                                 timeZone: 'America/New_York',
-                                                year: 'numeric',
                                                 month: 'short',
                                                 day: 'numeric',
+                                                year: 'numeric',
                                                 hour: '2-digit',
                                                 minute: '2-digit',
-                                                hour12: false
+                                                second: '2-digit',
+                                                hour12: true
                                             });
                                             
-                                            // Parse and format: "Dec 18, 2025, 16:00" -> "Dec 18 2025 at 16:00 EST"
-                                            const [datePart, timePart] = estDateString.split(', ');
-                                            if (datePart && timePart) {
-                                                return `${datePart} at ${timePart} EST`;
-                                            }
-                                            return estDateString + ' EST';
+                                            // Format: "Dec 19, 2025 at 3:14:27 PM EST"
+                                            return estString + ' EST';
                                         }
                                     }
                                     
@@ -2282,15 +2455,33 @@ const ProjectionsModule = (function() {
                                 return '';
                             },
                             label: function(context) {
-                                // Handle candlestick data
+                                // Handle candlestick data - get OHLC from historicalCandles for accuracy
                                 if (context.dataset.type === 'candlestick' && context.raw) {
                                     const raw = context.raw;
                                     if (typeof raw === 'object' && raw.o !== undefined) {
+                                        // CRITICAL: Use OHLC from historicalCandles if available for accurate data
+                                        const index = context.dataIndex;
+                                        if (index < historicalCandles.length && historicalCandles[index]) {
+                                            const candle = historicalCandles[index];
+                                            
+                                            // Format volume using formatVolume function (now defined at top of module)
+                                            const volumeStr = formatVolume(candle.volume || 0);
+                                            
+                                            return [
+                                                `Open (O): ${formatPrice(candle.open)}`,
+                                                `High (H): ${formatPrice(candle.high)}`,
+                                                `Low (L): ${formatPrice(candle.low)}`,
+                                                `Close (C): ${formatPrice(candle.close)}`,
+                                                `Volume (V): ${volumeStr}`
+                                            ];
+                                        }
+                                        
+                                        // Fallback to raw data
                                         return [
-                                            `Open: ${formatPrice(raw.o)}`,
-                                            `High: ${formatPrice(raw.h)}`,
-                                            `Low: ${formatPrice(raw.l)}`,
-                                            `Close: ${formatPrice(raw.c)}`
+                                            `Open (O): ${formatPrice(raw.o)}`,
+                                            `High (H): ${formatPrice(raw.h)}`,
+                                            `Low (L): ${formatPrice(raw.l)}`,
+                                            `Close (C): ${formatPrice(raw.c)}`
                                         ];
                                     }
                                 }
@@ -2326,7 +2517,7 @@ const ProjectionsModule = (function() {
                 },
                 layout: {
                     padding: {
-                        bottom: 60,
+                        bottom: 20, // Reduced since x-axis is hidden
                         right: 20,
                         top: 20,
                         left: 20
@@ -2334,45 +2525,15 @@ const ProjectionsModule = (function() {
                 },
                 scales: {
                     x: {
-                        display: false,
+                        display: false, // X-axis hidden
                         title: {
-                            display: false,
-                            text: 'Date/Time (EST)',
-                            color: chartColors.text,
-                            font: {
-                                size: 12,
-                                weight: 'bold'
-                            },
-                            padding: {
-                                top: 10,
-                                bottom: 5
-                            }
+                            display: false
                         },
                         grid: {
-                            color: chartColors.grid,
-                            drawBorder: true,
-                            borderColor: chartColors.grid
+                            display: false
                         },
                         ticks: {
-                            color: chartColors.text,
-                            maxRotation: 45,
-                            minRotation: 0,
-                            padding: 8,
-                            maxTicksLimit: 15,
-                            callback: function(value, index, ticks) {
-                                // Access labels from chart data
-                                const chart = this.chart;
-                                if (chart && chart.data && chart.data.labels) {
-                                    const label = chart.data.labels[index];
-                                    if (label) {
-                                        return label;
-                                    }
-                                }
-                                // Fallback: return empty string
-                                return '';
-                            },
-                            autoSkip: true,
-                            autoSkipPadding: 10
+                            display: false
                         }
                     },
                     y: {
@@ -2935,53 +3096,648 @@ const ProjectionsModule = (function() {
         const exportBtn = document.getElementById('export-chart-btn');
         
         if (exportBtn) {
-            exportBtn.addEventListener('click', function() {
-                exportChart();
-            });
+            // Remove any existing listeners by cloning the button
+            const newBtn = exportBtn.cloneNode(true);
+            exportBtn.parentNode.replaceChild(newBtn, exportBtn);
+            
+            // Get the new button reference
+            const actualBtn = document.getElementById('export-chart-btn');
+            if (actualBtn) {
+                // Add click handler with proper event handling
+                actualBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    console.log('📥 Export button clicked');
+                    exportChart();
+                    return false;
+                }, true); // Use capture phase to ensure it fires
+                
+                console.log('✅ Export button handler attached');
+            }
+        } else {
+            // If button doesn't exist yet, try again after a short delay
+            console.log('⏳ Export button not found, retrying...');
+            setTimeout(setupExportFunctionality, 500);
         }
     }
     
     /**
-     * Export chart as image
+     * Collect metrics and configuration data for export
      */
-    function exportChart() {
+    function collectExportData() {
+        const data = {
+            lastUpdated: null,
+            priceMetrics: {},
+            validationMetrics: {},
+            projectionConfig: {}
+        };
+        
+        // Get Last Updated
+        const lastUpdateEl = document.getElementById('last-update');
+        if (lastUpdateEl) {
+            data.lastUpdated = lastUpdateEl.textContent || '--';
+        }
+        
+        // Get Price Metrics
+        const periodHighEl = document.getElementById('metric-period-high');
+        const periodHighLabel = periodHighEl?.parentElement?.querySelector('.metric-label')?.textContent || 'Period High';
+        const priceMetrics = {
+            currentPrice: document.getElementById('metric-current-price')?.textContent || '--',
+            historicalChange: document.getElementById('metric-historical-change')?.textContent || '--',
+            historicalPercent: document.getElementById('metric-historical-percent')?.textContent || '--',
+            projectedPrice: document.getElementById('metric-projected-price')?.textContent || '--',
+            projectedChange: document.getElementById('metric-projected-change')?.textContent || '--',
+            projectedPercent: document.getElementById('metric-projected-percent')?.textContent || '--',
+            periodHigh: periodHighEl?.textContent || '--',
+            periodLow: document.getElementById('metric-period-low')?.textContent || '--',
+            averageVolume: document.getElementById('metric-average-volume')?.textContent || '--',
+            actualVolume: document.getElementById('metric-actual-volume')?.textContent || '--'
+        };
+        data.priceMetrics = priceMetrics;
+        
+        // Get Validation Metrics
+        const validationMetrics = {
+            mae: document.getElementById('validation-mae')?.textContent || '--',
+            rmse: document.getElementById('validation-rmse')?.textContent || '--',
+            mape: document.getElementById('validation-mape')?.textContent || '--',
+            confidence: document.getElementById('validation-confidence')?.textContent || '--'
+        };
+        data.validationMetrics = validationMetrics;
+        
+        // Get Projection Configuration
+        const selectedPreset = document.querySelector('input[name="projection-preset"]:checked');
+        const presetName = selectedPreset 
+            ? (selectedPreset.closest('.param-toggle-item')?.querySelector('.param-toggle-name')?.textContent || selectedPreset.value)
+            : 'Custom';
+        
+        data.projectionConfig = {
+            preset: presetName,
+            steps: currentProjectionParams?.steps || document.getElementById('projection-steps-value')?.value || document.getElementById('projection-steps')?.value || '--',
+            base: currentProjectionParams?.base || document.getElementById('projection-base-value')?.value || document.getElementById('projection-base')?.value || '--',
+            projectionCount: currentProjectionParams?.projectionCount || document.getElementById('projection-count-value')?.value || document.getElementById('projection-count')?.value || '--',
+            depthPrime: currentProjectionParams?.depthPrime || document.getElementById('projection-depth-value')?.value || document.getElementById('projection-depth')?.value || '--',
+            symbol: currentSymbol || '--',
+            interval: currentInterval || '--'
+        };
+        
+        return data;
+    }
+    
+    /**
+     * Create composite image with chart and additional information
+     */
+    function createCompositeExportImage(chartImageData, exportData) {
+        return new Promise((resolve, reject) => {
+            try {
+                // Create a new canvas for the composite image
+                const compositeCanvas = document.createElement('canvas');
+                const ctx = compositeCanvas.getContext('2d');
+                
+                // Load chart image
+                const chartImg = new Image();
+                chartImg.onload = () => {
+                    try {
+                        // Design constants matching web app
+                        const chartWidth = chartImg.width;
+                        const chartHeight = chartImg.height;
+                        const padding = 40;
+                        const sectionSpacing = 30;
+                        const cardPadding = 10;
+                        const cardGap = 10;
+                        const cardBorderRadius = 6;
+                        
+                        // Colors matching web app
+                        const colors = {
+                            background: '#1a1a1a',
+                            cardBg: '#2a2a2a',
+                            border: '#444444',
+                            textPrimary: '#e0e0e0',
+                            textSecondary: '#9ca3af',
+                            sectionHeader: '#3b82f6',
+                            success: '#22c55e',
+                            danger: '#ef4444'
+                        };
+                        
+                        // Font sizes
+                        const fonts = {
+                            title: 'bold 20px Inter, sans-serif',
+                            sectionHeader: 'bold 15px Inter, sans-serif',
+                            metricLabel: '500 9px Inter, sans-serif',
+                            metricValue: '700 18px Inter, sans-serif',
+                            metricDesc: '400 8px Inter, sans-serif',
+                            configLabel: '500 12px Inter, sans-serif',
+                            configValue: '400 12px Inter, sans-serif',
+                            lastUpdated: '400 16px Inter, sans-serif'
+                        };
+                        
+                        // Calculate section dimensions
+                        ctx.font = fonts.title;
+                        const titleWidth = ctx.measureText(`${exportData.projectionConfig.symbol} Price Projection Export`).width;
+                        
+                        ctx.font = fonts.lastUpdated;
+                        const lastUpdatedWidth = ctx.measureText(`Last Updated: ${exportData.lastUpdated}`).width;
+                        
+                        // Price Metrics - Grid layout (4 columns)
+                        const priceMetricsEntries = Object.entries(exportData.priceMetrics);
+                        const priceMetricsCols = 4;
+                        const priceMetricsRows = Math.ceil(priceMetricsEntries.length / priceMetricsCols);
+                        
+                        ctx.font = fonts.metricValue;
+                        const maxMetricValueWidth = Math.max(...priceMetricsEntries.map(([k, v]) => {
+                            const val = String(v || '--');
+                            return ctx.measureText(val).width;
+                        }));
+                        
+                        ctx.font = fonts.metricLabel;
+                        const maxMetricLabelWidth = Math.max(...priceMetricsEntries.map(([k, v]) => {
+                            const label = k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                            return ctx.measureText(label.toUpperCase()).width;
+                        }));
+                        
+                        const cardWidth = Math.max(140, maxMetricValueWidth + maxMetricLabelWidth + (cardPadding * 2));
+                        const cardHeight = 60; // Label + Value + spacing
+                        const priceMetricsSectionWidth = (cardWidth * priceMetricsCols) + (cardGap * (priceMetricsCols - 1));
+                        const priceMetricsSectionHeight = 50 + (cardHeight * priceMetricsRows) + (cardGap * (priceMetricsRows - 1));
+                        
+                        // Validation Metrics - Grid layout (4 columns)
+                        const validationMetricsEntries = Object.entries(exportData.validationMetrics);
+                        const validationCols = 4;
+                        const validationRows = Math.ceil(validationMetricsEntries.length / validationCols);
+                        
+                        ctx.font = fonts.metricValue;
+                        const maxValidationValueWidth = Math.max(...validationMetricsEntries.map(([k, v]) => {
+                            const val = String(v || '--');
+                            return ctx.measureText(val).width;
+                        }));
+                        
+                        ctx.font = fonts.metricLabel;
+                        const maxValidationLabelWidth = Math.max(...validationMetricsEntries.map(([k, v]) => {
+                            return ctx.measureText(k.toUpperCase()).width;
+                        }));
+                        
+                        ctx.font = fonts.metricDesc;
+                        const validationDescriptions = {
+                            mae: 'Mean Absolute Error',
+                            rmse: 'Root Mean Squared Error',
+                            mape: 'Mean Absolute Percentage Error',
+                            confidence: 'Model Confidence Score'
+                        };
+                        const maxValidationDescWidth = Math.max(...validationMetricsEntries.map(([k, v]) => {
+                            return ctx.measureText(validationDescriptions[k] || '').width;
+                        }));
+                        
+                        const validationCardWidth = Math.max(140, Math.max(maxValidationValueWidth, maxValidationLabelWidth, maxValidationDescWidth) + (cardPadding * 2));
+                        const validationCardHeight = 70; // Label + Value + Description + spacing
+                        const validationSectionWidth = (validationCardWidth * validationCols) + (cardGap * (validationCols - 1));
+                        const validationSectionHeight = 50 + (validationCardHeight * validationRows) + (cardGap * (validationRows - 1));
+                        
+                        // Projection Configuration - Simple list
+                        const configEntries = Object.entries(exportData.projectionConfig);
+                        ctx.font = fonts.configLabel;
+                        const maxConfigLabelWidth = Math.max(...configEntries.map(([k, v]) => {
+                            const label = k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                            return ctx.measureText(label + ':').width;
+                        }));
+                        
+                        ctx.font = fonts.configValue;
+                        const maxConfigValueWidth = Math.max(...configEntries.map(([k, v]) => {
+                            return ctx.measureText(String(v || '--')).width;
+                        }));
+                        
+                        const configSectionWidth = maxConfigLabelWidth + maxConfigValueWidth + 40;
+                        const configSectionHeight = 50 + (configEntries.length * 24);
+                        
+                        // Calculate total dimensions
+                        const headerHeight = 60;
+                        const lastUpdatedHeight = 30;
+                        const maxSectionWidth = Math.max(priceMetricsSectionWidth, validationSectionWidth, configSectionWidth, chartWidth, 800);
+                        const totalInfoHeight = headerHeight + lastUpdatedHeight + sectionSpacing + 
+                                             priceMetricsSectionHeight + sectionSpacing + 
+                                             validationSectionHeight + sectionSpacing + 
+                                             configSectionHeight;
+                        
+                        const totalWidth = Math.max(chartWidth, maxSectionWidth + (padding * 2));
+                        const totalHeight = chartHeight + totalInfoHeight + (padding * 3);
+                        
+                        // Set canvas dimensions
+                        compositeCanvas.width = totalWidth;
+                        compositeCanvas.height = totalHeight;
+                        
+                        // Draw background
+                        ctx.fillStyle = colors.background;
+                        ctx.fillRect(0, 0, totalWidth, totalHeight);
+                        
+                        // Draw chart
+                        const chartX = (totalWidth - chartWidth) / 2;
+                        ctx.drawImage(chartImg, chartX, padding, chartWidth, chartHeight);
+                        
+                        let currentY = padding + chartHeight + padding;
+                        
+                        // Draw title
+                        ctx.fillStyle = colors.textPrimary;
+                        ctx.font = fonts.title;
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`${exportData.projectionConfig.symbol} Price Projection Export`, totalWidth / 2, currentY);
+                        currentY += headerHeight;
+                        
+                        // Draw Last Updated
+                        ctx.fillStyle = colors.textSecondary;
+                        ctx.font = fonts.lastUpdated;
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`Last Updated: ${exportData.lastUpdated}`, totalWidth / 2, currentY);
+                        currentY += lastUpdatedHeight + sectionSpacing;
+                        
+                        // Helper function to draw rounded rectangle
+                        function drawRoundedRect(x, y, width, height, radius) {
+                            ctx.beginPath();
+                            ctx.moveTo(x + radius, y);
+                            ctx.lineTo(x + width - radius, y);
+                            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+                            ctx.lineTo(x + width, y + height - radius);
+                            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                            ctx.lineTo(x + radius, y + height);
+                            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+                            ctx.lineTo(x, y + radius);
+                            ctx.quadraticCurveTo(x, y, x + radius, y);
+                            ctx.closePath();
+                        }
+                        
+                        // Draw Price Metrics Section
+                        const priceMetricsX = (totalWidth - priceMetricsSectionWidth) / 2;
+                        const priceMetricsY = currentY;
+                        
+                        // Section box
+                        ctx.fillStyle = colors.cardBg;
+                        drawRoundedRect(priceMetricsX - padding, priceMetricsY - 5, priceMetricsSectionWidth + (padding * 2), priceMetricsSectionHeight, cardBorderRadius);
+                        ctx.fill();
+                        
+                        ctx.strokeStyle = colors.border;
+                        ctx.lineWidth = 1;
+                        drawRoundedRect(priceMetricsX - padding, priceMetricsY - 5, priceMetricsSectionWidth + (padding * 2), priceMetricsSectionHeight, cardBorderRadius);
+                        ctx.stroke();
+                        
+                        // Section header
+                        ctx.fillStyle = colors.sectionHeader;
+                        ctx.font = fonts.sectionHeader;
+                        ctx.textAlign = 'left';
+                        ctx.fillText('Price Metrics', priceMetricsX, priceMetricsY + 20);
+                        
+                        // Draw border under header
+                        ctx.strokeStyle = colors.border;
+                        ctx.beginPath();
+                        ctx.moveTo(priceMetricsX, priceMetricsY + 30);
+                        ctx.lineTo(priceMetricsX + priceMetricsSectionWidth, priceMetricsY + 30);
+                        ctx.stroke();
+                        
+                        // Draw metric cards in grid
+                        let cardY = priceMetricsY + 50;
+                        priceMetricsEntries.forEach(([key, value], index) => {
+                            const col = index % priceMetricsCols;
+                            const row = Math.floor(index / priceMetricsCols);
+                            const cardX = priceMetricsX + (col * (cardWidth + cardGap));
+                            const cardYPos = cardY + (row * (cardHeight + cardGap));
+                            
+                            // Draw card background
+                            ctx.fillStyle = colors.background;
+                            drawRoundedRect(cardX, cardYPos, cardWidth, cardHeight, cardBorderRadius);
+                            ctx.fill();
+                            
+                            ctx.strokeStyle = colors.border;
+                            ctx.lineWidth = 1;
+                            drawRoundedRect(cardX, cardYPos, cardWidth, cardHeight, cardBorderRadius);
+                            ctx.stroke();
+                            
+                            // Draw label
+                            const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                            ctx.fillStyle = colors.textSecondary;
+                            ctx.font = fonts.metricLabel;
+                            ctx.textAlign = 'left';
+                            ctx.fillText(label.toUpperCase(), cardX + cardPadding, cardYPos + 12);
+                            
+                            // Draw value (with color coding for changes)
+                            const valStr = String(value || '--');
+                            let valueColor = colors.textPrimary;
+                            if (key.includes('Change') || key.includes('Percent')) {
+                                const numVal = parseFloat(valStr.replace(/[^0-9.-]/g, ''));
+                                if (!isNaN(numVal)) {
+                                    valueColor = numVal >= 0 ? colors.success : colors.danger;
+                                }
+                            }
+                            
+                            ctx.fillStyle = valueColor;
+                            ctx.font = fonts.metricValue;
+                            ctx.fillText(valStr, cardX + cardPadding, cardYPos + 35);
+                        });
+                        
+                        currentY += priceMetricsSectionHeight + sectionSpacing;
+                        
+                        // Draw Validation Metrics Section
+                        const validationX = (totalWidth - validationSectionWidth) / 2;
+                        const validationY = currentY;
+                        
+                        // Section box
+                        ctx.fillStyle = colors.cardBg;
+                        drawRoundedRect(validationX - padding, validationY - 5, validationSectionWidth + (padding * 2), validationSectionHeight, cardBorderRadius);
+                        ctx.fill();
+                        
+                        ctx.strokeStyle = colors.border;
+                        ctx.lineWidth = 1;
+                        drawRoundedRect(validationX - padding, validationY - 5, validationSectionWidth + (padding * 2), validationSectionHeight, cardBorderRadius);
+                        ctx.stroke();
+                        
+                        // Section header
+                        ctx.fillStyle = colors.sectionHeader;
+                        ctx.font = fonts.sectionHeader;
+                        ctx.textAlign = 'left';
+                        ctx.fillText('Validation Metrics', validationX, validationY + 20);
+                        
+                        // Draw border under header
+                        ctx.strokeStyle = colors.border;
+                        ctx.beginPath();
+                        ctx.moveTo(validationX, validationY + 30);
+                        ctx.lineTo(validationX + validationSectionWidth, validationY + 30);
+                        ctx.stroke();
+                        
+                        // Draw validation metric cards in grid
+                        cardY = validationY + 50;
+                        validationMetricsEntries.forEach(([key, value], index) => {
+                            const col = index % validationCols;
+                            const row = Math.floor(index / validationCols);
+                            const cardX = validationX + (col * (validationCardWidth + cardGap));
+                            const cardYPos = cardY + (row * (validationCardHeight + cardGap));
+                            
+                            // Draw card background
+                            ctx.fillStyle = colors.background;
+                            drawRoundedRect(cardX, cardYPos, validationCardWidth, validationCardHeight, cardBorderRadius);
+                            ctx.fill();
+                            
+                            ctx.strokeStyle = colors.border;
+                            ctx.lineWidth = 1;
+                            drawRoundedRect(cardX, cardYPos, validationCardWidth, validationCardHeight, cardBorderRadius);
+                            ctx.stroke();
+                            
+                            // Draw label
+                            ctx.fillStyle = colors.textSecondary;
+                            ctx.font = fonts.metricLabel;
+                            ctx.textAlign = 'left';
+                            ctx.fillText(key.toUpperCase(), cardX + cardPadding, cardYPos + 12);
+                            
+                            // Draw value
+                            const valStr = String(value || '--');
+                            ctx.fillStyle = colors.textPrimary;
+                            ctx.font = fonts.metricValue;
+                            ctx.fillText(valStr, cardX + cardPadding, cardYPos + 35);
+                            
+                            // Draw description
+                            const desc = validationDescriptions[key] || '';
+                            if (desc) {
+                                ctx.fillStyle = colors.textSecondary;
+                                ctx.font = fonts.metricDesc;
+                                ctx.fillText(desc, cardX + cardPadding, cardYPos + 55);
+                            }
+                        });
+                        
+                        currentY += validationSectionHeight + sectionSpacing;
+                        
+                        // Draw Projection Configuration Section
+                        const configX = (totalWidth - configSectionWidth) / 2;
+                        const configY = currentY;
+                        const configBoxHeight = configSectionHeight;
+                        
+                        // Section box
+                        ctx.fillStyle = colors.cardBg;
+                        drawRoundedRect(configX - padding, configY - 5, configSectionWidth + (padding * 2), configBoxHeight, cardBorderRadius);
+                        ctx.fill();
+                        
+                        ctx.strokeStyle = colors.border;
+                        ctx.lineWidth = 1;
+                        drawRoundedRect(configX - padding, configY - 5, configSectionWidth + (padding * 2), configBoxHeight, cardBorderRadius);
+                        ctx.stroke();
+                        
+                        // Section header
+                        ctx.fillStyle = colors.sectionHeader;
+                        ctx.font = fonts.sectionHeader;
+                        ctx.textAlign = 'left';
+                        ctx.fillText('Projection Configuration', configX, configY + 20);
+                        
+                        // Draw border under header
+                        ctx.strokeStyle = colors.border;
+                        ctx.beginPath();
+                        ctx.moveTo(configX, configY + 30);
+                        ctx.lineTo(configX + configSectionWidth, configY + 30);
+                        ctx.stroke();
+                        
+                        // Draw config items
+                        let configItemY = configY + 50;
+                        configEntries.forEach(([key, value]) => {
+                            const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                            const valStr = String(value || '--');
+                            
+                            // Draw label
+                            ctx.fillStyle = colors.textSecondary;
+                            ctx.font = fonts.configLabel;
+                            ctx.textAlign = 'left';
+                            ctx.fillText(label + ':', configX, configItemY);
+                            
+                            // Draw value
+                            ctx.fillStyle = colors.textPrimary;
+                            ctx.font = fonts.configValue;
+                            ctx.fillText(valStr, configX + maxConfigLabelWidth + 20, configItemY);
+                            
+                            configItemY += 24;
+                        });
+                        
+                        // Convert to image data
+                        const compositeImageData = compositeCanvas.toDataURL('image/png');
+                        resolve(compositeImageData);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                
+                chartImg.onerror = () => {
+                    reject(new Error('Failed to load chart image'));
+                };
+                
+                chartImg.src = chartImageData;
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+    
+    /**
+     * Export chart as high-quality image
+     * Supports PNG format with full chart resolution
+     * Now includes Last Updated, Price Metrics, Validation Metrics, and Projection Configuration
+     */
+    async function exportChart() {
+        console.log('📤 exportChart() called');
+        console.log('Chart exists:', !!projectionChart);
+        console.log('Current symbol:', currentSymbol);
+        
         if (!projectionChart) {
-            showError('No chart to export');
+            console.error('❌ No chart to export');
+            showError('No chart to export. Please load a projection first.');
             return;
         }
         
+        if (!currentSymbol) {
+            console.error('❌ No symbol data');
+            showError('No symbol data available. Please load a projection first.');
+            return;
+        }
+        
+        const exportBtn = document.getElementById('export-chart-btn');
+        const originalHTML = exportBtn ? exportBtn.innerHTML : '';
+        
         try {
-            // Get chart canvas
+            // Disable button during export
+            if (exportBtn) {
+                exportBtn.disabled = true;
+                exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+            }
+            
+            // Get chart canvas - this is the most reliable method
             const canvas = projectionChart.canvas;
+            
+            if (!canvas) {
+                throw new Error('Chart canvas not found');
+            }
+            
+            console.log('✓ Canvas found:', canvas);
+            console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+            
+            // Try multiple methods to get image data
+            let imageData = null;
+            
+            // Method 1: Try Chart.js toBase64Image (Chart.js 3.x+)
+            if (typeof projectionChart.toBase64Image === 'function') {
+                console.log('Using Chart.js toBase64Image()');
+                try {
+                    imageData = projectionChart.toBase64Image('image/png');
+                    console.log('✓ Got image data via toBase64Image');
+                } catch (e) {
+                    console.warn('toBase64Image failed, trying fallback:', e);
+                }
+            }
+            
+            // Method 2: Try canvas toDataURL (most reliable)
+            if (!imageData || imageData === 'data:,') {
+                console.log('Using canvas.toDataURL()');
+                try {
+                    imageData = canvas.toDataURL('image/png');
+                    console.log('✓ Got image data via toDataURL');
+                } catch (e) {
+                    console.error('toDataURL failed:', e);
+                    throw new Error('Failed to generate image data: ' + e.message);
+                }
+            }
+            
+            // Validate image data
+            if (!imageData || imageData === 'data:,') {
+                throw new Error('Failed to generate image data - empty result');
+            }
+            
+            if (imageData.length < 100) {
+                throw new Error('Image data too short - export may have failed');
+            }
+            
+            console.log('✓ Image data generated, length:', imageData.length);
+            
+            // Collect export data (metrics, configuration, etc.)
+            const exportData = collectExportData();
+            console.log('📊 Export data collected:', exportData);
+            
+            // Create composite image with chart and additional information
+            console.log('🖼️ Creating composite image...');
+            const compositeImageData = await createCompositeExportImage(imageData, exportData);
+            console.log('✓ Composite image created, length:', compositeImageData.length);
+            
+            // Create filename
+            const estNow = getCurrentEST();
+            const dateStr = estNow.toISOString().split('T')[0]; // YYYY-MM-DD
+            const timeStr = estNow.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
+            const symbol = currentSymbol || 'PROJECTION';
+            const interval = currentInterval || '1H';
+            
+            // Format: SYMBOL_INTERVAL_projection_YYYY-MM-DD_HH-MM-SS.png
+            const filename = `${symbol}_${interval}_projection_${dateStr}_${timeStr}.png`;
+            
+            console.log('📁 Filename:', filename);
             
             // Create download link
             const link = document.createElement('a');
-            // Use EST timestamp for filename
-            const estNow = getCurrentEST();
-            link.download = `${currentSymbol}_projection_${estNow.getTime()}.png`;
-            link.href = canvas.toDataURL('image/png');
+            link.download = filename;
+            link.href = compositeImageData;
+            link.style.display = 'none'; // Hide the link
             
-            // Trigger download
+            // Append to body and trigger download
             document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            
+            // Use both click() and programmatic download
+            try {
+                link.click();
+                console.log('✓ Download triggered via click()');
+            } catch (clickError) {
+                console.warn('click() failed, trying alternative method:', clickError);
+                // Alternative: create a blob URL
+                const blob = dataURLtoBlob(compositeImageData);
+                const blobUrl = URL.createObjectURL(blob);
+                link.href = blobUrl;
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+            }
+            
+            // Remove link after a short delay
+            setTimeout(() => {
+                if (link.parentNode) {
+                    document.body.removeChild(link);
+                }
+            }, 100);
             
             // Show success message
-            const exportBtn = document.getElementById('export-chart-btn');
             if (exportBtn) {
-                const originalHTML = exportBtn.innerHTML;
                 exportBtn.innerHTML = '<i class="fas fa-check"></i> Exported!';
                 exportBtn.style.background = 'var(--success-color)';
                 
                 setTimeout(() => {
                     exportBtn.innerHTML = originalHTML;
                     exportBtn.style.background = '';
+                    exportBtn.disabled = false;
                 }, 2000);
             }
+            
+            console.log(`✅ Chart exported successfully: ${filename}`);
+            
         } catch (error) {
-            console.error('Error exporting chart:', error);
-            showError('Failed to export chart');
+            console.error('❌ Error exporting chart:', error);
+            console.error('Error stack:', error.stack);
+            showError(`Failed to export chart: ${error.message || 'Unknown error'}`);
+            
+            // Reset button on error
+            if (exportBtn) {
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = originalHTML || '<i class="fas fa-download"></i> Export';
+                exportBtn.style.background = '';
+            }
         }
+    }
+    
+    /**
+     * Helper function to convert data URL to Blob
+     */
+    function dataURLtoBlob(dataURL) {
+        const arr = dataURL.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
     }
     
     /**
@@ -3074,11 +3830,13 @@ const ProjectionsModule = (function() {
         try {
             // Fetch saved projection
             const response = await fetch('api/projections.php');
-            if (!response.ok) throw new Error('Failed to fetch projections');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             
             const result = await response.json();
             if (!result.success || !result.projections) {
-                throw new Error('No projections found');
+                throw new Error(result.message || 'No projections found');
             }
             
             const proj = result.projections.find(p => p.id == projectionId);
@@ -3319,18 +4077,7 @@ const ProjectionsModule = (function() {
             periodLowEl.className = 'metric-value';
         }
         
-        // Format volume with K, M, B suffixes
-        function formatVolume(volume) {
-            if (volume === 0 || isNaN(volume)) return 'N/A';
-            if (volume >= 1000000000) {
-                return (volume / 1000000000).toFixed(2) + 'B';
-            } else if (volume >= 1000000) {
-                return (volume / 1000000).toFixed(2) + 'M';
-            } else if (volume >= 1000) {
-                return (volume / 1000).toFixed(2) + 'K';
-            }
-            return volume.toLocaleString();
-        }
+        // formatVolume is now defined at the top of the module (line ~64) for accessibility
         
         // Calculate Average Volume
         let averageVolume = 0;
@@ -3359,6 +4106,38 @@ const ProjectionsModule = (function() {
         if (actualVolumeEl) {
             actualVolumeEl.textContent = formatVolume(actualVolume);
             actualVolumeEl.className = 'metric-value';
+        }
+    }
+    
+    /**
+     * Reset metrics to placeholder values on error
+     */
+    function resetMetricsToPlaceholders() {
+        // Reset all metric elements to placeholder values
+        const metricElements = [
+            'metric-current-price',
+            'metric-historical-change',
+            'metric-historical-percent',
+            'metric-projected-price',
+            'metric-projected-change',
+            'metric-projected-percent',
+            'metric-period-high',
+            'metric-period-low',
+            'metric-average-volume',
+            'metric-actual-volume'
+        ];
+        
+        metricElements.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = '--';
+                el.className = 'metric-value';
+            }
+        });
+        
+        // Reset validation metrics if function exists
+        if (typeof resetValidationMetricsToPlaceholders === 'function') {
+            resetValidationMetricsToPlaceholders();
         }
     }
     
@@ -3447,132 +4226,6 @@ const ProjectionsModule = (function() {
             if (projectionChart) {
                 projectionChart.update('active');
             }
-        }
-    }
-    
-    // Save projection
-    async function saveProjection() {
-        if (!currentSymbol || !historicalPrices || historicalPrices.length === 0) {
-            showError('No projection data to save. Please load a projection first.');
-            return;
-        }
-        
-        try {
-            // Get parameters (same logic as loadProjectionData)
-            const selectedPreset = document.querySelector('input[name="projection-preset"]:checked');
-            let params;
-            
-            if (selectedPreset && selectedPreset.value === 'custom') {
-                params = {
-                    steps: parseInt(document.getElementById('projection-steps').value) || 20,
-                    base: parseFloat(document.getElementById('projection-base').value) || 3,
-                    projectionCount: parseInt(document.getElementById('projection-count').value) || 12,
-                    depthPrime: parseInt(document.getElementById('projection-depth').value) || 31
-                };
-            } else {
-                params = {
-                    steps: parseInt(document.getElementById('projection-steps-value').value) || 20,
-                    base: parseFloat(document.getElementById('projection-base-value').value) || 3,
-                    projectionCount: parseInt(document.getElementById('projection-count-value').value) || 12,
-                    depthPrime: parseInt(document.getElementById('projection-depth-value').value) || 31
-                };
-            }
-            
-            const projectionLines = await calculateProjections(historicalPrices, params);
-            
-            // Get chart data if available
-            let chartData = null;
-            if (projectionChart && projectionChart.data) {
-                chartData = {
-                    labels: projectionChart.data.labels,
-                    datasets: projectionChart.data.datasets.map(ds => ({
-                        label: ds.label,
-                        data: ds.data,
-                        borderColor: ds.borderColor,
-                        backgroundColor: ds.backgroundColor,
-                        borderWidth: ds.borderWidth,
-                        pointRadius: ds.pointRadius,
-                        tension: ds.tension
-                    }))
-                };
-            }
-            
-            // Ensure all data is in EST before saving
-            const estTimestamp = getCurrentEST().getTime();
-            const estDateStr = getCurrentEST().toLocaleString('en-US', {
-                timeZone: 'America/New_York',
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            }) + ' EST';
-            
-            const saveData = {
-                symbol: currentSymbol,
-                title: `${currentSymbol} - ${currentInterval} Projection (EST)`,
-                projection_data: {
-                    symbol: currentSymbol,
-                    interval: currentInterval,
-                    historicalPrices: historicalPrices,
-                    historicalLabels: historicalLabels, // Already in EST format
-                    projectionLines: projectionLines,
-                    params: params,
-                    lastPrice: historicalPrices[historicalPrices.length - 1],
-                    timezone: 'EST',
-                    savedAtEST: estDateStr
-                },
-                chart_data: chartData,
-                params: params,
-                notes: `Projection for ${currentSymbol} with ${params.steps} steps, base ${params.base}, depth ${params.depthPrime} | Timezone: EST | Saved: ${estDateStr}`
-            };
-            
-            const response = await fetch('api/projections.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(saveData)
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                // Show success message
-                showSaveSuccess();
-                
-                // Refresh data page if it exists
-                if (typeof DataPageModule !== 'undefined' && DataPageModule.refresh) {
-                    // Check if data page is active
-                    const dataPage = document.getElementById('page-data');
-                    if (dataPage && dataPage.classList.contains('active')) {
-                        DataPageModule.refresh();
-                    }
-                }
-            } else {
-                showError(result.message || 'Failed to save projection');
-            }
-        } catch (error) {
-            console.error('Error saving projection:', error);
-            showError('Failed to save projection. Please try again.');
-        }
-    }
-    
-    // Show save success message
-    function showSaveSuccess() {
-        const saveBtn = document.getElementById('save-projection-btn');
-        if (saveBtn) {
-            const originalHTML = saveBtn.innerHTML;
-            saveBtn.innerHTML = '<i class="fas fa-check"></i> Saved!';
-            saveBtn.style.background = 'var(--success-color)';
-            saveBtn.disabled = true;
-            
-            setTimeout(() => {
-                saveBtn.innerHTML = originalHTML;
-                saveBtn.style.background = '';
-                saveBtn.disabled = false;
-            }, 2000);
         }
     }
     
@@ -3933,7 +4586,6 @@ const ProjectionsModule = (function() {
         const loadBtn = document.getElementById('projection-load-btn');
         const refreshBtn = document.getElementById('projection-refresh-btn');
         const resetZoomBtn = document.getElementById('reset-zoom-btn');
-        const saveBtn = document.getElementById('save-projection-btn');
         const symbolInput = document.getElementById('projection-symbol-input');
         
         // Load button (replaces search button)
@@ -3952,9 +4604,19 @@ const ProjectionsModule = (function() {
             resetZoomBtn.addEventListener('click', resetZoom);
         }
         
-        if (saveBtn) {
-            saveBtn.addEventListener('click', saveProjection);
+        // Setup export functionality - call multiple times to ensure it works
+        setupExportFunctionality();
+        
+        // Also setup export on window load as fallback
+        if (window.addEventListener) {
+            window.addEventListener('load', function() {
+                setTimeout(setupExportFunctionality, 1000);
+            });
         }
+        
+        // Expose export function globally for debugging
+        window.exportProjectionChart = exportChart;
+        console.log('📤 Export function exposed as window.exportProjectionChart()');
         
         if (symbolInput) {
             symbolInput.addEventListener('keypress', (e) => {
@@ -4025,12 +4687,9 @@ const ProjectionsModule = (function() {
                 if (isActive) {
                     if (!currentSymbol || currentSymbol === '') {
                         autoLoadSPY();
-                    } else {
-                        // Restart auto-refresh if we have a symbol and chart
-                        if (projectionChart) {
-                            setupAutoRefresh();
-                        }
                     }
+                    // Do NOT restart auto-refresh - user must click Load button
+                    // stopAutoRefresh(); // Ensure auto-refresh is stopped
                 } else {
                     // Stop auto-refresh when tab is not active
                     stopAutoRefresh();

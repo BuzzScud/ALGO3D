@@ -34,7 +34,8 @@
 
 // Include hierarchical threading for 88D integration
 #include "hierarchical_threading.h"
-#include <pthread.h>  // For pthread_barrier_t
+#include "pthread_barrier_compat.h"  // For macOS-compatible barrier functions
+#include <pthread.h>
 #include <math.h>     // For math functions
 
 // Include vocabulary
@@ -432,10 +433,10 @@ typedef struct {
         double parallel_efficiency;   // Actual speedup / ideal speedup
         double load_balance_score;    // Load balance quality (0-1)
         
-        // Thread synchronization barriers
-        pthread_barrier_t* forward_barrier;   // Forward pass synchronization
-        pthread_barrier_t* backward_barrier;  // Backward pass synchronization
-        pthread_barrier_t* optimizer_barrier; // Optimizer synchronization
+        // Thread synchronization barriers (macOS-compatible)
+        pthread_barrier_t_compat* forward_barrier;   // Forward pass synchronization
+        pthread_barrier_t_compat* backward_barrier;  // Backward pass synchronization
+        pthread_barrier_t_compat* optimizer_barrier; // Optimizer synchronization
         
     } threading;
     

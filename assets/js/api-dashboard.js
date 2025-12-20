@@ -152,7 +152,7 @@ const APIDashboard = (function() {
         try {
             const response = await fetch('api/get_api_dashboard.php');
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             const data = await response.json();
@@ -174,7 +174,18 @@ const APIDashboard = (function() {
             }
         } catch (error) {
             console.error('Error loading API data:', error);
-            showError('Failed to load API dashboard data. Please try again.');
+            
+            // Provide more specific error messages
+            let errorMessage = 'Failed to load API dashboard data. ';
+            if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('Load failed'))) {
+                errorMessage += 'Server connection failed. Please ensure the web server is running at http://localhost:8080';
+            } else if (error.message && error.message.includes('HTTP')) {
+                errorMessage += `Server error: ${error.message}`;
+            } else {
+                errorMessage += 'Please try again.';
+            }
+            
+            showError(errorMessage);
         }
     }
 

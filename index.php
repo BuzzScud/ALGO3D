@@ -1290,13 +1290,9 @@ require_once 'includes/database.php';
                                         </button>
                                     </div>
                                     <div class="chart-export-controls">
-                                        <button id="export-chart-btn" class="btn btn-small" title="Export Chart">
+                                        <button id="export-chart-btn" class="btn btn-small" title="Export Chart" type="button" onclick="if(typeof window.exportProjectionChart === 'function') { window.exportProjectionChart(); } else { console.error('Export function not available'); } return false;">
                                             <i class="fas fa-download"></i>
                                             Export
-                                        </button>
-                                        <button id="save-projection-btn" class="btn btn-primary btn-small" style="display: none;">
-                                            <i class="fas fa-save"></i>
-                                            Save Projection
                                         </button>
                                     </div>
                                 </div>
@@ -1849,16 +1845,67 @@ require_once 'includes/database.php';
                         <i class="fas fa-sync-alt"></i>
                         Refresh
                     </button>
-                    <button class="btn btn-secondary" id="export-all-btn">
-                        <i class="fas fa-download"></i>
-                        Export All
-                    </button>
                 </div>
             </div>
             
             <div class="data-container">
+                <!-- File Upload Section -->
+                <div class="dashboard-section" style="margin-bottom: 2rem;">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="fas fa-upload"></i>
+                            Upload Projection File
+                        </h2>
+                        <p class="section-description">Upload a JSON projection file or PNG chart image to save and review later</p>
+                    </div>
+                    
+                    <div class="file-upload-container">
+                        <div class="file-upload-wrapper" id="file-upload-wrapper">
+                            <input type="file" 
+                                   id="projection-file-input" 
+                                   class="file-upload-input" 
+                                   accept=".json,.png,application/json,image/png"
+                                   style="display: none;">
+                            <label for="projection-file-input" class="file-upload-label">
+                                <div class="file-upload-icon">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                </div>
+                                <div class="file-upload-content">
+                                    <h3>Drop files to upload</h3>
+                                    <p>or <span class="file-upload-browse">browse files</span></p>
+                                    <p class="file-upload-hint">Supported formats: JSON, PNG (Max 10MB)</p>
+                                </div>
+                            </label>
+                            <div class="file-upload-preview" id="file-upload-preview" style="display: none;">
+                                <div class="file-upload-file">
+                                    <div class="file-upload-file-info">
+                                        <i class="fas fa-file-code file-icon"></i>
+                                        <div class="file-info">
+                                            <span class="file-name" id="file-name"></span>
+                                            <span class="file-size" id="file-size"></span>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="file-upload-remove" id="file-upload-remove">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="file-upload-actions" id="file-upload-actions" style="display: none;">
+                            <button type="button" class="btn btn-secondary" id="file-upload-cancel">
+                                Cancel
+                            </button>
+                            <button type="button" class="btn btn-primary" id="file-upload-submit">
+                                <i class="fas fa-upload"></i>
+                                Upload & Save
+                            </button>
+                        </div>
+                        <div class="file-upload-status" id="file-upload-status" style="display: none;"></div>
+                    </div>
+                </div>
+                
                 <!-- 3D Visualization Section -->
-                <div class="data-viz-container">
+                <div class="data-viz-container" style="margin-bottom: 2rem;">
                     <div class="data-viz-header">
                         <h3>
                             <i class="fas fa-cube"></i>
@@ -1897,52 +1944,53 @@ require_once 'includes/database.php';
                     </div>
                 </div>
                 
-                <!-- Search and Filter Section -->
-                <div class="data-filters">
-                    <div class="filter-group">
-                        <input type="text" id="data-search-input" class="data-search-input" placeholder="Search by symbol, title, or notes...">
-                        <i class="fas fa-search search-icon"></i>
-                    </div>
-                    <div class="filter-group">
-                        <select id="data-sort-select" class="data-select">
-                            <option value="date-desc">Date (Newest First)</option>
-                            <option value="date-asc">Date (Oldest First)</option>
-                            <option value="symbol-asc">Symbol (A-Z)</option>
-                            <option value="symbol-desc">Symbol (Z-A)</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <button class="btn btn-small" id="clear-filters-btn">
-                            <i class="fas fa-times"></i>
-                            Clear
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Saved Projections Feed Section -->
-                <div class="news-feed-section">
-                    <div class="news-feed-header">
-                        <h2 class="widget-title">Saved Projections Data</h2>
-                        <div class="news-feed-controls">
-                            <p class="text-sm text-gray-600 dark:text-neutral-400">
-                                <span class="font-semibold text-gray-800 dark:text-neutral-200" id="table-count">0</span> projection(s) found
-                            </p>
+                <!-- DataTable Section -->
+                <div class="dashboard-section">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="fas fa-table"></i>
+                            Saved Projections
+                        </h2>
+                        <div class="section-controls">
+                            <button class="btn btn-secondary btn-sm" id="export-all-btn">
+                                <i class="fas fa-download"></i>
+                                Export All
+                            </button>
                         </div>
                     </div>
-                    <div class="news-feed-container" id="projections-feed-container">
-                        <div class="news-loading">
-                            <i class="fas fa-spinner fa-spin"></i>
-                            <span>Loading projections data...</span>
+                    
+                    <div class="datatable-container">
+                        <div class="datatable-wrapper">
+                            <div id="datatable-loading" class="datatable-loading" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <span>Loading data...</span>
+                            </div>
+                            
+                            <div id="datatable-error" class="datatable-error" style="display: none;">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span id="datatable-error-message"></span>
+                                <button class="btn btn-primary btn-sm" onclick="DataPageModule.refresh()">
+                                    <i class="fas fa-redo"></i>
+                                    Retry
+                                </button>
+                            </div>
+                            
+                            <table id="hs-datatable" class="hs-datatable table-auto w-full divide-y divide-gray-200 dark:divide-neutral-700">
+                                <thead class="bg-gray-50 dark:bg-neutral-800">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500">Symbol</th>
+                                        <th scope="col" class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500">Title</th>
+                                        <th scope="col" class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500">Saved Date</th>
+                                        <th scope="col" class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500">Interval</th>
+                                        <th scope="col" class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500">Steps</th>
+                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase dark:text-neutral-500">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200 dark:divide-neutral-700" id="datatable-tbody">
+                                    <!-- Data will be populated by DataTables -->
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
-                    <div class="news-pagination" id="data-pagination" style="display: none;">
-                        <button class="pagination-btn" id="data-prev-btn" title="Previous Page">
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <div class="pagination-pages" id="data-pagination-pages"></div>
-                        <button class="pagination-btn" id="data-next-btn" title="Next Page">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -2618,6 +2666,27 @@ require_once 'includes/database.php';
     </div>
 
     <!-- Chart.js Library -->
+    <!-- Suppress source map warnings (non-critical) -->
+    <script>
+        // Suppress source map 404 errors (non-critical warnings)
+        // These warnings don't affect functionality - source maps are only for debugging
+        const originalError = console.error;
+        console.error = function(...args) {
+            // Filter out source map loading errors
+            const errorMessage = args[0];
+            if (errorMessage && typeof errorMessage === 'string' && 
+                (errorMessage.includes('.map') || errorMessage.includes('Source Map'))) {
+                // Suppress source map errors - they're non-critical
+                return;
+            }
+            originalError.apply(console, args);
+        };
+    </script>
+    <!-- jQuery and DataTables Libraries -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>

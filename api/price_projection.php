@@ -203,10 +203,32 @@ function computeProjectionFallback($config) {
     // This is a temporary fallback that uses PHP math
     // Should be replaced once C implementation is ready
     
-    $lastPrice = $config['base'];
-    if (!empty($config['historical_prices'])) {
+    // CRITICAL: Always use the current/last price from historical_prices as the starting point
+    // The 'base' parameter is for algorithm tuning, not the starting price
+    $lastPrice = null;
+    
+    // Always use the last price from historical_prices (current price)
+    if (!empty($config['historical_prices']) && is_array($config['historical_prices'])) {
         $lastPrice = end($config['historical_prices']);
     }
+    
+    // Validate last price
+    if ($lastPrice === null || !is_numeric($lastPrice) || $lastPrice <= 0) {
+        // Fallback to base parameter only if historical_prices is empty
+        $lastPrice = isset($config['base']) && is_numeric($config['base']) && $config['base'] > 0 
+            ? (float)$config['base'] 
+            : null;
+    }
+    
+    if ($lastPrice === null || $lastPrice <= 0) {
+        return [
+            'success' => false,
+            'error' => 'Invalid current price: cannot project from invalid price. Last price: ' . ($lastPrice ?? 'null')
+        ];
+    }
+    
+    // Log the starting price for debugging
+    error_log("Projection starting from current price: $lastPrice");
     
     $depthPrime = $config['depth_prime'];
     $omegaHz = $config['omega_hz'] ?? 432.0;
@@ -241,7 +263,17 @@ function computeProjectionFallback($config) {
         $tau = log($triProd) / log(3.0);
         $g = 1.0 + 0.01 * $tau + 0.001 * ($depthPrime % 7);
         
+        // CRITICAL: First point (i=0) MUST start exactly from current price
+        // Subsequent points add delta to the current price
         for ($i = 0; $i < $steps; $i++) {
+            if ($i === 0) {
+                // First point: start exactly from current price (no delta)
+                $pricePoint = floor($lastPrice * pow(10, $decimals)) / pow(10, $decimals);
+                $points[] = $pricePoint;
+                continue;
+            }
+            
+            // For subsequent points, calculate delta
             $lambda = 0.5; // Simplified
             $wHz = $omegaHz;
             $theta = (2.0 * M_PI * $i / 12.0) + $lambda * sin($wHz * $i * M_PI / 180.0 + $psi);
@@ -262,6 +294,8 @@ function computeProjectionFallback($config) {
             $depthScale = log($depthPrime) / log(2.0);
             $triScale = max(1.0, $tau);
             $delta = floor($latticeSum * $depthScale * 0.5 * $triScale * pow(10, $decimals)) / pow(10, $decimals);
+            
+            // Subsequent points: current price + delta
             $pricePoint = floor(($lastPrice + $delta) * pow(10, $decimals)) / pow(10, $decimals);
             $points[] = $pricePoint;
         }
@@ -312,31 +346,31 @@ try {
         'decimals' => isset($input['decimals']) ? (int)$input['decimals'] : 8
     ];
     
-    // Try FFI first, then exec, then fallback
+    // Try PHP fallback first, then FFI, then exec
     $result = null;
     
-    // Try FFI
-    if (extension_loaded('ffi') && file_exists($library_path)) {
-        $result = callCLLMviaFFI($config);
-        if ($result['success']) {
-            $result['method'] = 'ffi';
-        }
-    }
+    // Try PHP fallback first (as requested)
+    $result = computeProjectionFallback($config);
     
-    // Try exec if FFI failed
-    if (!$result || !$result['success']) {
-        if (file_exists($executable_path) && is_executable($executable_path)) {
-            $result = callCLLMviaExec($config);
-            if ($result['success']) {
-                $result['method'] = 'exec';
-            }
-        }
-    }
+    // Try FFI if fallback failed (optional - can be enabled if needed)
+    // if (!$result || !$result['success']) {
+    //     if (extension_loaded('ffi') && file_exists($library_path)) {
+    //         $result = callCLLMviaFFI($config);
+    //         if ($result['success']) {
+    //             $result['method'] = 'ffi';
+    //         }
+    //     }
+    // }
     
-    // Use fallback if both failed
-    if (!$result || !$result['success']) {
-        $result = computeProjectionFallback($config);
-    }
+    // Try exec if fallback failed (optional - can be enabled if needed)
+    // if (!$result || !$result['success']) {
+    //     if (file_exists($executable_path) && is_executable($executable_path)) {
+    //         $result = callCLLMviaExec($config);
+    //         if ($result['success']) {
+    //             $result['method'] = 'exec';
+    //         }
+    //     }
+    // }
     
     echo json_encode($result);
     

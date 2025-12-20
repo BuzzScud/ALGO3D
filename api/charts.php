@@ -1,6 +1,9 @@
 <?php
-// Suppress deprecation warnings that would break JSON output
-error_reporting(E_ALL & ~E_DEPRECATED);
+// CRITICAL: Suppress all warnings and notices that would break JSON output
+// Only show fatal errors
+error_reporting(E_ERROR | E_PARSE);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -25,30 +28,17 @@ if (!is_dir($cacheDir)) {
 }
 
 /**
- * Convert Unix timestamp to EST timezone
- * Returns timestamp adjusted to EST/EDT (handles DST automatically)
- * Note: This converts the timestamp representation to EST, but keeps it as milliseconds
+ * CRITICAL FIX: Timestamps should remain in UTC milliseconds
+ * Do NOT modify the timestamp - only format for display in EST
+ * This function is kept for backward compatibility but should not modify timestamps
+ * 
+ * Timestamps are always in UTC. Display formatting in JavaScript handles EST conversion.
  */
 function convertToEST($timestampMs) {
-    if (!$timestampMs) return $timestampMs;
-    
-    // Convert milliseconds to seconds for DateTime
-    $timestampSeconds = $timestampMs / 1000;
-    
-    // Create DateTime object from UTC timestamp
-    $utcDate = new DateTime('@' . $timestampSeconds, new DateTimeZone('UTC'));
-    
-    // Convert to EST/EDT timezone
-    $estDate = clone $utcDate;
-    $estDate->setTimezone(new DateTimeZone('America/New_York'));
-    
-    // Get the offset in seconds
-    $offset = $estDate->getOffset();
-    
-    // Adjust the timestamp by the offset (convert to milliseconds)
-    $estTimestampMs = $timestampMs + ($offset * 1000);
-    
-    return $estTimestampMs;
+    // CRITICAL: Do NOT modify the timestamp - keep it as UTC
+    // The JavaScript code will format it in EST timezone for display
+    // Modifying timestamps causes incorrect times to be displayed
+    return $timestampMs;
 }
 
 switch ($method) {
@@ -123,9 +113,9 @@ function getQuote() {
         $cachedData = json_decode(file_get_contents($cacheFile), true);
         // Use cache if source matches or if cache doesn't have source set
         if ($cachedData && (!isset($cachedData['source']) || $cachedData['source'] === $selectedSource)) {
-            echo file_get_contents($cacheFile);
-            return;
-        }
+        echo file_get_contents($cacheFile);
+        return;
+    }
     }
 
     // Try selected API source first
@@ -173,29 +163,29 @@ function getQuote() {
         }
     } else {
         // Try Finnhub first (default)
-        $data = fetchFinnhubQuote($symbol);
-        
-        if ($data && isset($data['c']) && $data['c'] > 0) {
-            $result = [
-                'success' => true,
-                'symbol' => $symbol,
-                'current' => $data['c'],
-                'high' => $data['h'],
-                'low' => $data['l'],
-                'open' => $data['o'],
-                'previousClose' => $data['pc'],
-                'change' => $data['d'] ?? ($data['c'] - $data['pc']),
-                'changePercent' => $data['dp'] ?? (($data['c'] - $data['pc']) / $data['pc'] * 100),
-                'timestamp' => $data['t'] ?? time(),
-                'source' => 'finnhub'
-            ];
-            file_put_contents($cacheFile, json_encode($result));
-            echo json_encode($result);
-            return;
-        }
-        
+    $data = fetchFinnhubQuote($symbol);
+    
+    if ($data && isset($data['c']) && $data['c'] > 0) {
+        $result = [
+            'success' => true,
+            'symbol' => $symbol,
+            'current' => $data['c'],
+            'high' => $data['h'],
+            'low' => $data['l'],
+            'open' => $data['o'],
+            'previousClose' => $data['pc'],
+            'change' => $data['d'] ?? ($data['c'] - $data['pc']),
+            'changePercent' => $data['dp'] ?? (($data['c'] - $data['pc']) / $data['pc'] * 100),
+            'timestamp' => $data['t'] ?? time(),
+            'source' => 'finnhub'
+        ];
+        file_put_contents($cacheFile, json_encode($result));
+        echo json_encode($result);
+        return;
+    }
+    
         // Fallback to Yahoo Finance if Finnhub fails
-        $yahooData = fetchYahooQuote($symbol);
+    $yahooData = fetchYahooQuote($symbol);
         if ($yahooData && isset($yahooData['current']) && $yahooData['current'] > 0) {
             $result = [
                 'success' => true,
@@ -212,7 +202,7 @@ function getQuote() {
             ];
             file_put_contents($cacheFile, json_encode($result));
             echo json_encode($result);
-            return;
+        return;
         }
     }
     
@@ -241,8 +231,11 @@ function getChartData() {
         $selectedSource = DEFAULT_API_SOURCE;
     }
 
+    // CRITICAL: Check for days parameter (for price projections - fetch last 7 days)
+    $days = isset($_GET['days']) ? (int)$_GET['days'] : null;
+    
     // Determine resolution and date range based on timeframe
-    $params = getTimeframeParams($timeframe);
+    $params = getTimeframeParams($timeframe, $days);
     
     // Check for cache bypass parameter for real-time data
     $forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] === 'true';
@@ -261,9 +254,9 @@ function getChartData() {
             // If cache has a source and it matches selected, use it
             // If cache doesn't have source, use it (backward compatibility)
             if (!isset($decoded['source']) || $decoded['source'] === $selectedSource) {
-                echo $cachedData;
-                return;
-            }
+            echo $cachedData;
+            return;
+        }
             // If cache source doesn't match selected source, bypass cache
         }
     }
@@ -271,7 +264,7 @@ function getChartData() {
     // Try selected API source first
     if ($selectedSource === 'yahoo') {
         // Try Yahoo Finance first
-        $yahooData = fetchYahooChartData($symbol, $timeframe);
+        $yahooData = fetchYahooChartData($symbol, $timeframe, $days);
         if ($yahooData && isset($yahooData['candles']) && count($yahooData['candles']) > 0) {
             $yahooData['source'] = 'yahoo';
             file_put_contents($cacheFile, json_encode($yahooData));
@@ -290,23 +283,23 @@ function getChartData() {
         }
     } else {
         // Try Finnhub first (default)
-        $data = fetchFinnhubCandles($symbol, $params['resolution'], $params['from'], $params['to']);
-        
-        if ($data && isset($data['c']) && is_array($data['c']) && count($data['c']) > 0) {
-            $chartData = formatCandleData($data, $symbol, $timeframe);
-            $chartData['source'] = 'finnhub';
-            file_put_contents($cacheFile, json_encode($chartData));
-            echo json_encode($chartData);
-            return;
-        }
-        
+    $data = fetchFinnhubCandles($symbol, $params['resolution'], $params['from'], $params['to']);
+    
+    if ($data && isset($data['c']) && is_array($data['c']) && count($data['c']) > 0) {
+        $chartData = formatCandleData($data, $symbol, $timeframe);
+        $chartData['source'] = 'finnhub';
+        file_put_contents($cacheFile, json_encode($chartData));
+        echo json_encode($chartData);
+        return;
+    }
+    
         // Fallback to Yahoo Finance if Finnhub fails
-        $yahooData = fetchYahooChartData($symbol, $timeframe);
-        if ($yahooData && isset($yahooData['candles']) && count($yahooData['candles']) > 0) {
-            $yahooData['source'] = 'yahoo';
-            file_put_contents($cacheFile, json_encode($yahooData));
-            echo json_encode($yahooData);
-            return;
+    $yahooData = fetchYahooChartData($symbol, $timeframe, $days);
+    if ($yahooData && isset($yahooData['candles']) && count($yahooData['candles']) > 0) {
+        $yahooData['source'] = 'yahoo';
+        file_put_contents($cacheFile, json_encode($yahooData));
+        echo json_encode($yahooData);
+        return;
         }
     }
     
@@ -319,33 +312,48 @@ function getChartData() {
     ]);
 }
 
-function getTimeframeParams($timeframe) {
+function getTimeframeParams($timeframe, $days = null) {
     $now = time();
     $resolution = '60'; // Default to 1 hour
     $from = $now - 86400; // Default to 1 day
+    
+    // CRITICAL: If days parameter is provided, use it (for price projections)
+    if ($days !== null && is_numeric($days) && $days > 0) {
+        $from = $now - ($days * 86400);
+    }
     
     // Only allow 15MIN, 1H, 4H, and 1D timeframes
     switch ($timeframe) {
         case '15MIN':
             $resolution = '15'; // 15-minute bars
-            $from = $now - (5 * 86400); // Last 5 days for 15 min bars (to get enough data)
+            if ($days === null) {
+                $from = $now - (5 * 86400); // Last 5 days for 15 min bars (to get enough data)
+            }
             break;
         case '1H':
             $resolution = '60'; // 1-hour bars
-            $from = $now - (30 * 86400); // Last 30 days for 1 hour bars
+            if ($days === null) {
+                $from = $now - (30 * 86400); // Last 30 days for 1 hour bars
+            }
             break;
         case '4H':
             $resolution = '60'; // Use 1-hour bars (Finnhub doesn't support 4H directly, will show hourly bars)
-            $from = $now - (60 * 86400); // Last 60 days for 4 hour view (showing hourly bars)
+            if ($days === null) {
+                $from = $now - (60 * 86400); // Last 60 days for 4 hour view (showing hourly bars)
+            }
             break;
         case '1D':
             $resolution = 'D'; // Daily bars
-            $from = $now - (10 * 86400); // Last 10 days to ensure at least 5 trading days (accounting for weekends/holidays)
+            if ($days === null) {
+                $from = $now - (10 * 86400); // Last 10 days to ensure at least 5 trading days (accounting for weekends/holidays)
+            }
             break;
         default:
             // Default to 1D if invalid timeframe
             $resolution = 'D'; // Daily bars
-            $from = $now - (10 * 86400); // Last 10 days to ensure at least 5 trading days (accounting for weekends/holidays)
+            if ($days === null) {
+                $from = $now - (10 * 86400); // Last 10 days to ensure at least 5 trading days (accounting for weekends/holidays)
+            }
             break;
     }
     
@@ -508,9 +516,9 @@ function fetchYahooQuote($symbol) {
     return null;
 }
 
-function fetchYahooChartData($symbol, $timeframe) {
+function fetchYahooChartData($symbol, $timeframe, $days = null) {
     // Map timeframe to Yahoo Finance parameters
-    $yahooParams = getYahooTimeframeParams($timeframe);
+    $yahooParams = getYahooTimeframeParams($timeframe, $days);
     
     $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?interval={$yahooParams['interval']}&range={$yahooParams['range']}";
     
@@ -614,20 +622,34 @@ function fetchYahooChartData($symbol, $timeframe) {
     ];
 }
 
-function getYahooTimeframeParams($timeframe) {
+function getYahooTimeframeParams($timeframe, $days = null) {
+    // CRITICAL: If days parameter is provided, use it (for price projections - fetch last 7 days)
+    if ($days !== null && is_numeric($days) && $days > 0) {
+        // Map days to Yahoo Finance range
+        if ($days <= 5) {
+            $range = '5d';
+        } else if ($days <= 30) {
+            $range = '1mo';
+        } else if ($days <= 90) {
+            $range = '3mo';
+        } else {
+            $range = '1y';
+        }
+    }
+    
     // Only allow 15MIN, 1H, 4H, and 1D timeframes
     switch ($timeframe) {
         case '15MIN':
-            return ['interval' => '1m', 'range' => '1d'];
+            return ['interval' => '1m', 'range' => isset($range) ? $range : '1d'];
         case '1H':
-            return ['interval' => '5m', 'range' => '5d'];
+            return ['interval' => '5m', 'range' => isset($range) ? $range : '5d'];
         case '4H':
-            return ['interval' => '15m', 'range' => '1mo'];
+            return ['interval' => '15m', 'range' => isset($range) ? $range : '1mo'];
         case '1D':
-            return ['interval' => '1d', 'range' => '10d']; // Daily bars, 10 days range to ensure at least 5 trading days
+            return ['interval' => '1d', 'range' => isset($range) ? $range : '10d']; // Daily bars, 10 days range to ensure at least 5 trading days
         default:
             // Default to 1D if invalid timeframe
-            return ['interval' => '1d', 'range' => '10d']; // Daily bars, 10 days range to ensure at least 5 trading days
+            return ['interval' => '1d', 'range' => isset($range) ? $range : '10d']; // Daily bars, 10 days range to ensure at least 5 trading days
     }
 }
 

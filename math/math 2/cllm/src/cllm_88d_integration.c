@@ -12,10 +12,11 @@
 #include "ai/cllm_88d_integration.h"
 #include "hierarchical_threading.h"
 #include "message_passing.h"
+#include "pthread_barrier_compat.h"  // For macOS-compatible barrier functions
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <pthread.h>  // For pthread_barrier functions
+#include <pthread.h>
 
 // ============================================================================
 // INITIALIZATION & CLEANUP
@@ -36,11 +37,18 @@ bool cllm_initialize_threading(CLLMModel* model, uint32_t base) {
     printf("Initializing threading system for CLLM model...\n");
     
     // CRITICAL: Threading is MANDATORY - create 88D thread pool (96 threads: 8 layers × 12 threads per layer)
-    model->threads = hierarchical_thread_pool_create_88d(base);
+    model->threads = hierarchical_thread_pool_create(base);
     if (!model->threads) {
-        fprintf(stderr, "FATAL ERROR: Failed to create thread pool\n");
-        fprintf(stderr, "Threading is MANDATORY - cannot proceed without threads\n");
-        return false;
+        fprintf(stderr, "\n");
+        fprintf(stderr, "╔════════════════════════════════════════════════════════╗\n");
+        fprintf(stderr, "║        FATAL ERROR: THREAD POOL CREATION FAILED         ║\n");
+        fprintf(stderr, "╚════════════════════════════════════════════════════════╝\n");
+        fprintf(stderr, "\n");
+        fprintf(stderr, "Threading is MANDATORY in this architecture.\n");
+        fprintf(stderr, "There is NO sequential fallback.\n");
+        fprintf(stderr, "Cannot proceed without 88D thread pool.\n");
+        fprintf(stderr, "\n");
+        abort();  // CRITICAL: Abort immediately - no fallback possible
     }
     
     // Verify thread pool is valid
@@ -49,7 +57,8 @@ bool cllm_initialize_threading(CLLMModel* model, uint32_t base) {
                 model->threads->num_threads);
         hierarchical_thread_pool_free(model->threads);
         model->threads = NULL;
-        return false;
+        fprintf(stderr, "Threading is MANDATORY - cannot proceed.\n");
+        abort();  // CRITICAL: Abort immediately - no fallback possible
     }
     
     printf("  ✓ Created thread pool (96 threads: 8 layers × 12 threads per layer)\n");
@@ -87,19 +96,19 @@ void cllm_cleanup_threading(CLLMModel* model) {
     }
     printf("  ✓ Freed geometry mappings\n");
     
-    // Free threading barriers
+    // Free threading barriers (using compat functions for macOS)
     if (model->threading.forward_barrier) {
-        pthread_barrier_destroy(model->threading.forward_barrier);
+        pthread_barrier_destroy_compat(model->threading.forward_barrier);
         free(model->threading.forward_barrier);
         model->threading.forward_barrier = NULL;
     }
     if (model->threading.backward_barrier) {
-        pthread_barrier_destroy(model->threading.backward_barrier);
+        pthread_barrier_destroy_compat(model->threading.backward_barrier);
         free(model->threading.backward_barrier);
         model->threading.backward_barrier = NULL;
     }
     if (model->threading.optimizer_barrier) {
-        pthread_barrier_destroy(model->threading.optimizer_barrier);
+        pthread_barrier_destroy_compat(model->threading.optimizer_barrier);
         free(model->threading.optimizer_barrier);
         model->threading.optimizer_barrier = NULL;
     }
@@ -205,9 +214,9 @@ bool cllm_wait_for_work_completion(CLLMModel* model) {
     if (!model || !model->threads) return false;
     
     // Wait for all threads to complete
-    // This uses the global barrier
+    // This uses the global barrier (macOS-compatible)
     if (model->threading.forward_barrier) {
-        pthread_barrier_wait(model->threading.forward_barrier);
+        pthread_barrier_wait_compat(model->threading.forward_barrier);
     }
     
     return true;
