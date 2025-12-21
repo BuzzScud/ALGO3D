@@ -10195,6 +10195,176 @@ body {
     transform: scale(1) translateY(0);
 }
 
+/* Export Format Selection Modal */
+.export-format-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.export-format-modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.export-format-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+}
+
+.export-format-modal-content {
+    position: relative;
+    background: var(--card-bg);
+    border-radius: 1rem;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.3s ease;
+    border: 2px solid var(--border-color);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+.export-format-modal.active .export-format-modal-content {
+    transform: scale(1) translateY(0);
+}
+
+.export-format-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.export-format-modal-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.export-modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+}
+
+.export-modal-close:hover {
+    background: var(--dark-bg);
+    color: var(--text-primary);
+}
+
+.export-format-modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.export-format-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.export-format-option {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    width: 100%;
+}
+
+.export-format-option:hover {
+    border-color: var(--primary-color);
+    background: rgba(59, 130, 246, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.export-format-icon {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-bg);
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.export-format-icon i {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+}
+
+.export-format-info {
+    flex: 1;
+}
+
+.export-format-info h4 {
+    margin: 0 0 0.25rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.export-format-info p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.export-format-option i.fa-chevron-right {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.export-format-modal-footer {
+    padding: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
 .data-error-modal-header {
     display: flex;
     align-items: center;
@@ -10507,17 +10677,35 @@ body {
     background: transparent;
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
-    padding: 0.5rem;
-    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
     cursor: pointer;
     transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
     font-size: 0.875rem;
     position: relative;
+    flex-shrink: 0;
+    gap: 0.375rem;
+}
+
+/* Circular buttons only when explicitly needed (icon-only) */
+.btn-action.icon-only {
+    border-radius: 50%;
+    padding: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+}
+
+.btn-action i {
+    font-size: 0.875rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-action:hover {
@@ -10541,18 +10729,21 @@ body {
 .btn-action.btn-delete:hover,
 .btn-action.delete-projection-btn:hover {
     border-color: #ef4444;
-    color: #ffffff;
-    background: rgba(239, 68, 68, 0.2);
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
 }
 
 .btn-action.btn-delete:active,
 .btn-action.delete-projection-btn:active {
-    background: rgba(239, 68, 68, 0.3);
-    box-shadow: 0 1px 4px rgba(239, 68, 68, 0.2);
+    background: rgba(239, 68, 68, 0.15);
 }
 
 /* View button styling */
+.btn-action.btn-view {
+    color: #3b82f6;
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
 .btn-action.btn-view:hover {
     border-color: #3b82f6;
     color: #3b82f6;
@@ -10560,16 +10751,119 @@ body {
 }
 
 /* Export button styling */
+.btn-action.btn-export {
+    color: #3b82f6;
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
 .btn-action.btn-export:hover {
-    border-color: #10b981;
-    color: #10b981;
-    background: rgba(16, 185, 129, 0.1);
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
 }
 
 /* Action buttons container */
 .datatable-actions {
-    min-width: 120px;
-    justify-content: flex-end;
+    min-width: auto;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+/* Button action labels - Always visible for text buttons */
+.btn-action-label {
+    font-size: 0.875rem;
+    margin-left: 0.375rem;
+    white-space: nowrap;
+    display: inline;
+    opacity: 1;
+}
+
+/* Allow buttons to expand to show text when they have inline-flex class */
+.btn-action.inline-flex {
+    border-radius: 0.5rem !important;
+    padding: 0.5rem 0.75rem !important;
+    width: auto !important;
+    min-width: auto !important;
+    height: auto !important;
+    min-height: auto !important;
+}
+
+.btn-action.inline-flex i {
+    margin-right: 0;
+    font-size: 0.875rem;
+}
+
+/* Button states */
+.btn-action.processing {
+    cursor: wait;
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.btn-action.processing i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.btn-action.success {
+    background: rgba(16, 185, 129, 0.2) !important;
+    border-color: #10b981 !important;
+    color: #10b981 !important;
+}
+
+.btn-action.error {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+}
+
+/* Responsive: Adjust button sizes on smaller screens */
+@media (max-width: 768px) {
+    .btn-action-label {
+        display: none !important;
+    }
+    
+    .datatable-actions {
+        min-width: auto;
+        gap: 0.375rem;
+    }
+    
+    .btn-action {
+        width: 2rem;
+        height: 2rem;
+        min-width: 2rem;
+        min-height: 2rem;
+    }
+    
+    .btn-action i {
+        font-size: 0.75rem;
+    }
+}
+
+/* Tooltip support */
+.btn-action[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.25rem 0.5rem;
+    background: var(--dark-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 0.25rem;
+    pointer-events: none;
 }
 
 /* DataTables Controls */

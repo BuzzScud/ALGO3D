@@ -6,6 +6,7 @@ const DataPageModule = (function() {
     let dataTable = null;
     let allProjections = [];
     let selectedFile = null;
+    let isInitializing = false; // Flag to prevent concurrent initializations
     
     /**
      * Initialize DataTables
@@ -67,12 +68,24 @@ const DataPageModule = (function() {
                         data: 'projection_data',
                         render: function(data, type, row) {
                             try {
-                                const projData = typeof data === 'string' ? JSON.parse(data) : data;
-                                if (projData && projData.type === 'image') {
+                                if (!data) return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
+                                
+                                // Handle both string and object formats
+                                const projData = typeof data === 'string' 
+                                    ? (data.trim() ? JSON.parse(data) : null)
+                                    : data;
+                                
+                                if (!projData) return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
+                                
+                                if (projData.type === 'image') {
                                     return `<span class="text-gray-600 dark:text-neutral-400"><i class="fas fa-image"></i> PNG</span>`;
                                 }
-                                return `<span class="text-gray-600 dark:text-neutral-400">${projData?.interval || '--'}</span>`;
+                                
+                                // Try to get interval from various possible locations
+                                const interval = projData.interval || projData.timeframe || '--';
+                                return `<span class="text-gray-600 dark:text-neutral-400">${interval}</span>`;
                             } catch (e) {
+                                console.warn('Error rendering projection_data:', e, data);
                                 return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
                             }
                         }
@@ -81,9 +94,18 @@ const DataPageModule = (function() {
                         data: 'params',
                         render: function(data, type, row) {
                             try {
-                                const params = typeof data === 'string' ? JSON.parse(data) : data;
-                                return `<span class="text-gray-600 dark:text-neutral-400">${params?.steps || '--'}</span>`;
+                                if (!data) return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
+                                
+                                // Handle both string and object formats
+                                const params = typeof data === 'string' 
+                                    ? (data.trim() ? JSON.parse(data) : null)
+                                    : data;
+                                
+                                if (!params) return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
+                                
+                                return `<span class="text-gray-600 dark:text-neutral-400">${params.steps || '--'}</span>`;
                             } catch (e) {
+                                console.warn('Error rendering params:', e, data);
                                 return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
                             }
                         }
@@ -91,34 +113,48 @@ const DataPageModule = (function() {
                     {
                         data: null,
                         orderable: false,
+                        className: 'text-center',
                         render: function(data, type, row) {
                             const rowId = row.id || '';
+                            const symbol = escapeHtml(row.symbol || 'projection');
+                            const title = escapeHtml(row.title || `${row.symbol || 'Untitled'} Projection`);
                             return `
-                                <div class="datatable-actions flex justify-end gap-2">
+                                <div class="datatable-actions flex justify-center items-center gap-2" data-row-id="${rowId}">
                                     <button type="button" 
-                                            class="btn-action btn-view" 
+                                            class="btn-action btn-view action-btn" 
                                             data-id="${rowId}" 
                                             data-action="view"
-                                            title="View Projection"
-                                            aria-label="View Projection">
+                                            data-symbol="${symbol}"
+                                            data-title="${title}"
+                                            title="View ${title}"
+                                            aria-label="View Projection: ${title}"
+                                            data-tooltip="View Projection">
                                         <i class="fas fa-eye"></i>
+                                        <span class="btn-action-label">View</span>
                                     </button>
                                     <button type="button" 
-                                            class="btn-action btn-export" 
+                                            class="btn-action btn-export action-btn" 
                                             data-id="${rowId}" 
                                             data-action="export"
-                                            title="Export Projection"
-                                            aria-label="Export Projection">
+                                            data-symbol="${symbol}"
+                                            data-title="${title}"
+                                            title="Export ${title}"
+                                            aria-label="Export Projection: ${title}"
+                                            data-tooltip="Export Projection">
                                         <i class="fas fa-download"></i>
+                                        <span class="btn-action-label">Export</span>
                                     </button>
                                     <button type="button" 
-                                            class="btn-action btn-delete delete-projection-btn" 
+                                            class="btn-action btn-delete delete-projection-btn action-btn" 
                                             data-id="${rowId}" 
                                             data-action="delete"
-                                            data-symbol="${escapeHtml(row.symbol || 'projection')}"
-                                            title="Delete Projection"
-                                            aria-label="Delete Projection">
+                                            data-symbol="${symbol}"
+                                            data-title="${title}"
+                                            title="Delete ${title}"
+                                            aria-label="Delete Projection: ${title}"
+                                            data-tooltip="Delete Projection">
                                         <i class="fas fa-trash-alt"></i>
+                                        <span class="btn-action-label">Delete</span>
                                     </button>
                                 </div>
                             `;
@@ -141,8 +177,12 @@ const DataPageModule = (function() {
                     }
                 },
                 dom: '<"flex flex-wrap items-center justify-between gap-2"<"flex items-center gap-2"l><"flex items-center gap-2"f>>rt<"flex flex-wrap items-center justify-between gap-2"<"flex items-center gap-2"i><"flex items-center gap-2"p>>',
-                drawCallback: function() {
+                drawCallback: function(settings) {
+                    console.log('DataTable drawCallback - visible rows:', this.api().rows({page: 'current'}).count());
                     attachActionListeners();
+                },
+                initComplete: function(settings, json) {
+                    console.log('DataTable initialized');
                 }
             });
             
@@ -178,43 +218,303 @@ const DataPageModule = (function() {
         if (errorEl) errorEl.style.display = 'none';
         
         try {
+            console.log('Loading projections from API...');
             const response = await fetch('api/projections.php');
+            
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API response error:', response.status, errorText);
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             const result = await response.json();
+            console.log('API response:', result);
+            
+            if (!result) {
+                throw new Error('Invalid response from server');
+            }
             
             if (result.success && result.projections) {
                 allProjections = result.projections;
+                console.log(`✓ Loaded ${allProjections.length} projections from API`);
                 
-                // Update DataTable safely
+                // Prepare data for DataTable - ensure all fields are properly formatted
+                const tableData = allProjections.map(proj => {
+                    return {
+                        id: proj.id || null,
+                        symbol: proj.symbol || 'N/A',
+                        title: proj.title || 'Untitled Projection',
+                        saved_at: proj.saved_at || new Date().toISOString(),
+                        projection_data: proj.projection_data || null,
+                        chart_data: proj.chart_data || null,
+                        params: proj.params || null,
+                        notes: proj.notes || null
+                    };
+                });
+                
+                console.log('✓ Prepared', tableData.length, 'rows for DataTable');
+                console.log('Sample row data:', JSON.stringify(tableData[0], null, 2));
+                
+                // Prevent concurrent initializations
+                if (isInitializing) {
+                    console.log('DataTable initialization already in progress, skipping...');
+                    return;
+                }
+                
+                isInitializing = true;
+                
                 try {
+                    // Destroy and recreate DataTable with new data
+                    const tableElement = document.getElementById('hs-datatable');
+                    if (!tableElement) {
+                        throw new Error('Table element not found');
+                    }
+                    
+                    // Check if DataTable is available
+                    if (typeof $.fn.DataTable === 'undefined') {
+                        throw new Error('DataTables library is not loaded');
+                    }
+                    
+                    // Properly destroy existing DataTable if it exists
                     if (dataTable) {
-                        dataTable.clear();
-                        if (allProjections.length > 0) {
-                            dataTable.rows.add(allProjections);
+                        try {
+                            console.log('Destroying existing DataTable instance...');
+                            dataTable.destroy();
+                            dataTable = null;
+                        } catch (destroyError) {
+                            console.warn('Error destroying DataTable instance:', destroyError);
+                            dataTable = null;
                         }
-                        dataTable.draw();
-                    } else {
-                        // Initialize DataTable if not already initialized
-                        initDataTable();
-                        if (dataTable) {
-                            dataTable.clear();
-                            if (allProjections.length > 0) {
-                                dataTable.rows.add(allProjections);
+                    }
+                    
+                    // Also check if jQuery has a DataTable on this element (prevents reinitialization error)
+                    if ($.fn.DataTable.isDataTable(tableElement)) {
+                        try {
+                            console.log('Destroying jQuery DataTable on element...');
+                            $(tableElement).DataTable().destroy();
+                        } catch (jqError) {
+                            console.warn('Error destroying jQuery DataTable:', jqError);
+                        }
+                    }
+                    
+                    // Clear the table HTML to ensure clean state
+                    $(tableElement).empty();
+                    
+                    // Small delay to ensure cleanup completes
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                    
+                    // Double-check that no DataTable exists before creating new one
+                    if ($.fn.DataTable.isDataTable(tableElement)) {
+                        console.warn('DataTable still exists after destruction, forcing cleanup...');
+                        try {
+                            $(tableElement).DataTable().destroy();
+                            $(tableElement).empty();
+                            await new Promise(resolve => setTimeout(resolve, 50));
+                        } catch (forceError) {
+                            console.error('Force cleanup failed:', forceError);
+                            // Try to remove the table element and recreate it
+                            const parent = tableElement.parentNode;
+                            const newTable = tableElement.cloneNode(false);
+                            parent.replaceChild(newTable, tableElement);
+                            // Update reference
+                            const updatedElement = document.getElementById('hs-datatable');
+                            if (updatedElement) {
+                                Object.assign(tableElement, updatedElement);
                             }
-                            dataTable.draw();
                         }
                     }
-                } catch (tableError) {
-                    console.error('Error updating DataTable:', tableError);
-                    // Try to reinitialize
-                    try {
-                        initDataTable();
-                    } catch (initError) {
-                        console.error('Error reinitializing DataTable:', initError);
-                    }
+                    
+                    // Reinitialize DataTable with the data
+                    console.log('Initializing DataTable with', tableData.length, 'rows...');
+                    
+                    // Initialize with data directly
+                    dataTable = $(tableElement).DataTable({
+                        data: tableData, // Use data option directly instead of rows.add()
+                        columns: [
+                            {
+                                data: 'symbol',
+                                render: function(data, type, row) {
+                                    return `<span class="font-semibold text-primary">${data || 'N/A'}</span>`;
+                                }
+                            },
+                            {
+                                data: 'title',
+                                render: function(data, type, row) {
+                                    const title = data || `${row.symbol || 'Untitled'} Projection`;
+                                    return `<span class="text-gray-900 dark:text-neutral-200">${title}</span>`;
+                                }
+                            },
+                            {
+                                data: 'saved_at',
+                                render: function(data, type, row) {
+                                    if (!data) return '--';
+                                    try {
+                                        const date = new Date(data);
+                                        const formatted = date.toLocaleDateString('en-US', {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        });
+                                        return `<span class="text-gray-600 dark:text-neutral-400">${formatted}</span>`;
+                                    } catch (e) {
+                                        return `<span class="text-gray-600 dark:text-neutral-400">${data}</span>`;
+                                    }
+                                }
+                            },
+                            {
+                                data: 'projection_data',
+                                render: function(data, type, row) {
+                                    try {
+                                        if (!data) return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
+                                        
+                                        const projData = typeof data === 'string' 
+                                            ? (data.trim() ? JSON.parse(data) : null)
+                                            : data;
+                                        
+                                        if (!projData) return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
+                                        
+                                        if (projData.type === 'image') {
+                                            return `<span class="text-gray-600 dark:text-neutral-400"><i class="fas fa-image"></i> PNG</span>`;
+                                        }
+                                        
+                                        const interval = projData.interval || projData.timeframe || '--';
+                                        return `<span class="text-gray-600 dark:text-neutral-400">${interval}</span>`;
+                                    } catch (e) {
+                                        console.warn('Error rendering projection_data:', e);
+                                        return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
+                                    }
+                                }
+                            },
+                            {
+                                data: 'params',
+                                render: function(data, type, row) {
+                                    try {
+                                        if (!data) return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
+                                        
+                                        const params = typeof data === 'string' 
+                                            ? (data.trim() ? JSON.parse(data) : null)
+                                            : data;
+                                        
+                                        if (!params) return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
+                                        
+                                        return `<span class="text-gray-600 dark:text-neutral-400">${params.steps || '--'}</span>`;
+                                    } catch (e) {
+                                        console.warn('Error rendering params:', e);
+                                        return '<span class="text-gray-600 dark:text-neutral-400">--</span>';
+                                    }
+                                }
+                            },
+                            {
+                                data: null,
+                                orderable: false,
+                                className: 'text-end',
+                                render: function(data, type, row) {
+                                    const rowId = row.id || '';
+                                    const symbol = escapeHtml(row.symbol || 'projection');
+                                    const title = escapeHtml(row.title || `${row.symbol || 'Untitled'} Projection`);
+                                    return `
+                                        <div class="p-3 whitespace-nowrap text-end text-sm font-medium inline-flex items-center gap-x-2" data-row-id="${rowId}">
+                                            <button type="button" 
+                                                    class="btn-action btn-view action-btn inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent text-blue-600 hover:text-blue-800 focus:outline-hidden focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400" 
+                                                    data-id="${rowId}" 
+                                                    data-action="view"
+                                                    data-symbol="${symbol}"
+                                                    data-title="${title}"
+                                                    title="View ${title}"
+                                                    aria-label="View Projection: ${title}">
+                                                <i class="fas fa-eye"></i>
+                                                View
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn-action btn-export action-btn inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent text-blue-600 hover:text-blue-800 focus:outline-hidden focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400" 
+                                                    data-id="${rowId}" 
+                                                    data-action="export"
+                                                    data-symbol="${symbol}"
+                                                    data-title="${title}"
+                                                    title="Export ${title}"
+                                                    aria-label="Export Projection: ${title}">
+                                                <i class="fas fa-download"></i>
+                                                Export
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn-action btn-delete delete-projection-btn action-btn inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent text-blue-600 hover:text-blue-800 focus:outline-hidden focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400" 
+                                                    data-id="${rowId}" 
+                                                    data-action="delete"
+                                                    data-symbol="${symbol}"
+                                                    data-title="${title}"
+                                                    title="Delete ${title}"
+                                                    aria-label="Delete Projection: ${title}">
+                                                <i class="fas fa-trash-alt"></i>
+                                                Delete
+                                            </button>
+                                        </div>
+                                    `;
+                                }
+                            }
+                        ],
+                        order: [[2, 'desc']], // Sort by saved_at descending
+                        pageLength: 10,
+                        responsive: true,
+                        language: {
+                            search: '',
+                            searchPlaceholder: 'Search projections...',
+                            lengthMenu: 'Show _MENU_ entries',
+                            info: 'Showing _START_ to _END_ of _TOTAL_ entries',
+                            infoEmpty: 'No entries found',
+                            infoFiltered: '(filtered from _MAX_ total entries)',
+                            paginate: {
+                                previous: '<i class="fas fa-chevron-left"></i>',
+                                next: '<i class="fas fa-chevron-right"></i>'
+                            }
+                        },
+                        dom: 'rt', // Remove default controls, we use Preline structure
+                        drawCallback: function(settings) {
+                            const api = this.api();
+                            const visibleRows = api.rows({page: 'current'}).count();
+                            console.log('DataTable drawCallback - visible rows:', visibleRows);
+                            attachActionListeners();
+                        },
+                        initComplete: function(settings, json) {
+                            // json parameter may not have .data when using data option directly
+                            const rowCount = this.api().rows().count();
+                            console.log('✓ DataTable initialized successfully with', rowCount, 'rows');
+                            
+                            // Connect Preline search input to DataTables
+                            const searchInput = document.getElementById('hs-table-destroy-and-reinitialize-search');
+                            if (searchInput) {
+                                // Remove any existing listeners
+                                const newSearchInput = searchInput.cloneNode(true);
+                                searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+                                
+                                // Add new listener
+                                newSearchInput.addEventListener('keyup', function() {
+                                    dataTable.search(this.value).draw();
+                                });
+                                
+                                // Add support for Cmd+A / Ctrl+A
+                                newSearchInput.addEventListener('keydown', function (evt) {
+                                    if ((evt.metaKey || evt.ctrlKey) && evt.key === 'a') {
+                                        this.select();
+                                    }
+                                });
+                            }
+                        }
+                    });
+                    
+                    console.log('✓ DataTable created successfully');
+                    const finalRowCount = dataTable.rows().count();
+                    console.log('✓ Final row count:', finalRowCount);
+                    
+                } catch (initError) {
+                    console.error('❌ Error initializing DataTable:', initError);
+                    console.error('Init error stack:', initError.stack);
+                    showDataTableError(new Error('Failed to initialize data table: ' + initError.message));
+                    throw initError;
+                } finally {
+                    // Always reset the flag to allow future initializations
+                    isInitializing = false;
                 }
                 
                 // Update 3D visualization safely
@@ -227,18 +527,52 @@ const DataPageModule = (function() {
                     // Non-critical, continue
                 }
             } else {
+                console.log('No projections found or API returned error:', result);
                 allProjections = [];
                 if (dataTable) {
                     dataTable.clear();
                     dataTable.draw();
                 }
                 update3DVisualization(0);
+                
+                // Show message if there's an error
+                if (result && !result.success && result.message) {
+                    showDataTableError(new Error(result.message));
+                }
             }
         } catch (error) {
             console.error('Error loading projections:', error);
+            console.error('Error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
             showDataTableError(error);
         } finally {
             if (loadingEl) loadingEl.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Safe reload projections - prevents crashes (DEPRECATED - not used in delete flow)
+     * Kept for backward compatibility but delete now uses direct row removal
+     */
+    async function safeReloadProjections() {
+        // Prevent concurrent reloads
+        if (isInitializing) {
+            console.log('Reload already in progress, skipping...');
+            return;
+        }
+        
+        try {
+            console.log('Starting safe reload...');
+            await loadProjections();
+            console.log('✓ Safe reload completed');
+        } catch (reloadError) {
+            console.error('Error in safe reload:', reloadError);
+            // Don't throw - just log the error
+            // User can manually refresh if needed
+            throw new Error('Load failed'); // This is caught and handled by caller
         }
     }
     
@@ -266,6 +600,7 @@ const DataPageModule = (function() {
     
     /**
      * Attach action button listeners using event delegation for reliability
+     * Enhanced with loading states, error handling, and visual feedback
      */
     function attachActionListeners() {
         // Remove existing listeners to prevent duplicates
@@ -280,56 +615,299 @@ const DataPageModule = (function() {
         const newTableBody = tableBody.cloneNode(true);
         tableBody.parentNode.replaceChild(newTableBody, tableBody);
         
-        // Attach event delegation on the new table body
-        newTableBody.addEventListener('click', function(e) {
-            const btn = e.target.closest('.btn-action');
-            if (!btn) return;
-            
-            e.stopPropagation();
-            e.preventDefault();
-            
-            const action = btn.dataset.action;
-            const idStr = btn.dataset.id;
-            
-            if (!idStr || idStr === 'undefined' || idStr === 'null') {
-                console.error('Invalid ID for action:', action, idStr);
-                return;
-            }
-            
-            const id = parseInt(idStr, 10);
-            if (isNaN(id) || id <= 0) {
-                console.error('Invalid ID parsed:', idStr, id);
-                showErrorModal('Invalid projection ID');
-                return;
-            }
-            
-            switch (action) {
-                case 'view':
-                    viewProjection(id);
-                    break;
-                case 'export':
-                    exportProjection(id);
-                    break;
-                case 'delete':
-                    const symbol = btn.dataset.symbol || 'this projection';
-                    deleteProjectionWithConfirmation(id, symbol);
-                    break;
-                default:
-                    console.warn('Unknown action:', action);
+        // Attach event delegation on the new table body - REDESIGNED for crash prevention
+        newTableBody.addEventListener('click', async function(e) {
+            // Wrap everything in try-catch to prevent crashes
+            try {
+                // Find the button - try multiple strategies for reliability
+                let btn = e.target.closest('.action-btn');
+                
+                // If closest didn't work, try finding parent button
+                if (!btn && (e.target.closest('button') || e.target.tagName === 'BUTTON')) {
+                    const button = e.target.closest('button') || e.target;
+                    if (button && button.classList.contains('action-btn')) {
+                        btn = button;
+                    }
+                }
+                
+                // Also check if target itself is a button with action-btn class
+                if (!btn && e.target.classList && e.target.classList.contains('action-btn')) {
+                    btn = e.target;
+                }
+                
+                // Also check for delete-projection-btn class specifically
+                if (!btn) {
+                    btn = e.target.closest('.delete-projection-btn') || 
+                          e.target.closest('.btn-delete') ||
+                          e.target.closest('.btn-view') ||
+                          e.target.closest('.btn-export');
+                }
+                
+                if (!btn) {
+                    // Not an action button, ignore
+                    console.log('No action button found for click target:', e.target);
+                    return;
+                }
+                
+                // Log for debugging
+                console.log('Action button found:', btn, 'Action:', btn.dataset.action, 'ID:', btn.dataset.id);
+                
+                // Check if button is disabled or processing
+                if (btn.disabled || btn.classList.contains('processing')) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return;
+                }
+                
+                e.stopPropagation();
+                e.preventDefault();
+                
+                const action = btn.dataset.action;
+                const idStr = btn.dataset.id;
+                
+                // Validate ID
+                if (!idStr || idStr === 'undefined' || idStr === 'null' || idStr === '') {
+                    console.error('Invalid ID for action:', action, idStr);
+                    showErrorModal('Invalid projection ID. Please refresh the page and try again.');
+                    return;
+                }
+                
+                const id = parseInt(idStr, 10);
+                if (isNaN(id) || id <= 0) {
+                    console.error('Invalid ID parsed:', idStr, id);
+                    showErrorModal('Invalid projection ID. Please refresh the page and try again.');
+                    return;
+                }
+                
+                // Set button to processing state (only if button still exists)
+                if (btn && document.body.contains(btn)) {
+                    setButtonProcessing(btn, true);
+                }
+                
+                // Handle action based on type
+                switch (action) {
+                    case 'view':
+                        try {
+                            await handleViewAction(id, btn);
+                        } catch (error) {
+                            console.error('Error in view action:', error);
+                            showErrorModal('Failed to view projection: ' + (error.message || 'Unknown error'));
+                            if (btn && document.body.contains(btn)) {
+                                setButtonError(btn);
+                                setTimeout(() => {
+                                    if (btn && document.body.contains(btn)) {
+                                        setButtonProcessing(btn, false);
+                                    }
+                                }, 2000);
+                            }
+                        }
+                        break;
+                        
+                    case 'export':
+                        try {
+                            await handleExportAction(id, btn);
+                        } catch (error) {
+                            console.error('Error in export action:', error);
+                            showErrorModal('Failed to export projection: ' + (error.message || 'Unknown error'));
+                            if (btn && document.body.contains(btn)) {
+                                setButtonError(btn);
+                                setTimeout(() => {
+                                    if (btn && document.body.contains(btn)) {
+                                        setButtonProcessing(btn, false);
+                                    }
+                                }, 2000);
+                            }
+                        }
+                        break;
+                        
+                    case 'delete':
+                        // Delete action handles its own errors and button state
+                        const symbol = btn.dataset.symbol || 'this projection';
+                        await handleDeleteAction(id, symbol, btn);
+                        // Don't reset button state here - delete handles it
+                        break;
+                        
+                    default:
+                        console.warn('Unknown action:', action);
+                        showErrorModal('Unknown action. Please refresh the page.');
+                        if (btn && document.body.contains(btn)) {
+                            setButtonProcessing(btn, false);
+                        }
+                }
+            } catch (error) {
+                // Catch any unexpected errors to prevent crashes
+                console.error('❌ Unexpected error in action handler:', error);
+                console.error('Error stack:', error.stack);
+                showErrorModal('An unexpected error occurred. Please refresh the page and try again.');
             }
         });
     }
     
     /**
-     * Delete projection with confirmation dialog
+     * Set button to processing state
      */
-    function deleteProjectionWithConfirmation(id, symbol) {
-        // Create a more user-friendly confirmation dialog
-        if (!confirm(`Are you sure you want to delete ${symbol}? This action cannot be undone.`)) {
+    function setButtonProcessing(btn, isProcessing) {
+        if (!btn) return;
+        
+        if (isProcessing) {
+            btn.disabled = true;
+            btn.classList.add('processing');
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = 'fas fa-spinner fa-spin';
+            }
+        } else {
+            btn.disabled = false;
+            btn.classList.remove('processing', 'success', 'error');
+            // Restore original icon
+            const action = btn.dataset.action;
+            const icon = btn.querySelector('i');
+            if (icon) {
+                switch (action) {
+                    case 'view':
+                        icon.className = 'fas fa-eye';
+                        break;
+                    case 'export':
+                        icon.className = 'fas fa-download';
+                        break;
+                    case 'delete':
+                        icon.className = 'fas fa-trash-alt';
+                        break;
+                }
+            }
+        }
+    }
+    
+    /**
+     * Set button to success state
+     */
+    function setButtonSuccess(btn) {
+        if (!btn) return;
+        btn.classList.add('success');
+        const icon = btn.querySelector('i');
+        if (icon) {
+            icon.className = 'fas fa-check';
+        }
+    }
+    
+    /**
+     * Set button to error state
+     */
+    function setButtonError(btn) {
+        if (!btn) return;
+        btn.classList.add('error');
+        const icon = btn.querySelector('i');
+        if (icon) {
+            icon.className = 'fas fa-exclamation-triangle';
+        }
+    }
+    
+    /**
+     * Handle view action with error handling
+     */
+    async function handleViewAction(id, btn) {
+        try {
+            const projection = allProjections.find(p => p.id === id);
+            if (!projection) {
+                throw new Error('Projection not found in local data');
+            }
+            viewProjection(id);
+            setButtonSuccess(btn);
+        } catch (error) {
+            console.error('Error in handleViewAction:', error);
+            throw error;
+        }
+    }
+    
+    /**
+     * Handle export action with error handling
+     */
+    async function handleExportAction(id, btn) {
+        try {
+            const projection = allProjections.find(p => p.id === id);
+            if (!projection) {
+                throw new Error('Projection not found in local data');
+            }
+            exportProjection(id);
+            setButtonSuccess(btn);
+            // Show notification
+            if (typeof showNotification === 'function') {
+                showNotification('Projection exported successfully', 'success');
+            }
+        } catch (error) {
+            console.error('Error in handleExportAction:', error);
+            throw error;
+        }
+    }
+    
+    /**
+     * Handle delete action with error handling - COMPLETELY REDESIGNED FOR CRASH PREVENTION
+     */
+    async function handleDeleteAction(id, symbol, btn) {
+        // Validate inputs
+        if (!id || !symbol || !btn) {
+            console.error('Invalid parameters for delete action:', {id, symbol, btn: !!btn});
+            showErrorModal('Invalid delete request. Please refresh the page and try again.');
             return;
         }
-        deleteProjection(id);
+        
+        // Show confirmation dialog with error handling
+        let confirmed = false;
+        try {
+            confirmed = confirm(`Are you sure you want to delete "${symbol}"? This action cannot be undone.`);
+        } catch (confirmError) {
+            console.error('Error showing confirmation:', confirmError);
+            if (btn && document.body.contains(btn)) {
+                setButtonProcessing(btn, false);
+            }
+            return;
+        }
+        
+        if (!confirmed) {
+            // User cancelled - reset button state
+            if (btn && document.body.contains(btn)) {
+                setButtonProcessing(btn, false);
+            }
+            return;
+        }
+        
+        // Set button to processing state
+        if (btn && document.body.contains(btn)) {
+            setButtonProcessing(btn, true);
+        }
+        
+        try {
+            // Call delete function - wrapped in try-catch for safety
+            await deleteProjection(id);
+            
+            // Success - button will be recreated when table updates
+            // Don't try to update button state here
+            
+        } catch (error) {
+            console.error('❌ Error in handleDeleteAction:', error);
+            console.error('Error stack:', error.stack);
+            
+            // Reset button state on error
+            if (btn && document.body.contains(btn)) {
+                setButtonProcessing(btn, false);
+                setButtonError(btn);
+                
+                // Reset error state after 2 seconds
+                setTimeout(() => {
+                    if (btn && document.body.contains(btn)) {
+                        setButtonProcessing(btn, false);
+                    }
+                }, 2000);
+            }
+            
+            // Show error message if not already shown
+            const errorMsg = error.message || 'Unknown error occurred';
+            if (!errorMsg.includes('already shown')) {
+                showErrorModal('Failed to delete projection: ' + errorMsg);
+            }
+        }
     }
+    
     
     /**
      * View projection in modal preview
@@ -671,68 +1249,114 @@ const DataPageModule = (function() {
                 return;
             }
             
-            // Success - update UI directly (don't reload from server to avoid "Load failed" errors)
-            console.log('Delete successful, updating UI directly...');
+            // Success - deletion completed successfully
+            console.log('✓ Delete successful on server');
             
-            // Remove from local array (numId already defined above)
-            allProjections = allProjections.filter(p => {
-                const pId = typeof p.id === 'string' ? parseInt(p.id, 10) : p.id;
-                return pId !== numId;
-            });
-            
-            // Update DataTable directly
-            try {
-                if (dataTable) {
-                    // Clear and reload with updated data
-                    dataTable.clear();
-                    if (allProjections.length > 0) {
-                        dataTable.rows.add(allProjections);
-                    }
-                    dataTable.draw(false); // Don't reset pagination
-                }
-            } catch (tableError) {
-                console.error('Error updating DataTable:', tableError);
-                // If table update fails, try a simple page reload approach
-                // Don't call loadProjections() as it might cause "Load failed" error
-                showErrorModal('Projection deleted successfully. Refreshing table...');
-                // Use setTimeout to avoid blocking
-                setTimeout(() => {
-                    try {
-                        if (dataTable) {
-                            dataTable.clear();
-                            if (allProjections.length > 0) {
-                                dataTable.rows.add(allProjections);
-                            }
-                            dataTable.draw();
-                        }
-                    } catch (retryError) {
-                        console.error('Retry update failed:', retryError);
-                    }
-                }, 100);
-            }
-            
-            // Update 3D visualization safely
-            try {
-                if (typeof update3DVisualization === 'function') {
-                    update3DVisualization(allProjections.length);
-                }
-            } catch (vizError) {
-                console.error('Error updating 3D visualization:', vizError);
-                // Non-critical, continue
-            }
-            
-            // Show success notification
+            // Show success notification immediately
             try {
                 if (typeof showNotification === 'function') {
                     showNotification('Projection deleted successfully', 'success');
                 }
             } catch (notifError) {
                 console.error('Error showing notification:', notifError);
-                // Non-critical, continue
             }
             
+            // Update local array
+            allProjections = allProjections.filter(p => {
+                const pId = typeof p.id === 'string' ? parseInt(p.id, 10) : p.id;
+                return pId !== numId;
+            });
+            
+            // Update DataTable by removing the row directly - COMPLETELY REDESIGNED FOR CRASH PREVENTION
+            try {
+                if (dataTable && typeof dataTable.row === 'function' && typeof dataTable.rows === 'function') {
+                    // Use DataTable API to find and remove the row
+                    let rowRemoved = false;
+                    
+                    // Method 1: Try using rows().every() to find and remove
+                    try {
+                        dataTable.rows().every(function(rowIdx, tableLoop, rowLoop) {
+                            const rowData = this.data();
+                            if (rowData && rowData.id !== undefined) {
+                                const rowId = typeof rowData.id === 'string' ? parseInt(rowData.id, 10) : rowData.id;
+                                if (rowId === numId) {
+                                    // Found the row - remove it
+                                    this.remove();
+                                    rowRemoved = true;
+                                    return false; // Stop iteration
+                                }
+                            }
+                            return true; // Continue iteration
+                        });
+                    } catch (everyError) {
+                        console.warn('Error using rows().every():', everyError);
+                        // Try alternative method
+                    }
+                    
+                    // Method 2: If Method 1 didn't work, try searching all rows
+                    if (!rowRemoved) {
+                        try {
+                            const allRows = dataTable.rows().nodes();
+                            for (let i = 0; i < allRows.length; i++) {
+                                const rowNode = allRows[i];
+                                const rowData = dataTable.row(rowNode).data();
+                                if (rowData && rowData.id !== undefined) {
+                                    const rowId = typeof rowData.id === 'string' ? parseInt(rowData.id, 10) : rowData.id;
+                                    if (rowId === numId) {
+                                        // Found the row - remove it
+                                        dataTable.row(rowNode).remove();
+                                        rowRemoved = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        } catch (searchError) {
+                            console.warn('Error searching rows:', searchError);
+                        }
+                    }
+                    
+                    if (rowRemoved) {
+                        // Redraw table without resetting pagination
+                        dataTable.draw(false);
+                        console.log('✓ Row removed from DataTable successfully');
+                        
+                        // Reattach action listeners after redraw
+                        setTimeout(() => {
+                            try {
+                                attachActionListeners();
+                            } catch (attachError) {
+                                console.warn('Error reattaching listeners:', attachError);
+                            }
+                        }, 100);
+                    } else {
+                        // Row not found in DataTable - this is OK, just log it
+                        console.log('Row not found in DataTable (may have been removed already)');
+                        // Don't reload - deletion succeeded on server, that's what matters
+                    }
+                } else {
+                    console.log('DataTable not available or invalid - deletion succeeded on server');
+                    // Don't reload - deletion succeeded on server
+                }
+            } catch (tableError) {
+                console.error('Error updating DataTable:', tableError);
+                // Don't throw - deletion succeeded on server, that's what matters
+                // Just log the error and continue
+            }
+            
+            // Update 3D visualization
+            try {
+                if (typeof update3DVisualization === 'function') {
+                    update3DVisualization(allProjections.length);
+                }
+            } catch (vizError) {
+                console.error('Error updating 3D visualization:', vizError);
+            }
+            
+            // Return success
+            return;
+            
         } catch (error) {
-            console.error('Error deleting projection:', error);
+            console.error('❌ Error deleting projection:', error);
             console.error('Error details:', {
                 name: error.name,
                 message: error.message,
@@ -746,6 +1370,9 @@ const DataPageModule = (function() {
                     errorMsg += 'Server connection failed. Please ensure the web server is running at http://localhost:8080';
                 } else if (error.message.includes('HTTP')) {
                     errorMsg += error.message;
+                } else if (error.message.includes('Load failed')) {
+                    // Don't show "Load failed" as part of delete error - deletion might have succeeded
+                    errorMsg = 'Delete operation completed, but there was an issue refreshing the page. Please refresh manually.';
                 } else {
                     errorMsg += error.message;
                 }
@@ -759,6 +1386,9 @@ const DataPageModule = (function() {
                 console.error('Error showing error modal:', modalError);
                 alert(errorMsg); // Fallback to alert if modal fails
             }
+            
+            // Re-throw to be caught by handleDeleteAction
+            throw error;
         }
     }
     
@@ -993,13 +1623,25 @@ const DataPageModule = (function() {
                 if (filePreview) filePreview.style.display = 'none';
                 if (fileActions) fileActions.style.display = 'none';
                 
-                // Reload projections
-                setTimeout(async () => {
+                // Reload projections immediately
+                console.log('Upload successful, reloading projections...');
+                try {
                     await loadProjections();
-                    fileStatus.style.display = 'none';
-                }, 2000);
+                    console.log('Projections reloaded after upload');
+                    
+                    // Show success message with count
+                    const count = allProjections.length;
+                    showNotification(`Projection uploaded successfully! Total: ${count} projection${count !== 1 ? 's' : ''}`, 'success');
+                } catch (reloadError) {
+                    console.error('Error reloading after upload:', reloadError);
+                    // Still show success for upload, but warn about reload
+                    showNotification('Projection uploaded, but failed to refresh table. Please refresh the page.', 'warning');
+                }
                 
-                showNotification('Projection uploaded successfully', 'success');
+                // Hide status after delay
+                setTimeout(() => {
+                    if (fileStatus) fileStatus.style.display = 'none';
+                }, 3000);
             } else {
                 throw new Error(result.message || 'Upload failed');
             }

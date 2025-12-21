@@ -29,6 +29,7 @@ const ProjectionsModule = (function() {
     let refreshInterval = null; // Auto-refresh interval
     let isRefreshing = false; // Prevent concurrent refreshes
     let currentProjectionParams = null; // Store current projection parameters for export
+    let currentProjectionLines = []; // Store current projection lines for CSV export
     // Unified Projection Engine is now the primary method (replaces ensemble)
     
     // Pan state management (similar to charts.js)
@@ -1721,6 +1722,7 @@ const ProjectionsModule = (function() {
             
             // Use validated lines
             projectionLines = validProjectionLines;
+            currentProjectionLines = projectionLines; // Store for CSV export
             console.log(`✓ Using ${projectionLines.length} valid projection lines for chart`);
             
             // Log projection summary with preset info
@@ -1770,7 +1772,9 @@ const ProjectionsModule = (function() {
                 exportBtn.style.display = 'inline-block';
                 exportBtn.disabled = false;
                 // Re-setup export functionality to ensure handler is attached
-                setupExportFunctionality();
+                setTimeout(() => {
+                    setupExportFunctionality();
+                }, 100);
             }
             // Reset zoom button is always visible, no need to show it
             // Metrics sections are now always visible, no need to show them
@@ -2660,8 +2664,10 @@ const ProjectionsModule = (function() {
         // Setup zoom button handlers
         setupZoomControls();
         
-        // Setup export functionality
-        setupExportFunctionality();
+        // Setup export functionality after chart is rendered
+        setTimeout(() => {
+            setupExportFunctionality();
+        }, 200);
         
         // Setup custom pan functionality (like charts.js)
         setupChartPan(projectionChart);
@@ -3090,36 +3096,81 @@ const ProjectionsModule = (function() {
     }
     
     /**
-     * Setup export functionality
+     * Setup export functionality - REDESIGNED for 100% reliability
      */
     function setupExportFunctionality() {
-        const exportBtn = document.getElementById('export-chart-btn');
+        console.log('🔧 Setting up export functionality...');
         
-        if (exportBtn) {
-            // Remove any existing listeners by cloning the button
-            const newBtn = exportBtn.cloneNode(true);
-            exportBtn.parentNode.replaceChild(newBtn, exportBtn);
-            
-            // Get the new button reference
-            const actualBtn = document.getElementById('export-chart-btn');
-            if (actualBtn) {
-                // Add click handler with proper event handling
-                actualBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                    console.log('📥 Export button clicked');
-                    exportChart();
-                    return false;
-                }, true); // Use capture phase to ensure it fires
-                
-                console.log('✅ Export button handler attached');
-            }
-        } else {
-            // If button doesn't exist yet, try again after a short delay
-            console.log('⏳ Export button not found, retrying...');
+        // Find all export buttons (there might be multiple)
+        const exportButtons = document.querySelectorAll('#export-chart-btn');
+        
+        if (exportButtons.length === 0) {
+            console.log('⏳ Export button not found, will retry...');
+            // Retry after a short delay
             setTimeout(setupExportFunctionality, 500);
+            return;
         }
+        
+        console.log(`✓ Found ${exportButtons.length} export button(s)`);
+        
+        // Setup each export button
+        exportButtons.forEach((btn, index) => {
+            // Remove all existing event listeners by cloning
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            // Get the fresh button reference
+            const freshBtn = document.querySelectorAll('#export-chart-btn')[index];
+            
+            if (freshBtn) {
+                // Remove any existing onclick
+                freshBtn.onclick = null;
+                
+                // Add multiple event listeners for maximum compatibility
+                freshBtn.addEventListener('click', handleExportClick, false);
+                freshBtn.onclick = handleExportClick;
+                
+                // Also handle mousedown for better responsiveness
+                freshBtn.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                }, false);
+                
+                console.log(`✅ Export button ${index + 1} handler attached`);
+            }
+        });
+    }
+    
+    /**
+     * Handle export button click - REDESIGNED
+     */
+    function handleExportClick(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        }
+        
+        console.log('📥 Export button clicked');
+        console.log('Chart exists:', !!projectionChart);
+        console.log('Current symbol:', currentSymbol);
+        console.log('exportChart function type:', typeof exportChart);
+        
+        try {
+            // Direct call to showExportModal for maximum reliability
+            if (projectionChart && currentSymbol) {
+                showExportModal();
+            } else if (!projectionChart) {
+                showError('No chart to export. Please load a projection first.');
+            } else if (!currentSymbol) {
+                showError('No symbol data available. Please load a projection first.');
+            }
+        } catch (error) {
+            console.error('❌ Error in handleExportClick:', error);
+            console.error('Error stack:', error.stack);
+            showError('Error opening export dialog: ' + (error.message || 'Unknown error'));
+        }
+        
+        return false;
     }
     
     /**
@@ -3568,12 +3619,167 @@ const ProjectionsModule = (function() {
     }
     
     /**
-     * Export chart as high-quality image
+     * Show export format selection modal
+     */
+    function showExportModal() {
+        console.log('📤 showExportModal() called');
+        
+        if (!projectionChart) {
+            console.error('❌ No chart to export');
+            showError('No chart to export. Please load a projection first.');
+            return;
+        }
+        
+        if (!currentSymbol) {
+            console.error('❌ No symbol data');
+            showError('No symbol data available. Please load a projection first.');
+            return;
+        }
+        
+        // Remove existing modal if present
+        const existingModal = document.getElementById('export-format-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Create export format selection modal
+        const modal = document.createElement('div');
+        modal.id = 'export-format-modal';
+        modal.className = 'export-format-modal';
+        modal.innerHTML = `
+            <div class="export-format-modal-overlay"></div>
+            <div class="export-format-modal-content">
+                <div class="export-format-modal-header">
+                    <h3>
+                        <i class="fas fa-download"></i>
+                        Choose Export Format
+                    </h3>
+                    <button class="export-modal-close" id="close-export-modal" title="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="export-format-modal-body">
+                    <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+                        Select the format you want to export your price projection:
+                    </p>
+                    <div class="export-format-options">
+                        <button class="export-format-option" data-format="png" id="export-png-btn">
+                            <div class="export-format-icon">
+                                <i class="fas fa-image"></i>
+                            </div>
+                            <div class="export-format-info">
+                                <h4>PNG Image</h4>
+                                <p>High-quality chart image with metrics and configuration</p>
+                            </div>
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        <button class="export-format-option" data-format="csv" id="export-csv-btn">
+                            <div class="export-format-icon">
+                                <i class="fas fa-file-csv"></i>
+                            </div>
+                            <div class="export-format-info">
+                                <h4>CSV Data</h4>
+                                <p>Spreadsheet data with historical and projected prices</p>
+                            </div>
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="export-format-modal-footer">
+                    <button class="btn btn-secondary" id="cancel-export-btn">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Show modal with animation
+        setTimeout(() => {
+            modal.classList.add('active');
+        }, 10);
+        
+        // Close button handlers
+        const closeModal = () => {
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.remove();
+            }, 300);
+        };
+        
+        const closeBtn = modal.querySelector('#close-export-modal');
+        const cancelBtn = modal.querySelector('#cancel-export-btn');
+        const overlay = modal.querySelector('.export-format-modal-overlay');
+        
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+        if (overlay) overlay.addEventListener('click', closeModal);
+        
+        // Export button handlers - REDESIGNED for reliability
+        const pngBtn = modal.querySelector('#export-png-btn');
+        const csvBtn = modal.querySelector('#export-csv-btn');
+        
+        if (pngBtn) {
+            // Remove any existing handlers and add fresh one
+            const newPngBtn = pngBtn.cloneNode(true);
+            pngBtn.parentNode.replaceChild(newPngBtn, pngBtn);
+            const freshPngBtn = modal.querySelector('#export-png-btn');
+            
+            if (freshPngBtn) {
+                freshPngBtn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('📥 PNG export selected');
+                    closeModal();
+                    setTimeout(() => {
+                        exportChartAsPNG().catch(err => {
+                            console.error('PNG export error:', err);
+                            showError('Failed to export PNG: ' + (err.message || 'Unknown error'));
+                        });
+                    }, 100);
+                    return false;
+                };
+            }
+        } else {
+            console.error('PNG button not found in modal');
+        }
+        
+        if (csvBtn) {
+            // Remove any existing handlers and add fresh one
+            const newCsvBtn = csvBtn.cloneNode(true);
+            csvBtn.parentNode.replaceChild(newCsvBtn, csvBtn);
+            const freshCsvBtn = modal.querySelector('#export-csv-btn');
+            
+            if (freshCsvBtn) {
+                freshCsvBtn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('📥 CSV export selected');
+                    closeModal();
+                    setTimeout(() => {
+                        exportChartAsCSV().catch(err => {
+                            console.error('CSV export error:', err);
+                            showError('Failed to export CSV: ' + (err.message || 'Unknown error'));
+                        });
+                    }, 100);
+                    return false;
+                };
+            }
+        } else {
+            console.error('CSV button not found in modal');
+        }
+        
+        console.log('✅ Export modal setup complete');
+    }
+    
+    /**
+     * Export chart as high-quality PNG image
      * Supports PNG format with full chart resolution
      * Now includes Last Updated, Price Metrics, Validation Metrics, and Projection Configuration
      */
-    async function exportChart() {
-        console.log('📤 exportChart() called');
+    async function exportChartAsPNG() {
+        console.log('📤 exportChartAsPNG() called');
         console.log('Chart exists:', !!projectionChart);
         console.log('Current symbol:', currentSymbol);
         
@@ -3723,6 +3929,202 @@ const ProjectionsModule = (function() {
                 exportBtn.style.background = '';
             }
         }
+    }
+    
+    /**
+     * Export chart data as CSV file
+     * Includes historical prices and projected prices
+     */
+    async function exportChartAsCSV() {
+        console.log('📤 exportChartAsCSV() called');
+        
+        if (!projectionChart) {
+            console.error('❌ No chart to export');
+            showError('No chart to export. Please load a projection first.');
+            return;
+        }
+        
+        if (!currentSymbol) {
+            console.error('❌ No symbol data');
+            showError('No symbol data available. Please load a projection first.');
+            return;
+        }
+        
+        const exportBtn = document.getElementById('export-chart-btn');
+        const originalHTML = exportBtn ? exportBtn.innerHTML : '';
+        
+        try {
+            // Disable button during export
+            if (exportBtn) {
+                exportBtn.disabled = true;
+                exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+            }
+            
+            // Collect all data points
+            const csvRows = [];
+            
+            // Header row
+            csvRows.push('Date,Time,Historical Price,Projected Price,Projection Type');
+            
+            // Generate projection labels
+            const steps = currentProjectionParams?.steps || 20;
+            const projectionLabels = generateProjectionLabels(steps, currentInterval || '1H', historicalLabels);
+            
+            // Combine historical and projection labels
+            const allLabels = [...(historicalLabels || []), ...projectionLabels];
+            const maxLength = Math.max(
+                historicalPrices.length,
+                currentProjectionLines.length > 0 ? currentProjectionLines[0].points.length : 0
+            );
+            
+            // Process each data point
+            for (let i = 0; i < allLabels.length; i++) {
+                const label = allLabels[i];
+                let historicalPrice = '';
+                let projectedPrice = '';
+                let projectionType = '';
+                
+                // Get historical price if available
+                if (i < historicalPrices.length && historicalPrices[i] !== undefined && historicalPrices[i] !== null) {
+                    historicalPrice = historicalPrices[i].toFixed(2);
+                }
+                
+                // Get projected price from first projection line
+                if (currentProjectionLines.length > 0 && currentProjectionLines[0].points) {
+                    const projectionIndex = i - historicalPrices.length;
+                    if (projectionIndex >= 0 && projectionIndex < currentProjectionLines[0].points.length) {
+                        const price = currentProjectionLines[0].points[projectionIndex];
+                        if (price !== undefined && price !== null && !isNaN(price)) {
+                            projectedPrice = price.toFixed(2);
+                            // Get projection type from line
+                            const line = currentProjectionLines[0];
+                            if (line.triad && Array.isArray(line.triad)) {
+                                projectionType = line.triad.join('-');
+                            } else if (line.label) {
+                                projectionType = line.label;
+                            } else {
+                                projectionType = 'Projection';
+                            }
+                        }
+                    }
+                }
+                
+                // Parse label to separate date and time if possible
+                let date = label || '';
+                let time = '';
+                if (label && label.includes(' ')) {
+                    const parts = label.split(' ');
+                    date = parts[0];
+                    time = parts.slice(1).join(' ');
+                }
+                
+                // Only add row if we have at least one price value
+                if (historicalPrice || projectedPrice) {
+                    csvRows.push(`"${date}","${time}","${historicalPrice}","${projectedPrice}","${projectionType}"`);
+                }
+            }
+            
+            // Add metadata section
+            csvRows.push(''); // Empty row
+            csvRows.push('Metadata');
+            csvRows.push(`Symbol,${currentSymbol}`);
+            csvRows.push(`Interval,${currentInterval || '1H'}`);
+            csvRows.push(`Total Data Points,${allLabels.length}`);
+            csvRows.push(`Historical Points,${historicalPrices.length}`);
+            csvRows.push(`Projection Points,${currentProjectionLines.length > 0 ? currentProjectionLines[0].points.length : 0}`);
+            
+            // Add export data if available
+            const exportData = collectExportData();
+            if (exportData) {
+                csvRows.push('');
+                csvRows.push('Price Metrics');
+                Object.entries(exportData.priceMetrics || {}).forEach(([key, value]) => {
+                    csvRows.push(`${key},${value}`);
+                });
+                
+                csvRows.push('');
+                csvRows.push('Validation Metrics');
+                Object.entries(exportData.validationMetrics || {}).forEach(([key, value]) => {
+                    csvRows.push(`${key},${value}`);
+                });
+                
+                csvRows.push('');
+                csvRows.push('Projection Configuration');
+                Object.entries(exportData.projectionConfig || {}).forEach(([key, value]) => {
+                    csvRows.push(`${key},${value}`);
+                });
+            }
+            
+            // Create CSV content
+            const csvContent = csvRows.join('\n');
+            
+            // Create filename
+            const estNow = getCurrentEST();
+            const dateStr = estNow.toISOString().split('T')[0]; // YYYY-MM-DD
+            const timeStr = estNow.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
+            const symbol = currentSymbol || 'PROJECTION';
+            const interval = currentInterval || '1H';
+            
+            // Format: SYMBOL_INTERVAL_projection_YYYY-MM-DD_HH-MM-SS.csv
+            const filename = `${symbol}_${interval}_projection_${dateStr}_${timeStr}.csv`;
+            
+            console.log('📁 CSV Filename:', filename);
+            console.log('📊 CSV Rows:', csvRows.length);
+            
+            // Create download link
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.style.display = 'none';
+            
+            // Append to body and trigger download
+            document.body.appendChild(link);
+            link.click();
+            
+            // Cleanup
+            setTimeout(() => {
+                if (link.parentNode) {
+                    document.body.removeChild(link);
+                }
+                URL.revokeObjectURL(url);
+            }, 100);
+            
+            // Show success message
+            if (exportBtn) {
+                exportBtn.innerHTML = '<i class="fas fa-check"></i> Exported!';
+                exportBtn.style.background = 'var(--success-color)';
+                
+                setTimeout(() => {
+                    exportBtn.innerHTML = originalHTML;
+                    exportBtn.style.background = '';
+                    exportBtn.disabled = false;
+                }, 2000);
+            }
+            
+            console.log(`✅ Chart exported successfully as CSV: ${filename}`);
+            
+        } catch (error) {
+            console.error('❌ Error exporting CSV:', error);
+            console.error('Error stack:', error.stack);
+            showError(`Failed to export CSV: ${error.message || 'Unknown error'}`);
+            
+            // Reset button on error
+            if (exportBtn) {
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = originalHTML || '<i class="fas fa-download"></i> Export';
+                exportBtn.style.background = '';
+            }
+        }
+    }
+    
+    /**
+     * Export chart - shows modal to choose format
+     */
+    async function exportChart() {
+        console.log('📤 exportChart() called - showing modal');
+        showExportModal();
     }
     
     /**
@@ -4614,9 +5016,10 @@ const ProjectionsModule = (function() {
             });
         }
         
-        // Expose export function globally for debugging
+        // Expose export function globally for debugging and backward compatibility
         window.exportProjectionChart = exportChart;
         console.log('📤 Export function exposed as window.exportProjectionChart()');
+        console.log('📤 Export function type:', typeof exportChart);
         
         if (symbolInput) {
             symbolInput.addEventListener('keypress', (e) => {
