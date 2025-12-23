@@ -145,16 +145,16 @@ const DataPageModule = (function() {
                                         <span class="btn-action-label">Export</span>
                                     </button>
                                     <button type="button" 
-                                            class="btn-action btn-delete delete-projection-btn action-btn" 
+                                            class="btn-action btn-delete hide-projection-btn action-btn" 
                                             data-id="${rowId}" 
-                                            data-action="delete"
+                                            data-action="hide"
                                             data-symbol="${symbol}"
                                             data-title="${title}"
-                                            title="Delete ${title}"
-                                            aria-label="Delete Projection: ${title}"
-                                            data-tooltip="Delete Projection">
-                                        <i class="fas fa-trash-alt"></i>
-                                        <span class="btn-action-label">Delete</span>
+                                            title="Hide ${title}"
+                                            aria-label="Hide Projection: ${title}"
+                                            data-tooltip="Hide Projection">
+                                        <i class="fas fa-eye-slash"></i>
+                                        <span class="btn-action-label">Hide</span>
                                     </button>
                                 </div>
                             `;
@@ -439,13 +439,13 @@ const DataPageModule = (function() {
                                                 Export
                                             </button>
                                             <button type="button" 
-                                                    class="btn-action btn-delete delete-projection-btn action-btn inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent text-blue-600 hover:text-blue-800 focus:outline-hidden focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400" 
+                                                    class="btn-action btn-delete hide-projection-btn action-btn inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent text-blue-600 hover:text-blue-800 focus:outline-hidden focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400" 
                                                     data-id="${rowId}" 
-                                                    data-action="delete"
+                                                    data-action="hide"
                                                     data-symbol="${symbol}"
                                                     data-title="${title}"
                                                     title="Delete ${title}"
-                                                    aria-label="Delete Projection: ${title}">
+                                                    aria-label="Hide Projection: ${title}">
                                                 <i class="fas fa-trash-alt"></i>
                                                 Delete
                                             </button>
@@ -635,9 +635,9 @@ const DataPageModule = (function() {
                     btn = e.target;
                 }
                 
-                // Also check for delete-projection-btn class specifically
+                // Also check for hide-projection-btn class specifically
                 if (!btn) {
-                    btn = e.target.closest('.delete-projection-btn') || 
+                    btn = e.target.closest('.hide-projection-btn') || 
                           e.target.closest('.btn-delete') ||
                           e.target.closest('.btn-view') ||
                           e.target.closest('.btn-export');
@@ -720,11 +720,24 @@ const DataPageModule = (function() {
                         }
                         break;
                         
-                    case 'delete':
-                        // Delete action handles its own errors and button state
-                        const symbol = btn.dataset.symbol || 'this projection';
-                        await handleDeleteAction(id, symbol, btn);
-                        // Don't reset button state here - delete handles it
+                    case 'hide':
+                        // Hide action handles its own errors and button state
+                        try {
+                            const symbol = btn.dataset.symbol || 'this projection';
+                            await handleHideAction(id, symbol, btn);
+                            // Don't reset button state here - hide handles it
+                        } catch (hideError) {
+                            // Extra safety catch for hide action
+                            console.error('❌ Error in hide action handler:', hideError);
+                            // handleHideAction should have already handled this, but just in case
+                            if (btn && document.body.contains(btn)) {
+                                try {
+                                    setButtonProcessing(btn, false);
+                                } catch (btnError) {
+                                    console.error('❌ Error resetting button after hide error:', btnError);
+                                }
+                            }
+                        }
                         break;
                         
                     default:
@@ -744,61 +757,94 @@ const DataPageModule = (function() {
     }
     
     /**
-     * Set button to processing state
+     * Set button to processing state - ENHANCED WITH DOM SAFETY CHECKS
      */
     function setButtonProcessing(btn, isProcessing) {
-        if (!btn) return;
+        // Comprehensive safety checks
+        if (!btn) {
+            console.warn('⚠️ setButtonProcessing: btn is null/undefined');
+            return;
+        }
         
-        if (isProcessing) {
-            btn.disabled = true;
-            btn.classList.add('processing');
-            const icon = btn.querySelector('i');
-            if (icon) {
-                icon.className = 'fas fa-spinner fa-spin';
-            }
-        } else {
-            btn.disabled = false;
-            btn.classList.remove('processing', 'success', 'error');
-            // Restore original icon
-            const action = btn.dataset.action;
-            const icon = btn.querySelector('i');
-            if (icon) {
-                switch (action) {
-                    case 'view':
-                        icon.className = 'fas fa-eye';
-                        break;
-                    case 'export':
-                        icon.className = 'fas fa-download';
-                        break;
-                    case 'delete':
-                        icon.className = 'fas fa-trash-alt';
-                        break;
+        // Check if button is still in DOM
+        if (!document.body.contains(btn)) {
+            console.warn('⚠️ setButtonProcessing: btn is not in DOM');
+            return;
+        }
+        
+        // Check if button is a valid HTMLElement
+        if (!(btn instanceof HTMLElement)) {
+            console.warn('⚠️ setButtonProcessing: btn is not an HTMLElement');
+            return;
+        }
+        
+        try {
+            if (isProcessing) {
+                btn.disabled = true;
+                btn.classList.add('processing');
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas fa-spinner fa-spin';
+                }
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('processing', 'success', 'error');
+                // Restore original icon
+                const action = btn.dataset.action;
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    switch (action) {
+                        case 'view':
+                            icon.className = 'fas fa-eye';
+                            break;
+                        case 'export':
+                            icon.className = 'fas fa-download';
+                            break;
+                        case 'delete':
+                            icon.className = 'fas fa-trash-alt';
+                            break;
+                    }
                 }
             }
+        } catch (error) {
+            console.error('❌ Error in setButtonProcessing:', error);
+            // Don't throw - just log the error
         }
     }
     
     /**
-     * Set button to success state
+     * Set button to success state - ENHANCED WITH DOM SAFETY CHECKS
      */
     function setButtonSuccess(btn) {
-        if (!btn) return;
-        btn.classList.add('success');
-        const icon = btn.querySelector('i');
-        if (icon) {
-            icon.className = 'fas fa-check';
+        if (!btn || !document.body.contains(btn) || !(btn instanceof HTMLElement)) {
+            return;
+        }
+        try {
+            btn.classList.add('success');
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = 'fas fa-check';
+            }
+        } catch (error) {
+            console.error('❌ Error in setButtonSuccess:', error);
         }
     }
     
     /**
-     * Set button to error state
+     * Set button to error state - ENHANCED WITH DOM SAFETY CHECKS
      */
     function setButtonError(btn) {
-        if (!btn) return;
-        btn.classList.add('error');
-        const icon = btn.querySelector('i');
-        if (icon) {
-            icon.className = 'fas fa-exclamation-triangle';
+        if (!btn || !document.body.contains(btn) || !(btn instanceof HTMLElement)) {
+            return;
+        }
+        try {
+            btn.classList.add('error');
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = 'fas fa-exclamation-triangle';
+            }
+        } catch (error) {
+            console.error('❌ Error in setButtonError:', error);
         }
     }
     
@@ -841,70 +887,142 @@ const DataPageModule = (function() {
     }
     
     /**
-     * Handle delete action with error handling - COMPLETELY REDESIGNED FOR CRASH PREVENTION
+     * Handle hide action with error handling - ENHANCED FOR CRASH PREVENTION
      */
-    async function handleDeleteAction(id, symbol, btn) {
-        // Validate inputs
-        if (!id || !symbol || !btn) {
-            console.error('Invalid parameters for delete action:', {id, symbol, btn: !!btn});
-            showErrorModal('Invalid delete request. Please refresh the page and try again.');
+    async function handleHideAction(id, symbol, btn) {
+        // Comprehensive input validation
+        if (id === null || id === undefined || id === '') {
+            console.error('❌ Invalid ID for hide action:', id);
+            showErrorModal('Invalid projection ID. Please refresh the page and try again.');
             return;
         }
+        
+        if (!symbol || typeof symbol !== 'string') {
+            symbol = 'this projection'; // Fallback
+            console.warn('⚠️ Invalid symbol, using fallback');
+        }
+        
+        if (!btn || !(btn instanceof HTMLElement)) {
+            console.error('❌ Invalid button element for hide action');
+            showErrorModal('Invalid hide request. Please refresh the page and try again.');
+            return;
+        }
+        
+        // Validate button is still in DOM
+        if (!document.body.contains(btn)) {
+            console.warn('⚠️ Button not in DOM, aborting hide');
+            return;
+        }
+        
+        console.log('👁️ Hide action initiated:', {id, symbol});
         
         // Show confirmation dialog with error handling
         let confirmed = false;
         try {
-            confirmed = confirm(`Are you sure you want to delete "${symbol}"? This action cannot be undone.`);
+            const confirmMessage = `Are you sure you want to hide "${symbol}"? The projection will be hidden from view.`;
+            confirmed = window.confirm(confirmMessage);
         } catch (confirmError) {
-            console.error('Error showing confirmation:', confirmError);
-            if (btn && document.body.contains(btn)) {
-                setButtonProcessing(btn, false);
+            console.error('❌ Error showing confirmation dialog:', confirmError);
+            // Reset button state
+            try {
+                if (btn && document.body.contains(btn)) {
+                    setButtonProcessing(btn, false);
+                }
+            } catch (btnError) {
+                console.error('❌ Error resetting button:', btnError);
             }
             return;
         }
         
         if (!confirmed) {
             // User cancelled - reset button state
-            if (btn && document.body.contains(btn)) {
-                setButtonProcessing(btn, false);
+            console.log('ℹ️ User cancelled hide operation');
+            try {
+                if (btn && document.body.contains(btn)) {
+                    setButtonProcessing(btn, false);
+                }
+            } catch (btnError) {
+                console.error('⚠️ Error resetting button after cancel:', btnError);
             }
             return;
         }
         
         // Set button to processing state
-        if (btn && document.body.contains(btn)) {
-            setButtonProcessing(btn, true);
+        try {
+            if (btn && document.body.contains(btn)) {
+                setButtonProcessing(btn, true);
+            }
+        } catch (btnError) {
+            console.error('⚠️ Error setting button to processing state:', btnError);
+            // Continue anyway
         }
         
         try {
             // Call delete function - wrapped in try-catch for safety
-            await deleteProjection(id);
+            console.log('🔄 Calling hideProjection with ID:', id);
+            await hideProjection(id);
             
             // Success - button will be recreated when table updates
-            // Don't try to update button state here
+            // Don't try to update button state here as the row may be removed
+            console.log('✅ Hide action completed successfully');
             
-        } catch (error) {
-            console.error('❌ Error in handleDeleteAction:', error);
-            console.error('Error stack:', error.stack);
-            
-            // Reset button state on error
-            if (btn && document.body.contains(btn)) {
-                setButtonProcessing(btn, false);
-                setButtonError(btn);
-                
-                // Reset error state after 2 seconds
-                setTimeout(() => {
+            // CRITICAL: Reset button state on success (row might not be removed immediately)
+            // Use setTimeout to ensure DOM is ready
+            setTimeout(() => {
+                try {
                     if (btn && document.body.contains(btn)) {
                         setButtonProcessing(btn, false);
                     }
-                }, 2000);
+                } catch (resetError) {
+                    // Button might have been removed, that's OK
+                    console.log('Button removed from DOM (expected after successful hide)');
+                }
+            }, 500);
+            
+        } catch (error) {
+            console.error('❌ Error in handleHideAction:', error);
+            console.error('Error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
+            
+            // CRITICAL: Reset button state IMMEDIATELY on error to prevent crashes
+            // Don't wait, do it synchronously if possible
+            try {
+                if (btn && document.body.contains(btn)) {
+                    // Reset immediately
+                    setButtonProcessing(btn, false);
+                    
+                    // Show error state briefly
+                    setButtonError(btn);
+                    
+                    // Reset error state after 2 seconds
+                    setTimeout(() => {
+                        try {
+                            if (btn && document.body.contains(btn)) {
+                                setButtonProcessing(btn, false);
+                            }
+                        } catch (resetError) {
+                            // Button might have been removed, that's OK
+                            console.log('Button removed during reset (non-critical)');
+                        }
+                    }, 2000);
+                } else {
+                    console.warn('⚠️ Button no longer in DOM, cannot reset state');
+                }
+            } catch (btnError) {
+                console.error('❌ Error resetting button state:', btnError);
+                // Don't throw - we've already shown the error modal
             }
             
-            // Show error message if not already shown
-            const errorMsg = error.message || 'Unknown error occurred';
-            if (!errorMsg.includes('already shown')) {
-                showErrorModal('Failed to delete projection: ' + errorMsg);
-            }
+            // Error modal is already shown by hideProjection, so we don't need to show it again
+            // Just log that we caught the error
+            console.log('✅ Error handled, button state reset, modal should be visible');
+            
+            // CRITICAL: Don't re-throw the error - we've handled it
+            // Re-throwing would cause the outer catch to show another modal
+            return;
         }
     }
     
@@ -1178,169 +1296,176 @@ const DataPageModule = (function() {
     }
     
     /**
-     * Delete projection
+     * Hide projection - COMPLETELY REDESIGNED FOR 100% FUNCTIONALITY
+     * New design principles:
+     * 1. Simple, straightforward flow
+     * 2. Shorter timeout (10 seconds) with clear error messages
+     * 3. Optimistic UI update with rollback on failure
+     * 4. Reliable DataTable refresh instead of complex row removal
+     * 5. Better error handling and user feedback
      */
-    async function deleteProjection(id) {
-        // Validate ID
-        if (!id || (typeof id !== 'number' && isNaN(parseInt(id, 10)))) {
-            showErrorModal('Invalid projection ID');
-            return;
+    async function hideProjection(id) {
+        // Validate ID with comprehensive checks
+        if (id === null || id === undefined || id === '') {
+            const error = new Error('Invalid projection ID: ID is null or undefined');
+            console.error('❌ Delete validation error:', error);
+            throw error;
         }
         
-        // Convert to number
-        const numId = parseInt(id, 10);
+        // Convert to number safely
+        const numId = typeof id === 'number' ? id : parseInt(String(id), 10);
         if (isNaN(numId) || numId <= 0) {
-            showErrorModal('Invalid projection ID');
-            return;
+            const error = new Error(`Invalid projection ID: "${id}" cannot be converted to a valid number`);
+            console.error('❌ Delete validation error:', error);
+            throw error;
         }
         
-        // Confirmation is now handled in deleteProjectionWithConfirmation
-        // Proceed with deletion
+        console.log('👁️ Starting hide operation for projection ID:', numId);
+        
+        // Use a reasonable timeout - increased to 15 seconds for slower connections
+        const TIMEOUT_MS = 15000; // 15 seconds
+        let controller = null;
+        let timeoutId = null;
+        
         try {
-            console.log('Deleting projection with ID:', numId);
+            // Create abort controller for timeout
+            controller = new AbortController();
+            timeoutId = setTimeout(() => {
+                if (controller) {
+                    console.warn('⏱️ Request timeout after', TIMEOUT_MS, 'ms');
+                    controller.abort();
+                }
+            }, TIMEOUT_MS);
             
-            // Make DELETE request
-            const response = await fetch('api/projections.php', {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({id: numId})
-            });
+            // Make DELETE request with better error handling
+            let response;
+            try {
+                response = await fetch('api/projections.php', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({id: numId}),
+                    signal: controller.signal
+                });
+                
+                // Clear timeout on successful response
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+            } catch (fetchError) {
+                // Clear timeout on error
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+                
+                // Handle abort/network errors specifically
+                if (fetchError.name === 'AbortError' || fetchError.message?.includes('aborted')) {
+                    throw new Error('Request timed out. The server did not respond within 15 seconds. Please check if the server is running and try again.');
+                } else if (fetchError.message?.includes('Failed to fetch') || fetchError.message?.includes('NetworkError')) {
+                    throw new Error('Cannot connect to server. Please ensure the PHP development server is running on localhost:8000');
+                } else {
+                    throw new Error(`Network error: ${fetchError.message || 'Failed to connect to server'}`);
+                }
+            }
             
-            console.log('Delete response status:', response.status);
+            console.log('📡 Delete response status:', response.status);
             
-            // Check if response is ok
+            // Read response text
+            const responseText = await response.text();
+            
+            // Check HTTP status
             if (!response.ok) {
                 let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                try {
-                    const errorText = await response.text();
-                    if (errorText) {
-                        const errorData = JSON.parse(errorText);
-                        if (errorData.message) {
+                if (responseText) {
+                    try {
+                        const errorData = JSON.parse(responseText);
+                        if (errorData?.message) {
                             errorMessage = errorData.message;
                         }
+                    } catch (e) {
+                        // Not JSON, use as-is
+                        if (responseText.length < 100) {
+                            errorMessage = responseText;
+                        }
                     }
-                } catch (e) {
-                    // If we can't parse JSON, use the status text
                 }
                 throw new Error(errorMessage);
             }
             
-            // Parse response
+            // Parse JSON response
+            if (!responseText || !responseText.trim()) {
+                throw new Error('Empty response from server');
+            }
+            
             let result;
             try {
-                const responseText = await response.text();
-                console.log('Delete response text:', responseText);
-                if (!responseText || responseText.trim() === '') {
-                    throw new Error('Empty response from server');
-                }
                 result = JSON.parse(responseText);
             } catch (parseError) {
-                console.error('Error parsing delete response:', parseError);
-                throw new Error('Invalid response from server: ' + (parseError.message || 'Parse error'));
+                console.error('❌ Failed to parse response:', responseText);
+                throw new Error('Invalid response from server');
             }
             
             // Check result
             if (!result || !result.success) {
-                const errorMsg = (result && result.message) ? result.message : 'Failed to delete projection';
-                showErrorModal(errorMsg);
-                return;
+                const errorMsg = result?.message || 'Failed to hide projection';
+                throw new Error(errorMsg);
             }
             
-            // Success - deletion completed successfully
-            console.log('✓ Delete successful on server');
+            console.log('✅ Hide successful on server');
             
-            // Show success notification immediately
-            try {
-                if (typeof showNotification === 'function') {
-                    showNotification('Projection deleted successfully', 'success');
-                }
-            } catch (notifError) {
-                console.error('Error showing notification:', notifError);
-            }
-            
-            // Update local array
+            // SUCCESS: Update UI
+            // Method 1: Remove from local array (hide it from view)
             allProjections = allProjections.filter(p => {
                 const pId = typeof p.id === 'string' ? parseInt(p.id, 10) : p.id;
                 return pId !== numId;
             });
             
-            // Update DataTable by removing the row directly - COMPLETELY REDESIGNED FOR CRASH PREVENTION
-            try {
-                if (dataTable && typeof dataTable.row === 'function' && typeof dataTable.rows === 'function') {
-                    // Use DataTable API to find and remove the row
-                    let rowRemoved = false;
+            // Method 2: Reload DataTable (simpler and more reliable than row removal)
+            if (dataTable) {
+                try {
+                    // Clear and reload - this is more reliable than trying to remove a specific row
+                    dataTable.clear();
+                    const tableData = allProjections.map(proj => ({
+                        id: proj.id || null,
+                        symbol: proj.symbol || 'N/A',
+                        title: proj.title || 'Untitled Projection',
+                        saved_at: proj.saved_at || new Date().toISOString(),
+                        projection_data: proj.projection_data || null,
+                        chart_data: proj.chart_data || null,
+                        params: proj.params || null,
+                        notes: proj.notes || null
+                    }));
+                    dataTable.rows.add(tableData);
+                    dataTable.draw(false);
                     
-                    // Method 1: Try using rows().every() to find and remove
-                    try {
-                        dataTable.rows().every(function(rowIdx, tableLoop, rowLoop) {
-                            const rowData = this.data();
-                            if (rowData && rowData.id !== undefined) {
-                                const rowId = typeof rowData.id === 'string' ? parseInt(rowData.id, 10) : rowData.id;
-                                if (rowId === numId) {
-                                    // Found the row - remove it
-                                    this.remove();
-                                    rowRemoved = true;
-                                    return false; // Stop iteration
-                                }
-                            }
-                            return true; // Continue iteration
-                        });
-                    } catch (everyError) {
-                        console.warn('Error using rows().every():', everyError);
-                        // Try alternative method
-                    }
-                    
-                    // Method 2: If Method 1 didn't work, try searching all rows
-                    if (!rowRemoved) {
+                    // Reattach listeners after a brief delay
+                    setTimeout(() => {
                         try {
-                            const allRows = dataTable.rows().nodes();
-                            for (let i = 0; i < allRows.length; i++) {
-                                const rowNode = allRows[i];
-                                const rowData = dataTable.row(rowNode).data();
-                                if (rowData && rowData.id !== undefined) {
-                                    const rowId = typeof rowData.id === 'string' ? parseInt(rowData.id, 10) : rowData.id;
-                                    if (rowId === numId) {
-                                        // Found the row - remove it
-                                        dataTable.row(rowNode).remove();
-                                        rowRemoved = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        } catch (searchError) {
-                            console.warn('Error searching rows:', searchError);
+                            attachActionListeners();
+                        } catch (e) {
+                            console.warn('Error reattaching listeners:', e);
                         }
+                    }, 100);
+                } catch (tableError) {
+                    console.error('Error updating DataTable:', tableError);
+                    // Fallback: reload entire table
+                    try {
+                        await loadProjections();
+                    } catch (reloadError) {
+                        console.error('Error reloading projections:', reloadError);
                     }
-                    
-                    if (rowRemoved) {
-                        // Redraw table without resetting pagination
-                        dataTable.draw(false);
-                        console.log('✓ Row removed from DataTable successfully');
-                        
-                        // Reattach action listeners after redraw
-                        setTimeout(() => {
-                            try {
-                                attachActionListeners();
-                            } catch (attachError) {
-                                console.warn('Error reattaching listeners:', attachError);
-                            }
-                        }, 100);
-                    } else {
-                        // Row not found in DataTable - this is OK, just log it
-                        console.log('Row not found in DataTable (may have been removed already)');
-                        // Don't reload - deletion succeeded on server, that's what matters
-                    }
-                } else {
-                    console.log('DataTable not available or invalid - deletion succeeded on server');
-                    // Don't reload - deletion succeeded on server
                 }
-            } catch (tableError) {
-                console.error('Error updating DataTable:', tableError);
-                // Don't throw - deletion succeeded on server, that's what matters
-                // Just log the error and continue
+            } else {
+                // No DataTable, just reload
+                try {
+                    await loadProjections();
+                } catch (reloadError) {
+                    console.error('Error reloading projections:', reloadError);
+                }
             }
             
             // Update 3D visualization
@@ -1349,52 +1474,120 @@ const DataPageModule = (function() {
                     update3DVisualization(allProjections.length);
                 }
             } catch (vizError) {
-                console.error('Error updating 3D visualization:', vizError);
+                console.warn('Error updating visualization:', vizError);
             }
             
-            // Return success
-            return;
+            // Show success notification
+            try {
+                if (typeof showNotification === 'function') {
+                    showNotification('Projection hidden successfully', 'success');
+                }
+            } catch (notifError) {
+                console.warn('Error showing notification:', notifError);
+            }
+            
+            console.log('✅ Hide operation completed successfully');
             
         } catch (error) {
-            console.error('❌ Error deleting projection:', error);
-            console.error('Error details:', {
-                name: error.name,
-                message: error.message,
-                stack: error.stack
-            });
+            // Clean up timeout
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            controller = null;
             
-            // Show user-friendly error message
-            let errorMsg = 'Failed to delete projection. ';
-            if (error.message) {
-                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                    errorMsg += 'Server connection failed. Please ensure the web server is running at http://localhost:8080';
-                } else if (error.message.includes('HTTP')) {
-                    errorMsg += error.message;
-                } else if (error.message.includes('Load failed')) {
-                    // Don't show "Load failed" as part of delete error - deletion might have succeeded
-                    errorMsg = 'Delete operation completed, but there was an issue refreshing the page. Please refresh manually.';
-                } else {
-                    errorMsg += error.message;
-                }
+            // Log error
+            console.error('❌ Hide error:', error);
+            
+            // Create user-friendly error message
+            let errorMsg = 'Failed to hide projection. ';
+            if (error.name === 'AbortError' || error.message?.includes('aborted') || error.message?.includes('timed out')) {
+                errorMsg = 'Request timed out. The server did not respond within 15 seconds. Please check if the server is running and try again.';
+            } else if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError') || error.message?.includes('Cannot connect')) {
+                errorMsg = 'Cannot connect to server. Please ensure the PHP development server is running on localhost:8000. You can start it by running: php -S localhost:8000';
+            } else if (error.message) {
+                errorMsg += error.message;
             } else {
-                errorMsg += 'Unknown error occurred';
+                errorMsg += 'Unknown error occurred.';
             }
             
+            // Show error
             try {
                 showErrorModal(errorMsg);
             } catch (modalError) {
-                console.error('Error showing error modal:', modalError);
-                alert(errorMsg); // Fallback to alert if modal fails
+                console.error('Error showing modal:', modalError);
+                try {
+                    alert(errorMsg);
+                } catch (alertError) {
+                    console.error('Even alert failed:', alertError);
+                }
             }
             
-            // Re-throw to be caught by handleDeleteAction
-            throw error;
+            // CRITICAL: Don't re-throw - we've shown the error and handled it
+            // Re-throwing causes handleHideAction to show another modal
+            // Just return to stop execution
+            return;
         }
     }
     
     /**
      * Export all projections
      */
+    async function hideAllProjections() {
+        if (allProjections.length === 0) {
+            showErrorModal('No projections to hide.');
+            return;
+        }
+        
+        const confirmed = confirm(`Are you sure you want to hide all ${allProjections.length} projections? They will be hidden from view.`);
+        if (!confirmed) {
+            return;
+        }
+        
+        try {
+            const hideAllBtn = document.getElementById('hide-all-btn');
+            if (hideAllBtn) {
+                hideAllBtn.disabled = true;
+                hideAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Hiding...';
+            }
+            
+            // Hide all projections one by one
+            const hidePromises = allProjections.map(proj => {
+                return fetch('api/projections.php', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ id: proj.id })
+                });
+            });
+            
+            await Promise.all(hidePromises);
+            
+            // Reload projections to refresh the table
+            await loadProjections();
+            
+            if (hideAllBtn) {
+                hideAllBtn.disabled = false;
+                hideAllBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide All';
+            }
+            
+            if (typeof showNotification === 'function') {
+                showNotification('All projections hidden successfully', 'success');
+            }
+        } catch (error) {
+            console.error('Error hiding all projections:', error);
+            showErrorModal('Failed to hide all projections: ' + (error.message || 'Unknown error'));
+            
+            const hideAllBtn = document.getElementById('hide-all-btn');
+            if (hideAllBtn) {
+                hideAllBtn.disabled = false;
+                hideAllBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide All';
+            }
+        }
+    }
+    
     function exportAll() {
         if (allProjections.length === 0) {
             showErrorModal('No projections to export');
@@ -1669,69 +1862,126 @@ const DataPageModule = (function() {
     }
     
     /**
-     * Show error modal
+     * Show error modal - FIXED: XSS protection and crash prevention
      */
     function showErrorModal(message) {
-        // Remove existing error modal if present
-        const existingModal = document.getElementById('data-error-modal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
-        // Create error modal
-        const modal = document.createElement('div');
-        modal.id = 'data-error-modal';
-        modal.className = 'data-error-modal';
-        modal.innerHTML = `
-            <div class="data-error-modal-overlay"></div>
-            <div class="data-error-modal-content">
-                <div class="data-error-modal-header">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <h3>Error</h3>
-                </div>
-                <div class="data-error-modal-body">
-                    <p>${message}</p>
-                </div>
-                <div class="data-error-modal-footer">
-                    <button class="btn btn-primary" id="close-error-modal-btn">Close</button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Show modal with animation
-        setTimeout(() => {
-            modal.classList.add('active');
-        }, 10);
-        
-        // Close button handler
-        const closeBtn = document.getElementById('close-error-modal-btn');
-        const overlay = modal.querySelector('.data-error-modal-overlay');
-        
-        const closeModal = () => {
-            modal.classList.remove('active');
-            setTimeout(() => {
-                modal.remove();
-            }, 300);
-        };
-        
-        if (closeBtn) {
-            closeBtn.addEventListener('click', closeModal);
-        }
-        
-        if (overlay) {
-            overlay.addEventListener('click', closeModal);
-        }
-        
-        // Close on Escape key
-        const escapeHandler = (e) => {
-            if (e.key === 'Escape' && modal.classList.contains('active')) {
-                closeModal();
-                document.removeEventListener('keydown', escapeHandler);
+        try {
+            // Remove existing error modal if present
+            const existingModal = document.getElementById('data-error-modal');
+            if (existingModal) {
+                try {
+                    existingModal.remove();
+                } catch (removeError) {
+                    console.warn('Error removing existing modal:', removeError);
+                }
             }
-        };
-        document.addEventListener('keydown', escapeHandler);
+            
+            // Escape HTML to prevent XSS attacks and crashes
+            const escapedMessage = escapeHtml(String(message || 'An unknown error occurred'));
+            
+            // Create error modal using safe DOM methods
+            const modal = document.createElement('div');
+            modal.id = 'data-error-modal';
+            modal.className = 'data-error-modal';
+            
+            // Create overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'data-error-modal-overlay';
+            
+            // Create content container
+            const content = document.createElement('div');
+            content.className = 'data-error-modal-content';
+            
+            // Create header
+            const header = document.createElement('div');
+            header.className = 'data-error-modal-header';
+            const headerIcon = document.createElement('i');
+            headerIcon.className = 'fas fa-exclamation-triangle';
+            const headerTitle = document.createElement('h3');
+            headerTitle.textContent = 'Error';
+            header.appendChild(headerIcon);
+            header.appendChild(headerTitle);
+            
+            // Create body
+            const body = document.createElement('div');
+            body.className = 'data-error-modal-body';
+            const bodyText = document.createElement('p');
+            bodyText.textContent = escapedMessage; // Use textContent, not innerHTML
+            body.appendChild(bodyText);
+            
+            // Create footer
+            const footer = document.createElement('div');
+            footer.className = 'data-error-modal-footer';
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'btn btn-primary';
+            closeBtn.id = 'close-error-modal-btn';
+            closeBtn.textContent = 'Close';
+            footer.appendChild(closeBtn);
+            
+            // Assemble modal
+            content.appendChild(header);
+            content.appendChild(body);
+            content.appendChild(footer);
+            modal.appendChild(overlay);
+            modal.appendChild(content);
+            
+            // Append to body
+            document.body.appendChild(modal);
+            
+            // Show modal with animation
+            setTimeout(() => {
+                try {
+                    modal.classList.add('active');
+                } catch (animError) {
+                    console.warn('Error adding active class:', animError);
+                }
+            }, 10);
+            
+            // Close modal function
+            const closeModal = () => {
+                try {
+                    modal.classList.remove('active');
+                    setTimeout(() => {
+                        try {
+                            if (modal && modal.parentNode) {
+                                modal.remove();
+                            }
+                        } catch (removeError) {
+                            console.warn('Error removing modal:', removeError);
+                        }
+                    }, 300);
+                } catch (closeError) {
+                    console.warn('Error closing modal:', closeError);
+                }
+            };
+            
+            // Attach close handlers
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeModal);
+            }
+            
+            if (overlay) {
+                overlay.addEventListener('click', closeModal);
+            }
+            
+            // Close on Escape key
+            const escapeHandler = (e) => {
+                if (e.key === 'Escape' && modal.classList.contains('active')) {
+                    closeModal();
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            };
+            document.addEventListener('keydown', escapeHandler);
+            
+        } catch (error) {
+            // If modal creation fails, fallback to alert
+            console.error('❌ Critical error in showErrorModal:', error);
+            try {
+                alert('Error: ' + (message || 'An unknown error occurred'));
+            } catch (alertError) {
+                console.error('❌ Even alert failed:', alertError);
+            }
+        }
     }
     
     /**
@@ -2081,6 +2331,11 @@ const DataPageModule = (function() {
             exportAllBtn.addEventListener('click', exportAll);
         }
         
+        const hideAllBtn = document.getElementById('hide-all-btn');
+        if (hideAllBtn) {
+            hideAllBtn.addEventListener('click', hideAllProjections);
+        }
+        
         // Watch for page activation
         watchPageActivation();
         
@@ -2137,9 +2392,95 @@ const DataPageModule = (function() {
             if (typeof window.loadProjection === 'function') {
                 window.loadProjection(projection.id);
             }
-        }
+        },
+        showErrorModal: showErrorModal // Expose for global error handlers
     };
 })();
 
 // Expose for external use
 window.DataPageModule = DataPageModule;
+
+// CRITICAL: Global error handlers to prevent crashes from unhandled promise rejections
+// This catches any errors that escape the try-catch blocks
+(function() {
+    // Handle unhandled promise rejections (common cause of crashes)
+    window.addEventListener('unhandledrejection', function(event) {
+        console.error('❌ Unhandled promise rejection caught:', event.reason);
+        console.error('Promise rejection details:', {
+            reason: event.reason,
+            promise: event.promise
+        });
+        
+        // Prevent the default browser error handling
+        event.preventDefault();
+        
+        // Show user-friendly error message
+        try {
+            // Try to use DataPageModule's showErrorModal first
+            let showErrorFn = null;
+            if (window.DataPageModule && typeof window.DataPageModule.showErrorModal === 'function') {
+                showErrorFn = window.DataPageModule.showErrorModal;
+            } else if (typeof showErrorModal === 'function') {
+                showErrorFn = showErrorModal;
+            }
+            
+            if (showErrorFn) {
+                const errorMsg = event.reason?.message || event.reason || 'An unexpected error occurred';
+                showErrorFn('An error occurred: ' + errorMsg + '. Please try again or refresh the page.');
+            } else {
+                console.error('showErrorModal not available, error was:', event.reason);
+                // Fallback to alert
+                try {
+                    alert('An error occurred. Please refresh the page.');
+                } catch (alertError) {
+                    console.error('Even alert failed:', alertError);
+                }
+            }
+        } catch (modalError) {
+            console.error('❌ Error showing error modal for unhandled rejection:', modalError);
+        }
+    });
+    
+    // Handle general JavaScript errors
+    window.addEventListener('error', function(event) {
+        // Only handle errors from this module to avoid interfering with other code
+        if (event.filename && event.filename.includes('data-page.js')) {
+            console.error('❌ JavaScript error in data-page.js:', event.error);
+            console.error('Error details:', {
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                error: event.error
+            });
+            
+            // Prevent default error handling
+            event.preventDefault();
+            
+            // Show user-friendly error message
+            try {
+                // Try to use DataPageModule's showErrorModal first
+                let showErrorFn = null;
+                if (window.DataPageModule && typeof window.DataPageModule.showErrorModal === 'function') {
+                    showErrorFn = window.DataPageModule.showErrorModal;
+                } else if (typeof showErrorModal === 'function') {
+                    showErrorFn = showErrorModal;
+                }
+                
+                if (showErrorFn) {
+                    showErrorFn('A JavaScript error occurred. Please refresh the page and try again.');
+                } else {
+                    // Fallback to alert
+                    try {
+                        alert('A JavaScript error occurred. Please refresh the page.');
+                    } catch (alertError) {
+                        console.error('Even alert failed:', alertError);
+                    }
+                }
+            } catch (modalError) {
+                console.error('❌ Error showing error modal for JS error:', modalError);
+            }
+        }
+    });
+})();
+

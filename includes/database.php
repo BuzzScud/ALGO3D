@@ -115,6 +115,60 @@ class Database {
             )
         ");
 
+        // Create custom_apis table
+        $this->conn->exec("
+            CREATE TABLE IF NOT EXISTS custom_apis (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                api_id TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                description TEXT,
+                base_url TEXT NOT NULL,
+                quote_url_template TEXT NOT NULL,
+                api_key TEXT,
+                rate_limit INTEGER DEFAULT 60,
+                rate_limit_period INTEGER DEFAULT 60,
+                requires_key INTEGER DEFAULT 0,
+                response_format TEXT DEFAULT 'json',
+                quote_path TEXT,
+                price_field TEXT DEFAULT 'c',
+                change_field TEXT DEFAULT 'd',
+                change_percent_field TEXT DEFAULT 'dp',
+                volume_field TEXT DEFAULT 'v',
+                high_field TEXT DEFAULT 'h',
+                low_field TEXT DEFAULT 'l',
+                open_field TEXT DEFAULT 'o',
+                previous_close_field TEXT DEFAULT 'pc',
+                is_active INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+
+        // Create rest_apis table
+        $this->conn->exec("
+            CREATE TABLE IF NOT EXISTS rest_apis (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                api_id TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                description TEXT,
+                base_url TEXT NOT NULL,
+                endpoint_path TEXT NOT NULL,
+                http_method TEXT DEFAULT 'GET',
+                headers TEXT,
+                auth_type TEXT DEFAULT 'none',
+                auth_value TEXT,
+                request_body TEXT,
+                query_params TEXT,
+                response_format TEXT DEFAULT 'json',
+                timeout INTEGER DEFAULT 30,
+                rate_limit INTEGER DEFAULT 60,
+                rate_limit_period INTEGER DEFAULT 60,
+                is_active INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+
         // Insert default symbols if none exist
         $stmt = $this->conn->query("SELECT COUNT(*) FROM stock_symbols");
         if ($stmt->fetchColumn() == 0) {

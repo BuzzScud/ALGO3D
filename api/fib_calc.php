@@ -259,3 +259,4 @@ function calculateFibonacci($symbol, $precision) {
 
 
 
+

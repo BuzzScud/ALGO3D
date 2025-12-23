@@ -1,0 +1,32 @@
+{
+  "name": "algo3d",
+  "version": "1.0.0",
+  "description": "A modern web application with HTML5 frontend and PHP backend featuring real-time market data, interactive trading charts, world clocks, notes, and todo list management.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "build-css": "./node_modules/.bin/tailwindcss -c ./build/config/tailwind.config.js -i ./assets/css/tailwind-input.css -o ./assets/css/tailwind.css --minify",
+    "watch-css": "./node_modules/.bin/tailwindcss -c ./build/config/tailwind.config.js -i ./assets/css/tailwind-input.css -o ./assets/css/tailwind.css --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BuzzScud/ALGO3D.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/BuzzScud/ALGO3D/issues"
+  },
+  "homepage": "https://github.com/BuzzScud/ALGO3D#readme",
+  "devDependencies": {
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19"
+  }
+}

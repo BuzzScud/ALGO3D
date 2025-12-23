@@ -34,3 +34,20 @@ data/
 *.db
 *.sqlite
 
+# Node.js dependencies
+node_modules/
+
+# Build outputs (keep source, ignore built files if desired)
+# Note: tailwind.css is built from tailwind-input.css
+# Uncomment the line below if you want to ignore built CSS:
+# assets/css/tailwind.css
+
+# Build directory (config files are tracked, but you can ignore build artifacts here)
+# build/artifacts/
+# build/dist/
+
+# Build outputs (keep source, ignore built files)
+# Note: tailwind.css is built from tailwind-input.css, but we'll track it for now
+# Uncomment the line below if you want to ignore built CSS:
+# assets/css/tailwind.css
+

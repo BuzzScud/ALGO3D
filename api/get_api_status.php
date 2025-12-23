@@ -2,6 +2,7 @@
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 require_once '../includes/config.php';
+require_once '../includes/database.php';
 
 $rateLimitFile = '../cache/rate_limit.json';
 $currentMinute = floor(time() / 60);
@@ -23,16 +24,40 @@ $status = [
     ]
 ];
 
+// Load custom APIs
+$db = new Database();
+$conn = $db->getConnection();
+if ($conn) {
+    try {
+        $stmt = $conn->query("SELECT api_id, name, rate_limit FROM custom_apis WHERE is_active = 1");
+        $customApis = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($customApis as $customApi) {
+            $apiId = $customApi['api_id'];
+            $status[$apiId] = [
+                'name' => $customApi['name'],
+                'limit' => (int)$customApi['rate_limit'],
+                'used' => 0,
+                'remaining' => (int)$customApi['rate_limit'],
+                'available' => true
+            ];
+        }
+    } catch (Exception $e) {
+        error_log("Error loading custom APIs in get_api_status: " . $e->getMessage());
+    }
+}
+
 if (file_exists($rateLimitFile)) {
     $data = json_decode(file_get_contents($rateLimitFile), true);
     
-    foreach (['finnhub', 'yahoo'] as $api) {
-        if (isset($data[$api]) && $data[$api]['minute'] === $currentMinute) {
-            $status[$api]['used'] = $data[$api]['count'];
-            $status[$api]['remaining'] = $status[$api]['limit'] - $data[$api]['count'];
-            $status[$api]['available'] = $status[$api]['remaining'] > 0;
+    // Process all APIs (built-in and custom)
+    foreach ($status as $apiId => &$apiStatus) {
+        if (isset($data[$apiId]) && $data[$apiId]['minute'] === $currentMinute) {
+            $apiStatus['used'] = $data[$apiId]['count'];
+            $apiStatus['remaining'] = $apiStatus['limit'] - $data[$apiId]['count'];
+            $apiStatus['available'] = $apiStatus['remaining'] > 0;
         }
     }
+    unset($apiStatus); // Break reference
 }
 
 $status['default'] = DEFAULT_API_SOURCE;
@@ -40,6 +65,7 @@ $status['cache_duration'] = CACHE_DURATION;
 
 echo json_encode($status);
 ?>
+
 
 
 

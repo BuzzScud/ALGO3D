@@ -5,7 +5,26 @@ require_once '../includes/config.php';
 require_once '../includes/database.php';
 
 $source = $_GET['source'] ?? DEFAULT_API_SOURCE;
-$source = in_array($source, ['finnhub', 'yahoo']) ? $source : DEFAULT_API_SOURCE;
+$validSources = ['finnhub', 'yahoo'];
+
+// Check if it's a custom API
+$isCustomApi = false;
+$customApiConfig = null;
+if (!in_array($source, $validSources)) {
+    try {
+        $stmt = $conn->prepare("SELECT * FROM custom_apis WHERE api_id = ? AND is_active = 1");
+        $stmt->execute([$source]);
+        $customApiConfig = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($customApiConfig) {
+            $isCustomApi = true;
+            $validSources[] = $source;
+        }
+    } catch (Exception $e) {
+        error_log("Error checking custom API: " . $e->getMessage());
+    }
+}
+
+$source = in_array($source, $validSources) ? $source : DEFAULT_API_SOURCE;
 
 $db = new Database();
 $conn = $db->getConnection();
@@ -58,6 +77,24 @@ try {
                     'previousClose' => $prevClose,
                     'volume' => $data['v'] ?? 0,
                     'source' => 'finnhub'
+                ];
+                continue;
+            }
+        } else if ($isCustomApi && $customApiConfig) {
+            // Fetch from custom API
+            $data = fetchCustomApiQuote($symbol, $customApiConfig);
+            if ($data && isset($data['price']) && $data['price'] > 0) {
+                $marketData[] = [
+                    'symbol' => $symbol,
+                    'price' => $data['price'],
+                    'change' => $data['change'] ?? 0,
+                    'changePercent' => $data['changePercent'] ?? 0,
+                    'open' => $data['open'] ?? $data['price'],
+                    'high' => $data['high'] ?? $data['price'],
+                    'low' => $data['low'] ?? $data['price'],
+                    'previousClose' => $data['previousClose'] ?? $data['price'],
+                    'volume' => $data['volume'] ?? 0,
+                    'source' => $source
                 ];
                 continue;
             }
@@ -229,6 +266,112 @@ function fetchYahooQuote($symbol) {
         'change' => $change,
         'changePercent' => $changePercent,
         'timestamp' => time()
+    ];
+}
+
+function fetchCustomApiQuote($symbol, $apiConfig) {
+    require_once __DIR__ . '/track_api_usage.php';
+    
+    $apiId = $apiConfig['api_id'];
+    $rateLimit = (int)$apiConfig['rate_limit'];
+    
+    // Check rate limit
+    if (!checkRateLimit($apiId, $rateLimit)) {
+        error_log("Custom API $apiId rate limit exceeded");
+        return null;
+    }
+    
+    // Build URL from template
+    $url = str_replace('{symbol}', $symbol, $apiConfig['quote_url_template']);
+    if ($apiConfig['requires_key'] && !empty($apiConfig['api_key'])) {
+        $url = str_replace('{api_key}', $apiConfig['api_key'], $url);
+    }
+    
+    $startTime = microtime(true);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    
+    // Add user agent if needed (some APIs require it)
+    if (isset($apiConfig['user_agent'])) {
+        curl_setopt($ch, CURLOPT_USERAGENT, $apiConfig['user_agent']);
+    }
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    $responseTime = (microtime(true) - $startTime) * 1000;
+    
+    $success = ($httpCode === 200 && !$error);
+    
+    if (!$success) {
+        trackAPICall($apiId, false, $responseTime, "HTTP $httpCode: $error");
+        return null;
+    }
+    
+    // Parse response based on format
+    $data = null;
+    if ($apiConfig['response_format'] === 'json') {
+        $data = json_decode($response, true);
+    } else {
+        // For other formats, you might need additional parsing
+        $data = json_decode($response, true); // Default to JSON
+    }
+    
+    if (!$data) {
+        trackAPICall($apiId, false, $responseTime, 'Invalid response format');
+        return null;
+    }
+    
+    // Navigate to the data using quote_path if specified
+    if (!empty($apiConfig['quote_path'])) {
+        $pathParts = explode('.', $apiConfig['quote_path']);
+        foreach ($pathParts as $part) {
+            if (isset($data[$part])) {
+                $data = $data[$part];
+            } else {
+                trackAPICall($apiId, false, $responseTime, 'Quote path not found in response');
+                return null;
+            }
+        }
+    }
+    
+    // Extract fields using configured field names
+    $priceField = $apiConfig['price_field'] ?? 'c';
+    $changeField = $apiConfig['change_field'] ?? 'd';
+    $changePercentField = $apiConfig['change_percent_field'] ?? 'dp';
+    $volumeField = $apiConfig['volume_field'] ?? 'v';
+    $highField = $apiConfig['high_field'] ?? 'h';
+    $lowField = $apiConfig['low_field'] ?? 'l';
+    $openField = $apiConfig['open_field'] ?? 'o';
+    $previousCloseField = $apiConfig['previous_close_field'] ?? 'pc';
+    
+    $price = $data[$priceField] ?? 0;
+    
+    if ($price <= 0) {
+        trackAPICall($apiId, false, $responseTime, 'Invalid price data');
+        return null;
+    }
+    
+    $prevClose = $data[$previousCloseField] ?? $price;
+    $change = $data[$changeField] ?? ($price - $prevClose);
+    $changePercent = $data[$changePercentField] ?? (($prevClose > 0) ? (($price - $prevClose) / $prevClose * 100) : 0);
+    
+    // Track successful call
+    trackAPICall($apiId, true, $responseTime);
+    
+    return [
+        'price' => $price,
+        'change' => $change,
+        'changePercent' => $changePercent,
+        'open' => $data[$openField] ?? $price,
+        'high' => $data[$highField] ?? $price,
+        'low' => $data[$lowField] ?? $price,
+        'previousClose' => $prevClose,
+        'volume' => $data[$volumeField] ?? 0
     ];
 }
 ?>

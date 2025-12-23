@@ -2,10 +2,60 @@
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 require_once '../includes/config.php';
+require_once '../includes/database.php';
 
 $rateLimitFile = '../cache/rate_limit.json';
 $currentMinute = floor(time() / 60);
 $currentTime = time();
+
+// Load custom APIs from database
+$db = new Database();
+$conn = $db->getConnection();
+$customApis = [];
+if ($conn) {
+    try {
+        $stmt = $conn->query("SELECT * FROM custom_apis WHERE is_active = 1");
+        $customApisData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($customApisData as $customApi) {
+            $apiId = $customApi['api_id'];
+            $customApis[$apiId] = [
+                'id' => $apiId,
+                'name' => $customApi['name'],
+                'description' => $customApi['description'] ?? '',
+                'baseUrl' => $customApi['base_url'],
+                'rateLimit' => (int)$customApi['rate_limit'],
+                'rateLimitPeriod' => (int)$customApi['rate_limit_period'],
+                'used' => 0,
+                'remaining' => (int)$customApi['rate_limit'],
+                'available' => true,
+                'status' => 'active',
+                'requiresKey' => (bool)$customApi['requires_key'],
+                'hasKey' => !empty($customApi['api_key']),
+                'lastUsed' => null,
+                'totalCalls' => 0,
+                'successRate' => 100,
+                'avgResponseTime' => 0,
+                'errors' => 0,
+                'isCustom' => true,
+                'quoteUrlTemplate' => $customApi['quote_url_template'],
+                'apiKey' => $customApi['api_key'] ?? '',
+                'responseFormat' => $customApi['response_format'] ?? 'json',
+                'quotePath' => $customApi['quote_path'] ?? '',
+                'priceField' => $customApi['price_field'] ?? 'c',
+                'changeField' => $customApi['change_field'] ?? 'd',
+                'changePercentField' => $customApi['change_percent_field'] ?? 'dp',
+                'volumeField' => $customApi['volume_field'] ?? 'v',
+                'highField' => $customApi['high_field'] ?? 'h',
+                'lowField' => $customApi['low_field'] ?? 'l',
+                'openField' => $customApi['open_field'] ?? 'o',
+                'previousCloseField' => $customApi['previous_close_field'] ?? 'pc'
+            ];
+        }
+    } catch (Exception $e) {
+        error_log("Error loading custom APIs: " . $e->getMessage());
+    }
+}
 
 // Initialize API statuses
 $apis = [
@@ -26,7 +76,8 @@ $apis = [
         'totalCalls' => 0,
         'successRate' => 100,
         'avgResponseTime' => 0,
-        'errors' => 0
+        'errors' => 0,
+        'isCustom' => false
     ],
     'yahoo' => [
         'id' => 'yahoo',
@@ -45,51 +96,57 @@ $apis = [
         'totalCalls' => 0,
         'successRate' => 100,
         'avgResponseTime' => 0,
-        'errors' => 0
+        'errors' => 0,
+        'isCustom' => false
     ]
 ];
+
+// Merge custom APIs
+$apis = array_merge($apis, $customApis);
 
 // Load rate limit data
 if (file_exists($rateLimitFile)) {
     $data = json_decode(file_get_contents($rateLimitFile), true);
     
-    foreach (['finnhub', 'yahoo'] as $apiId) {
+    // Process all APIs (built-in and custom)
+    foreach ($apis as $apiId => &$api) {
         if (isset($data[$apiId])) {
             $apiData = $data[$apiId];
             
             // Current minute usage
             if (isset($apiData['minute']) && $apiData['minute'] === $currentMinute) {
-                $apis[$apiId]['used'] = $apiData['count'] ?? 0;
-                $apis[$apiId]['remaining'] = $apis[$apiId]['rateLimit'] - $apis[$apiId]['used'];
-                $apis[$apiId]['available'] = $apis[$apiId]['remaining'] > 0;
+                $api['used'] = $apiData['count'] ?? 0;
+                $api['remaining'] = $api['rateLimit'] - $api['used'];
+                $api['available'] = $api['remaining'] > 0;
             }
             
             // Historical data
             if (isset($apiData['totalCalls'])) {
-                $apis[$apiId]['totalCalls'] = $apiData['totalCalls'];
+                $api['totalCalls'] = $apiData['totalCalls'];
             }
             if (isset($apiData['lastUsed'])) {
-                $apis[$apiId]['lastUsed'] = $apiData['lastUsed'];
+                $api['lastUsed'] = $apiData['lastUsed'];
             }
             if (isset($apiData['successRate'])) {
-                $apis[$apiId]['successRate'] = $apiData['successRate'];
+                $api['successRate'] = $apiData['successRate'];
             } else {
                 // Calculate success rate if not set
                 if (isset($apiData['totalCalls']) && $apiData['totalCalls'] > 0) {
                     $successCalls = $apiData['successCalls'] ?? 0;
-                    $apis[$apiId]['successRate'] = ($successCalls / $apiData['totalCalls']) * 100;
+                    $api['successRate'] = ($successCalls / $apiData['totalCalls']) * 100;
                 }
             }
             if (isset($apiData['avgResponseTime'])) {
-                $apis[$apiId]['avgResponseTime'] = $apiData['avgResponseTime'];
+                $api['avgResponseTime'] = $apiData['avgResponseTime'];
             }
             if (isset($apiData['errorCalls'])) {
-                $apis[$apiId]['errors'] = $apiData['errorCalls'];
+                $api['errors'] = $apiData['errorCalls'];
             } else {
-                $apis[$apiId]['errors'] = 0;
+                $api['errors'] = 0;
             }
         }
     }
+    unset($api); // Break reference
 }
 
 // Check API health by making test calls
@@ -136,6 +193,38 @@ function testApiHealth($apiId, $apiConfig) {
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             $response = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            
+            if ($httpCode === 200) {
+                $health['status'] = 'healthy';
+            } else {
+                $health['status'] = 'error';
+                $health['error'] = "HTTP $httpCode";
+            }
+        } else if (isset($apiConfig['isCustom']) && $apiConfig['isCustom']) {
+            // Test custom API
+            if ($apiConfig['requiresKey'] && !$apiConfig['hasKey']) {
+                $health['status'] = 'no_key';
+                $health['error'] = 'API key not configured';
+                return $health;
+            }
+            
+            // Build test URL from template
+            $testUrl = str_replace('{symbol}', 'AAPL', $apiConfig['quoteUrlTemplate']);
+            if ($apiConfig['requiresKey'] && !empty($apiConfig['apiKey'])) {
+                $testUrl = str_replace('{api_key}', $apiConfig['apiKey'], $testUrl);
+            }
+            
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $testUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            if (isset($apiConfig['userAgent'])) {
+                curl_setopt($ch, CURLOPT_USERAGENT, $apiConfig['userAgent']);
+            }
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
             
             if ($httpCode === 200) {
                 $health['status'] = 'healthy';

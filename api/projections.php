@@ -48,17 +48,31 @@ function getSavedProjections() {
         // Ensure table exists
         checkAndCreateTable();
         
-        $stmt = $conn->prepare("SELECT * FROM saved_projections ORDER BY saved_at DESC");
+        // Add hidden column if it doesn't exist (for existing databases)
+        try {
+            $conn->exec("ALTER TABLE saved_projections ADD COLUMN hidden INTEGER DEFAULT 0");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore error
+        }
+        
+        $stmt = $conn->prepare("SELECT * FROM saved_projections WHERE hidden = 0 OR hidden IS NULL ORDER BY saved_at DESC");
         $stmt->execute();
         $projections = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Decode JSON data
+        // Keep JSON data as strings - let JavaScript parse them
+        // This prevents double-encoding issues
         foreach ($projections as &$proj) {
-            if (isset($proj['projection_data'])) {
-                $proj['projection_data'] = json_decode($proj['projection_data'], true);
+            // Ensure projection_data is a string (or null)
+            if (isset($proj['projection_data']) && !is_string($proj['projection_data'])) {
+                $proj['projection_data'] = json_encode($proj['projection_data']);
             }
-            if (isset($proj['chart_data'])) {
-                $proj['chart_data'] = json_decode($proj['chart_data'], true);
+            // Ensure chart_data is a string (or null)
+            if (isset($proj['chart_data']) && !is_string($proj['chart_data'])) {
+                $proj['chart_data'] = json_encode($proj['chart_data']);
+            }
+            // Ensure params is a string (or null)
+            if (isset($proj['params']) && !is_string($proj['params']) && $proj['params'] !== null) {
+                $proj['params'] = json_encode($proj['params']);
             }
         }
         
@@ -184,37 +198,27 @@ function deleteProjection() {
             return;
         }
         
-        // Delete the projection
-        $stmt = $conn->prepare("DELETE FROM saved_projections WHERE id = ?");
+        // Hide the projection instead of deleting
+        $stmt = $conn->prepare("UPDATE saved_projections SET hidden = 1 WHERE id = ?");
         $stmt->execute([$id]);
         
-        // For DELETE, rowCount() works in SQLite, but verify deletion succeeded
-        if ($stmt->rowCount() > 0) {
+        // Verify update
+        $verifyStmt = $conn->prepare("SELECT hidden FROM saved_projections WHERE id = ?");
+        $verifyStmt->execute([$id]);
+        $result = $verifyStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!empty($result) && isset($result['hidden']) && $result['hidden'] == 1) {
             http_response_code(200);
             echo json_encode([
                 'success' => true,
-                'message' => 'Projection deleted successfully'
+                'message' => 'Projection hidden successfully'
             ]);
         } else {
-            // Double-check if it still exists
-            $verifyStmt = $conn->prepare("SELECT id FROM saved_projections WHERE id = ?");
-            $verifyStmt->execute([$id]);
-            $stillExists = $verifyStmt->fetch(PDO::FETCH_ASSOC);
-            
-            if (empty($stillExists) || !isset($stillExists['id'])) {
-                // Projection was deleted (rowCount might not have reported correctly)
-                http_response_code(200);
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Projection deleted successfully'
-                ]);
-            } else {
-                http_response_code(500);
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'Failed to delete projection'
-                ]);
-            }
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Failed to hide projection'
+            ]);
         }
     } catch (PDOException $e) {
         http_response_code(500);
@@ -271,7 +275,8 @@ function checkAndCreateTable() {
                 chart_data TEXT,
                 params TEXT,
                 notes TEXT,
-                saved_at TEXT NOT NULL
+                saved_at TEXT NOT NULL,
+                hidden INTEGER DEFAULT 0
             )
         ");
     } catch (PDOException $e) {

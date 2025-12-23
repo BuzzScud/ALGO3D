@@ -168,7 +168,8 @@ function checkAndCreateTable() {
                 chart_data TEXT,
                 params TEXT,
                 notes TEXT,
-                saved_at TEXT NOT NULL
+                saved_at TEXT NOT NULL,
+                hidden INTEGER DEFAULT 0
             )
         ");
     } catch (PDOException $e) {

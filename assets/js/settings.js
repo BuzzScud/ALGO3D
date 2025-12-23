@@ -338,10 +338,122 @@ function setupSettingsListeners() {
     }
 }
 
+// Initialize IP Whitelist functionality
+function initIPWhitelist() {
+    const whitelistBtn = document.getElementById('whitelist-ip-btn');
+    const ipDisplay = document.getElementById('current-ip-display');
+    const statusMessage = document.getElementById('ip-status-message');
+    const btnText = document.getElementById('whitelist-btn-text');
+    
+    if (!whitelistBtn) return;
+    
+    // Get current IP on page load
+    async function getCurrentIP() {
+        try {
+            const response = await fetch('practice/access/index.php?format=json', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.ip && ipDisplay) {
+                    ipDisplay.textContent = result.ip;
+                    ipDisplay.style.color = 'var(--primary-color)';
+                }
+            }
+        } catch (error) {
+            console.log('Could not detect IP initially:', error);
+            if (ipDisplay) {
+                ipDisplay.textContent = 'Click button to detect';
+                ipDisplay.style.color = 'var(--text-secondary)';
+            }
+        }
+    }
+    
+    // Try to get IP when tab is first shown
+    getCurrentIP();
+    
+    // Handle button click
+    whitelistBtn.addEventListener('click', async function() {
+        if (this.disabled) return;
+        
+        // Disable button and show loading
+        this.disabled = true;
+        if (btnText) {
+            btnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        }
+        
+        // Hide previous status
+        if (statusMessage) {
+            statusMessage.style.display = 'none';
+            statusMessage.className = 'ip-status-message';
+        }
+        
+        try {
+            const response = await fetch('practice/access/index.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Show success message
+                if (statusMessage) {
+                    statusMessage.className = 'ip-status-message success';
+                    statusMessage.innerHTML = `<i class="fas fa-check-circle"></i> ${result.message} - IP: ${result.ip}`;
+                    statusMessage.style.display = 'block';
+                }
+                
+                // Update IP display
+                if (ipDisplay && result.ip) {
+                    ipDisplay.textContent = result.ip;
+                    ipDisplay.style.color = 'var(--primary-color)';
+                }
+            } else {
+                throw new Error(result.message || 'Failed to save IP address');
+            }
+        } catch (error) {
+            console.error('Error saving IP:', error);
+            if (statusMessage) {
+                statusMessage.className = 'ip-status-message error';
+                statusMessage.innerHTML = `<i class="fas fa-exclamation-circle"></i> Error: ${error.message}`;
+                statusMessage.style.display = 'block';
+            }
+        } finally {
+            // Re-enable button
+            this.disabled = false;
+            if (btnText) {
+                btnText.innerHTML = 'Add My IP to Whitelist';
+            }
+        }
+    });
+    
+    // Try to detect IP when tab is shown
+    const ipButtonTab = document.querySelector('.settings-tab[data-tab="ip-button"]');
+    if (ipButtonTab) {
+        ipButtonTab.addEventListener('click', function() {
+            // When tab is clicked, try to get IP
+            setTimeout(() => {
+                getCurrentIP();
+            }, 100);
+        });
+    }
+}
+
 // Initialize settings
 function initSettings() {
     loadSettings();
     setupSettingsListeners();
+    initIPWhitelist();
 }
 
 // Initialize when DOM is ready

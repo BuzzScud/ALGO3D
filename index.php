@@ -9,10 +9,10 @@ require_once 'includes/database.php';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ALGO3D - Trading Dashboard</title>
+    <link rel="stylesheet" href="assets/css/tailwind.css">
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/fib-page.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
     <!-- Sidebar Menu -->
@@ -1776,6 +1776,38 @@ require_once 'includes/database.php';
                                 <!-- API keys config will be generated -->
                             </div>
                         </div>
+                        <div class="api-config-section">
+                            <div class="api-section-header-with-action">
+                                <h3 class="api-section-title">
+                                    <i class="fas fa-plus-circle"></i>
+                                    Custom APIs
+                                </h3>
+                                <button class="btn btn-primary btn-sm" id="add-custom-api-btn">
+                                    <i class="fas fa-plus"></i>
+                                    Add Custom API
+                                </button>
+                            </div>
+                            <p class="api-section-description">Add and configure custom API sources for market data</p>
+                            <div class="custom-apis-list" id="custom-apis-list">
+                                <!-- Custom APIs will be generated -->
+                            </div>
+                        </div>
+                        <div class="api-config-section">
+                            <div class="api-section-header-with-action">
+                                <h3 class="api-section-title">
+                                    <i class="fas fa-network-wired"></i>
+                                    REST APIs
+                                </h3>
+                                <button class="btn btn-primary btn-sm" id="add-rest-api-btn">
+                                    <i class="fas fa-plus"></i>
+                                    Add REST API
+                                </button>
+                            </div>
+                            <p class="api-section-description">Configure and execute REST API calls for any endpoint</p>
+                            <div class="rest-apis-list" id="rest-apis-list">
+                                <!-- REST APIs will be generated -->
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Usage History Tab -->
@@ -1783,6 +1815,346 @@ require_once 'includes/database.php';
                         <div class="api-history-container" id="api-history-container">
                             <!-- History will be dynamically generated -->
                         </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add/Edit Custom API Modal -->
+            <div class="api-key-modal" id="custom-api-modal">
+                <div class="api-key-modal-overlay"></div>
+                <div class="api-key-modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+                    <div class="api-key-modal-header">
+                        <h3 id="custom-api-modal-title">
+                            <i class="fas fa-plus-circle"></i>
+                            <span id="custom-api-modal-action">Add Custom API</span>
+                        </h3>
+                        <button class="api-key-modal-close" id="custom-api-modal-close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="api-key-modal-body">
+                        <div class="custom-api-form" id="custom-api-form">
+                            <div class="api-key-form-group">
+                                <label for="custom-api-id">API ID <span class="required">*</span></label>
+                                <input type="text" id="custom-api-id" class="api-key-input-field" placeholder="e.g., alpha_vantage" pattern="[a-z0-9_]+" required>
+                                <p class="api-key-help-text">Lowercase letters, numbers, and underscores only. Cannot be "finnhub" or "yahoo".</p>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="custom-api-name">API Name <span class="required">*</span></label>
+                                <input type="text" id="custom-api-name" class="api-key-input-field" placeholder="e.g., Alpha Vantage" required>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="custom-api-description">Description</label>
+                                <textarea id="custom-api-description" class="api-key-input-field" rows="2" placeholder="Brief description of the API"></textarea>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="custom-api-base-url">Base URL <span class="required">*</span></label>
+                                <input type="url" id="custom-api-base-url" class="api-key-input-field" placeholder="https://api.example.com" required>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="custom-api-quote-url">Quote URL Template <span class="required">*</span></label>
+                                <input type="text" id="custom-api-quote-url" class="api-key-input-field" placeholder="https://api.example.com/quote?symbol={symbol}&apikey={api_key}" required>
+                                <p class="api-key-help-text">Use {symbol} for symbol placeholder and {api_key} for API key placeholder</p>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="custom-api-key">API Key</label>
+                                <div class="api-key-input-wrapper">
+                                    <input type="password" id="custom-api-key" class="api-key-input-field" placeholder="Enter API key if required">
+                                    <button type="button" class="api-key-toggle-btn" id="custom-api-key-toggle">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="custom-api-rate-limit">Rate Limit (calls)</label>
+                                    <input type="number" id="custom-api-rate-limit" class="api-key-input-field" value="60" min="1" required>
+                                </div>
+                                
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="custom-api-rate-period">Rate Period (seconds)</label>
+                                    <input type="number" id="custom-api-rate-period" class="api-key-input-field" value="60" min="1" required>
+                                </div>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label>
+                                    <input type="checkbox" id="custom-api-requires-key">
+                                    Requires API Key
+                                </label>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="custom-api-response-format">Response Format</label>
+                                <select id="custom-api-response-format" class="api-key-input-field">
+                                    <option value="json">JSON</option>
+                                    <option value="xml">XML</option>
+                                </select>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="custom-api-quote-path">Quote Path (optional)</label>
+                                <input type="text" id="custom-api-quote-path" class="api-key-input-field" placeholder="e.g., data.quote or result.0">
+                                <p class="api-key-help-text">JSON path to navigate to quote data (use dots for nested objects, e.g., "data.quote")</p>
+                            </div>
+                            
+                            <div class="form-section-title">Field Mappings</div>
+                            <div class="form-row">
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="custom-api-price-field">Price Field</label>
+                                    <input type="text" id="custom-api-price-field" class="api-key-input-field" value="c" placeholder="c">
+                                </div>
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="custom-api-change-field">Change Field</label>
+                                    <input type="text" id="custom-api-change-field" class="api-key-input-field" value="d" placeholder="d">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="custom-api-change-percent-field">Change % Field</label>
+                                    <input type="text" id="custom-api-change-percent-field" class="api-key-input-field" value="dp" placeholder="dp">
+                                </div>
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="custom-api-volume-field">Volume Field</label>
+                                    <input type="text" id="custom-api-volume-field" class="api-key-input-field" value="v" placeholder="v">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="custom-api-high-field">High Field</label>
+                                    <input type="text" id="custom-api-high-field" class="api-key-input-field" value="h" placeholder="h">
+                                </div>
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="custom-api-low-field">Low Field</label>
+                                    <input type="text" id="custom-api-low-field" class="api-key-input-field" value="l" placeholder="l">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="custom-api-open-field">Open Field</label>
+                                    <input type="text" id="custom-api-open-field" class="api-key-input-field" value="o" placeholder="o">
+                                </div>
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="custom-api-prev-close-field">Previous Close Field</label>
+                                    <input type="text" id="custom-api-prev-close-field" class="api-key-input-field" value="pc" placeholder="pc">
+                                </div>
+                            </div>
+                            
+                            <div class="api-key-modal-status" id="custom-api-modal-status"></div>
+                        </div>
+                    </div>
+                    <div class="api-key-modal-footer">
+                        <button class="api-key-btn api-key-btn-cancel" id="custom-api-cancel-btn">Cancel</button>
+                        <button class="api-key-btn api-key-btn-save" id="custom-api-save-btn">
+                            <i class="fas fa-save"></i>
+                            Save API
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add/Edit REST API Modal -->
+            <div class="api-key-modal" id="rest-api-modal">
+                <div class="api-key-modal-overlay"></div>
+                <div class="api-key-modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                    <div class="api-key-modal-header">
+                        <h3 id="rest-api-modal-title">
+                            <i class="fas fa-network-wired"></i>
+                            <span id="rest-api-modal-action">Add REST API</span>
+                        </h3>
+                        <button class="api-key-modal-close" id="rest-api-modal-close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="api-key-modal-body">
+                        <div class="custom-api-form" id="rest-api-form">
+                            <div class="api-key-form-group">
+                                <label for="rest-api-id">API ID <span class="required">*</span></label>
+                                <input type="text" id="rest-api-id" class="api-key-input-field" placeholder="e.g., github_api" pattern="[a-z0-9_]+" required>
+                                <p class="api-key-help-text">Lowercase letters, numbers, and underscores only.</p>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="rest-api-name">API Name <span class="required">*</span></label>
+                                <input type="text" id="rest-api-name" class="api-key-input-field" placeholder="e.g., GitHub API" required>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="rest-api-description">Description</label>
+                                <textarea id="rest-api-description" class="api-key-input-field" rows="2" placeholder="Brief description of the REST API"></textarea>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="api-key-form-group" style="flex: 2;">
+                                    <label for="rest-api-base-url">Base URL <span class="required">*</span></label>
+                                    <input type="url" id="rest-api-base-url" class="api-key-input-field" placeholder="https://api.example.com" required>
+                                </div>
+                                
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="rest-api-method">HTTP Method</label>
+                                    <select id="rest-api-method" class="api-key-input-field">
+                                        <option value="GET">GET</option>
+                                        <option value="POST">POST</option>
+                                        <option value="PUT">PUT</option>
+                                        <option value="PATCH">PATCH</option>
+                                        <option value="DELETE">DELETE</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="rest-api-endpoint">Endpoint Path <span class="required">*</span></label>
+                                <input type="text" id="rest-api-endpoint" class="api-key-input-field" placeholder="/users/{id}" required>
+                                <p class="api-key-help-text">Path relative to base URL. Use {param} for dynamic parameters.</p>
+                            </div>
+                            
+                            <div class="form-section-title">Authentication</div>
+                            <div class="form-row">
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="rest-api-auth-type">Auth Type</label>
+                                    <select id="rest-api-auth-type" class="api-key-input-field">
+                                        <option value="none">None</option>
+                                        <option value="bearer">Bearer Token</option>
+                                        <option value="api_key_header">API Key (Header)</option>
+                                        <option value="api_key_query">API Key (Query)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="rest-api-auth-value">Auth Value</label>
+                                    <div class="api-key-input-wrapper">
+                                        <input type="password" id="rest-api-auth-value" class="api-key-input-field" placeholder="Token or API key">
+                                        <button type="button" class="api-key-toggle-btn" id="rest-api-auth-toggle">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-section-title">Request Configuration</div>
+                            <div class="api-key-form-group">
+                                <label for="rest-api-headers">Headers (JSON)</label>
+                                <textarea id="rest-api-headers" class="api-key-input-field" rows="3" placeholder='{"Content-Type": "application/json", "Accept": "application/json"}'></textarea>
+                                <p class="api-key-help-text">JSON object with header key-value pairs</p>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="rest-api-query-params">Query Parameters (JSON)</label>
+                                <textarea id="rest-api-query-params" class="api-key-input-field" rows="2" placeholder='{"page": "1", "limit": "10"}'></textarea>
+                                <p class="api-key-help-text">JSON object with query parameter key-value pairs</p>
+                            </div>
+                            
+                            <div class="api-key-form-group" id="rest-api-body-group" style="display: none;">
+                                <label for="rest-api-request-body">Request Body</label>
+                                <textarea id="rest-api-request-body" class="api-key-input-field" rows="4" placeholder='{"key": "value"}'></textarea>
+                                <p class="api-key-help-text">JSON body for POST/PUT/PATCH requests</p>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="rest-api-timeout">Timeout (seconds)</label>
+                                    <input type="number" id="rest-api-timeout" class="api-key-input-field" value="30" min="1" max="300" required>
+                                </div>
+                                
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="rest-api-response-format">Response Format</label>
+                                    <select id="rest-api-response-format" class="api-key-input-field">
+                                        <option value="json">JSON</option>
+                                        <option value="text">Text</option>
+                                        <option value="xml">XML</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="rest-api-rate-limit">Rate Limit (calls)</label>
+                                    <input type="number" id="rest-api-rate-limit" class="api-key-input-field" value="60" min="1" required>
+                                </div>
+                                
+                                <div class="api-key-form-group" style="flex: 1;">
+                                    <label for="rest-api-rate-period">Rate Period (seconds)</label>
+                                    <input type="number" id="rest-api-rate-period" class="api-key-input-field" value="60" min="1" required>
+                                </div>
+                            </div>
+                            
+                            <div class="api-key-modal-status" id="rest-api-modal-status"></div>
+                        </div>
+                    </div>
+                    <div class="api-key-modal-footer">
+                        <button class="api-key-btn api-key-btn-cancel" id="rest-api-cancel-btn">Cancel</button>
+                        <button class="api-key-btn api-key-btn-save" id="rest-api-save-btn">
+                            <i class="fas fa-save"></i>
+                            Save REST API
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- REST API Execute Modal -->
+            <div class="api-key-modal" id="rest-api-execute-modal">
+                <div class="api-key-modal-overlay"></div>
+                <div class="api-key-modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
+                    <div class="api-key-modal-header">
+                        <h3 id="rest-api-execute-title">
+                            <i class="fas fa-play"></i>
+                            <span>Execute REST API</span>
+                        </h3>
+                        <button class="api-key-modal-close" id="rest-api-execute-close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="api-key-modal-body">
+                        <div id="rest-api-execute-form">
+                            <div class="api-key-form-group">
+                                <label>API: <strong id="rest-api-execute-name"></strong></label>
+                                <p class="api-key-help-text" id="rest-api-execute-description"></p>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="rest-api-execute-params">Query Parameters (JSON)</label>
+                                <textarea id="rest-api-execute-params" class="api-key-input-field" rows="3" placeholder='{"param": "value"}'></textarea>
+                                <p class="api-key-help-text">Override or add query parameters</p>
+                            </div>
+                            
+                            <div class="api-key-form-group">
+                                <label for="rest-api-execute-headers">Additional Headers (JSON)</label>
+                                <textarea id="rest-api-execute-headers" class="api-key-input-field" rows="3" placeholder='{"Header-Name": "value"}'></textarea>
+                                <p class="api-key-help-text">Override or add headers</p>
+                            </div>
+                            
+                            <div class="api-key-form-group" id="rest-api-execute-body-group" style="display: none;">
+                                <label for="rest-api-execute-body">Request Body</label>
+                                <textarea id="rest-api-execute-body" class="api-key-input-field" rows="6" placeholder='{"key": "value"}'></textarea>
+                                <p class="api-key-help-text">Request body for POST/PUT/PATCH</p>
+                            </div>
+                            
+                            <div class="api-key-modal-status" id="rest-api-execute-status"></div>
+                            
+                            <div id="rest-api-execute-result" style="display: none;">
+                                <div class="form-section-title">Response</div>
+                                <div class="api-key-form-group">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                        <label>Status: <span id="rest-api-execute-status-code" class="badge"></span></label>
+                                        <label>Time: <span id="rest-api-execute-time"></span>ms</label>
+                                    </div>
+                                    <pre id="rest-api-execute-response" style="background: var(--dark-bg); padding: 1rem; border-radius: 0.5rem; overflow-x: auto; max-height: 400px; overflow-y: auto; font-size: 0.875rem;"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="api-key-modal-footer">
+                        <button class="api-key-btn api-key-btn-cancel" id="rest-api-execute-cancel-btn">Close</button>
+                        <button class="api-key-btn api-key-btn-save" id="rest-api-execute-btn">
+                            <i class="fas fa-play"></i>
+                            Execute
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1955,6 +2327,10 @@ require_once 'includes/database.php';
                             <button class="btn btn-secondary btn-sm" id="export-all-btn">
                                 <i class="fas fa-download"></i>
                                 Export All
+                            </button>
+                            <button class="btn btn-secondary btn-sm" id="hide-all-btn" style="margin-left: 0.5rem;">
+                                <i class="fas fa-eye-slash"></i>
+                                Hide All
                             </button>
                         </div>
                     </div>
@@ -2157,6 +2533,10 @@ require_once 'includes/database.php';
                         <i class="fas fa-database"></i>
                         <span>Data</span>
                     </button>
+                    <button class="settings-tab" data-tab="ip-button">
+                        <i class="fas fa-network-wired"></i>
+                        <span>IP Button</span>
+                    </button>
                 </div>
 
                 <div class="settings-container">
@@ -2310,6 +2690,40 @@ require_once 'includes/database.php';
                                     Reset Everything
                                 </button>
                                 <span class="settings-hint danger-hint">⚠️ Warning: This will permanently delete all your todos, notes, symbols, and settings. This action cannot be undone!</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- IP Button Tab -->
+                    <div class="settings-tab-content" id="tab-ip-button">
+                        <div class="settings-group">
+                            <div class="settings-group-header">
+                                <h3 class="settings-group-title">
+                                    <i class="fas fa-network-wired"></i>
+                                    IP Whitelist Tool
+                                </h3>
+                                <p class="settings-group-description">Add your current IP address to the whitelist file for your friend's cron job</p>
+                            </div>
+                            
+                            <div class="settings-item">
+                                <div class="ip-whitelist-container">
+                                    <div class="ip-display-box">
+                                        <div class="ip-label">Your Current IP Address</div>
+                                        <div class="ip-address-value" id="current-ip-display">Detecting...</div>
+                                    </div>
+                                    
+                                    <button class="btn btn-primary btn-large" id="whitelist-ip-btn" style="margin-top: 1.5rem; width: 100%;">
+                                        <i class="fas fa-plus-circle"></i>
+                                        <span id="whitelist-btn-text">Add My IP to Whitelist</span>
+                                    </button>
+                                    
+                                    <div class="ip-status-message" id="ip-status-message" style="display: none; margin-top: 1rem; padding: 1rem; border-radius: 0.5rem;"></div>
+                                    
+                                    <div class="settings-hint" style="margin-top: 1rem;">
+                                        <i class="fas fa-info-circle"></i>
+                                        Click the button to save your IP address to <code>practice/acl/address.txt</code>. Your friend's cron job will read this file and whitelist your IP, then clear the file.
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2810,13 +3224,71 @@ require_once 'includes/database.php';
         const originalError = console.error;
         console.error = function(...args) {
             // Filter out source map loading errors
-            const errorMessage = args[0];
+            const errorMessage = args.join(' ');
             if (errorMessage && typeof errorMessage === 'string' && 
-                (errorMessage.includes('.map') || errorMessage.includes('Source Map'))) {
+                (errorMessage.includes('.map') || 
+                 errorMessage.includes('Source Map') ||
+                 errorMessage.includes('Failed to load resource') && errorMessage.includes('.map') ||
+                 errorMessage.includes('chart.umd.min.js.map') ||
+                 errorMessage.includes('cdn.jsdelivr.net') && errorMessage.includes('.map'))) {
                 // Suppress source map errors - they're non-critical
                 return;
             }
             originalError.apply(console, args);
+        };
+        
+        // Suppress network errors for source maps (404s)
+        // This catches resource loading failures before they reach console
+        window.addEventListener('error', function(event) {
+            // Check if it's a source map loading error
+            if (event.target) {
+                const src = event.target.src || event.target.href || '';
+                if (src && (src.includes('.map') || src.includes('chart.umd.min.js.map'))) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.stopImmediatePropagation();
+                    return false;
+                }
+            }
+            // Check error message for source map references
+            const errorMsg = (event.message || event.filename || event.target?.src || '').toString();
+            if (errorMsg.includes('.map') || 
+                errorMsg.includes('chart.umd.min.js.map') ||
+                errorMsg.includes('cdn.jsdelivr.net/npm/chart') && errorMsg.includes('.map') ||
+                (errorMsg.includes('Failed to load') && (errorMsg.includes('404') || errorMsg.includes('.map')))) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                return false;
+            }
+        }, true);
+        
+        // Also intercept fetch/XMLHttpRequest for source maps (if any)
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const url = args[0]?.toString() || '';
+            if (url.includes('.map') || url.includes('chart.umd.min.js.map')) {
+                // Silently fail for source map requests
+                return Promise.reject(new Error('Source map request suppressed'));
+            }
+            return originalFetch.apply(this, args);
+        };
+        
+        // Suppress console warnings from third-party scripts (TradingView widgets, Tailwind CDN)
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            // Filter out TradingView/snowplow warnings and Tailwind CDN warnings
+            const message = args.join(' ');
+            if (message.includes('Invalid environment') || 
+                message.includes('snowplow-embed-widget-tracker') ||
+                message.includes('cdn.tailwindcss.com should not be used') ||
+                message.includes('cdn.tailwindcss.com') ||
+                message.includes('Source Map loading errors')) {
+                // Suppress these warnings - they're from third-party scripts
+                return;
+            }
+            // Allow other warnings
+            originalWarn.apply(console, args);
         };
     </script>
     <!-- jQuery and DataTables Libraries -->
