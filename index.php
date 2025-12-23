@@ -1760,20 +1760,66 @@ require_once 'includes/database.php';
                     <div class="api-tab-content" id="tab-configuration">
                         <div class="api-config-section">
                             <h3 class="api-section-title">
+                                <i class="fas fa-key"></i>
+                                API Keys & Settings
+                            </h3>
+                            <div class="api-settings-form">
+                                <div class="api-setting-item">
+                                    <div class="api-setting-header">
+                                        <div class="api-setting-header-left">
+                                            <label class="api-setting-label">Finnhub API Key</label>
+                                            <span class="api-key-status" id="api-finnhub-key-status" style="display: none;">
+                                                <i class="fas fa-check-circle"></i>
+                                                <span>Configured</span>
+                                            </span>
+                                        </div>
+                                        <a href="https://finnhub.io/register" target="_blank" class="api-setting-link">
+                                            <i class="fas fa-external-link-alt"></i> Get Free API Key
+                                        </a>
+                                    </div>
+                                    <div class="api-key-container">
+                                        <input type="password" id="api-finnhub-key" class="api-key-input-field" placeholder="Enter your Finnhub API key">
+                                        <button type="button" class="api-key-toggle" id="api-toggle-finnhub-key" title="Show/Hide API Key">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <p class="api-setting-hint">Required for accessing Finnhub API endpoints. Get your free API key from <a href="https://finnhub.io/register" target="_blank">finnhub.io</a>. Free tier includes 60 calls per minute.</p>
+                                </div>
+                                
+                                <div class="api-setting-item">
+                                    <label class="api-setting-label">Default Data Source</label>
+                                    <select id="api-default-source" class="api-key-input-field">
+                                        <option value="finnhub">Finnhub (Recommended)</option>
+                                        <option value="yahoo">Yahoo Finance (Backup)</option>
+                                    </select>
+                                    <p class="api-setting-hint">Primary API for fetching market data. Yahoo Finance is used as automatic backup.</p>
+                                </div>
+                                
+                                <div class="api-setting-item">
+                                    <label class="api-setting-label">Auto-refresh Interval</label>
+                                    <div class="api-range-container">
+                                        <input type="range" id="api-refresh-interval-range" class="api-range-input" min="30" max="300" step="30" value="60">
+                                        <input type="number" id="api-refresh-interval" class="api-key-input-field api-range-number" min="30" max="300" value="60">
+                                        <span class="api-range-unit">seconds</span>
+                                    </div>
+                                    <p class="api-setting-hint">How often to automatically refresh market data. Lower values use more API calls.</p>
+                                </div>
+                                
+                                <div class="api-setting-actions">
+                                    <button class="btn btn-primary" id="api-save-settings-btn">
+                                        <i class="fas fa-save"></i>
+                                        Save API Settings
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="api-config-section">
+                            <h3 class="api-section-title">
                                 <i class="fas fa-sliders-h"></i>
                                 API Source Selection
                             </h3>
                             <div class="api-source-selector" id="api-source-selector">
                                 <!-- Source selector will be generated -->
-                            </div>
-                        </div>
-                        <div class="api-config-section">
-                            <h3 class="api-section-title">
-                                <i class="fas fa-key"></i>
-                                API Keys Configuration
-                            </h3>
-                            <div class="api-keys-config" id="api-keys-config">
-                                <!-- API keys config will be generated -->
                             </div>
                         </div>
                         <div class="api-config-section">
@@ -2517,11 +2563,7 @@ require_once 'includes/database.php';
             <section class="dashboard-section settings-section">
                 <!-- Settings Tabs -->
                 <div class="settings-tabs">
-                    <button class="settings-tab active" data-tab="api">
-                        <i class="fas fa-plug"></i>
-                        <span>API</span>
-                    </button>
-                    <button class="settings-tab" data-tab="display">
+                    <button class="settings-tab active" data-tab="display">
                         <i class="fas fa-desktop"></i>
                         <span>Display</span>
                     </button>
@@ -2537,56 +2579,19 @@ require_once 'includes/database.php';
                         <i class="fas fa-network-wired"></i>
                         <span>IP Button</span>
                     </button>
+                    <button class="settings-tab" data-tab="shortcuts">
+                        <i class="fas fa-keyboard"></i>
+                        <span>Shortcuts</span>
+                    </button>
+                    <button class="settings-tab" data-tab="about">
+                        <i class="fas fa-info-circle"></i>
+                        <span>About</span>
+                    </button>
                 </div>
 
                 <div class="settings-container">
-                    <!-- API Settings Tab -->
-                    <div class="settings-tab-content active" id="tab-api">
-                        <div class="settings-group">
-                            <div class="settings-group-header">
-                                <h3 class="settings-group-title">
-                                    <i class="fas fa-plug"></i>
-                                    API Configuration
-                                </h3>
-                                <p class="settings-group-description">Configure your data sources and API keys for real-time market data</p>
-                            </div>
-                            <div class="settings-item">
-                                <div class="settings-item-header">
-                                    <label class="settings-label">Finnhub API Key</label>
-                                    <a href="https://finnhub.io/register" target="_blank" class="settings-link">
-                                        <i class="fas fa-external-link-alt"></i> Get Free API Key
-                                    </a>
-                                </div>
-                                <div class="api-key-container">
-                                    <input type="password" id="setting-finnhub-key" class="form-input api-key-input" placeholder="Enter your Finnhub API key">
-                                    <button type="button" class="api-key-toggle" id="toggle-api-key" title="Show/Hide API Key">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                </div>
-                                <span class="settings-hint">Required for real-time stock data. Free tier includes 60 calls per minute.</span>
-                            </div>
-                            <div class="settings-item">
-                                <label class="settings-label">Default Data Source</label>
-                                <select id="setting-default-api" class="form-input">
-                                    <option value="finnhub">Finnhub (Recommended)</option>
-                                    <option value="yahoo">Yahoo Finance (Backup)</option>
-                                </select>
-                                <span class="settings-hint">Primary API for fetching market data. Yahoo Finance is used as automatic backup.</span>
-                            </div>
-                            <div class="settings-item">
-                                <label class="settings-label">Auto-refresh Interval</label>
-                                <div class="settings-range-container">
-                                    <input type="range" id="setting-refresh-interval-range" class="settings-range" min="30" max="300" step="30" value="60">
-                                    <input type="number" id="setting-refresh-interval" class="form-input settings-range-input" min="30" max="300" value="60">
-                                    <span class="settings-range-unit">seconds</span>
-                                </div>
-                                <span class="settings-hint">How often to automatically refresh market data. Lower values use more API calls.</span>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Display Settings Tab -->
-                    <div class="settings-tab-content" id="tab-display">
+                    <div class="settings-tab-content active" id="tab-display">
                         <div class="settings-group">
                             <div class="settings-group-header">
                                 <h3 class="settings-group-title">
@@ -2613,6 +2618,44 @@ require_once 'includes/database.php';
                                         <span class="toggle-slider"></span>
                                     </label>
                                     <span class="settings-hint">Show a more compact view of market data cards</span>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <label class="settings-label">Theme</label>
+                                <select id="setting-theme" class="form-input">
+                                    <option value="dark">Dark Mode</option>
+                                    <option value="light">Light Mode</option>
+                                    <option value="auto">Auto (System)</option>
+                                </select>
+                                <span class="settings-hint">Choose your preferred color theme. Auto follows your system preference.</span>
+                            </div>
+                            <div class="settings-item">
+                                <label class="settings-label">Font Size</label>
+                                <div class="settings-range-container">
+                                    <input type="range" id="setting-font-size-range" class="settings-range" min="12" max="18" step="1" value="14">
+                                    <input type="number" id="setting-font-size" class="form-input settings-range-input" min="12" max="18" value="14">
+                                    <span class="settings-range-unit">px</span>
+                                </div>
+                                <span class="settings-hint">Adjust the base font size for better readability</span>
+                            </div>
+                            <div class="settings-item">
+                                <label class="settings-label">Enable Animations</label>
+                                <div class="settings-toggle-wrapper">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="setting-animations" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                    <span class="settings-hint">Enable smooth transitions and animations throughout the app</span>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <label class="settings-label">Show Tooltips</label>
+                                <div class="settings-toggle-wrapper">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="setting-tooltips" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                    <span class="settings-hint">Display helpful tooltips on hover for buttons and controls</span>
                                 </div>
                             </div>
                         </div>
@@ -2648,6 +2691,27 @@ require_once 'includes/database.php';
                                     <span class="settings-hint">Play sounds for alerts and notifications</span>
                                 </div>
                             </div>
+                            <div class="settings-item">
+                                <label class="settings-label">Notification Position</label>
+                                <select id="setting-notification-position" class="form-input">
+                                    <option value="top-right">Top Right</option>
+                                    <option value="top-left">Top Left</option>
+                                    <option value="bottom-right">Bottom Right</option>
+                                    <option value="bottom-left">Bottom Left</option>
+                                    <option value="top-center">Top Center</option>
+                                    <option value="bottom-center">Bottom Center</option>
+                                </select>
+                                <span class="settings-hint">Choose where notifications appear on screen</span>
+                            </div>
+                            <div class="settings-item">
+                                <label class="settings-label">Notification Duration</label>
+                                <div class="settings-range-container">
+                                    <input type="range" id="setting-notification-duration-range" class="settings-range" min="2" max="10" step="1" value="5">
+                                    <input type="number" id="setting-notification-duration" class="form-input settings-range-input" min="2" max="10" value="5">
+                                    <span class="settings-range-unit">seconds</span>
+                                </div>
+                                <span class="settings-hint">How long notifications stay visible</span>
+                            </div>
                         </div>
                     </div>
 
@@ -2681,6 +2745,39 @@ require_once 'includes/database.php';
                                 </button>
                                 <span class="settings-hint">Download all your data (todos, notes, symbols, settings) as a JSON file for backup.</span>
                             </div>
+                            <div class="settings-item">
+                                <div class="settings-item-header">
+                                    <label class="settings-label">Import Settings</label>
+                                </div>
+                                <div class="settings-file-upload">
+                                    <input type="file" id="import-settings-file" accept=".json" style="display: none;">
+                                    <button class="btn btn-secondary" id="import-settings-btn">
+                                        <i class="fas fa-upload"></i>
+                                        Import Settings
+                                    </button>
+                                </div>
+                                <span class="settings-hint">Import settings from a previously exported JSON file</span>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-header">
+                                    <label class="settings-label">Export Settings</label>
+                                </div>
+                                <button class="btn btn-secondary" id="export-settings-btn">
+                                    <i class="fas fa-download"></i>
+                                    Export Settings
+                                </button>
+                                <span class="settings-hint">Download your current settings as a JSON file for backup</span>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-header">
+                                    <label class="settings-label">Reset to Defaults</label>
+                                </div>
+                                <button class="btn btn-secondary" id="reset-settings-btn">
+                                    <i class="fas fa-undo"></i>
+                                    Reset Settings
+                                </button>
+                                <span class="settings-hint">Reset all settings to their default values</span>
+                            </div>
                             <div class="settings-item danger-zone">
                                 <div class="settings-item-header">
                                     <label class="settings-label danger-label">Reset All Data</label>
@@ -2690,6 +2787,137 @@ require_once 'includes/database.php';
                                     Reset Everything
                                 </button>
                                 <span class="settings-hint danger-hint">⚠️ Warning: This will permanently delete all your todos, notes, symbols, and settings. This action cannot be undone!</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Keyboard Shortcuts Tab -->
+                    <div class="settings-tab-content" id="tab-shortcuts">
+                        <div class="settings-group">
+                            <div class="settings-group-header">
+                                <h3 class="settings-group-title">
+                                    <i class="fas fa-keyboard"></i>
+                                    Keyboard Shortcuts
+                                </h3>
+                                <p class="settings-group-description">Speed up your workflow with these keyboard shortcuts</p>
+                            </div>
+                            
+                            <div class="shortcuts-list">
+                                <div class="shortcut-item">
+                                    <div class="shortcut-keys">
+                                        <kbd>Ctrl</kbd> + <kbd>K</kbd>
+                                    </div>
+                                    <div class="shortcut-description">
+                                        <strong>Quick Search</strong>
+                                        <span>Open global search</span>
+                                    </div>
+                                </div>
+                                <div class="shortcut-item">
+                                    <div class="shortcut-keys">
+                                        <kbd>Ctrl</kbd> + <kbd>S</kbd>
+                                    </div>
+                                    <div class="shortcut-description">
+                                        <strong>Save Settings</strong>
+                                        <span>Save all current settings</span>
+                                    </div>
+                                </div>
+                                <div class="shortcut-item">
+                                    <div class="shortcut-keys">
+                                        <kbd>Esc</kbd>
+                                    </div>
+                                    <div class="shortcut-description">
+                                        <strong>Close Modal</strong>
+                                        <span>Close any open modal or dialog</span>
+                                    </div>
+                                </div>
+                                <div class="shortcut-item">
+                                    <div class="shortcut-keys">
+                                        <kbd>Ctrl</kbd> + <kbd>D</kbd>
+                                    </div>
+                                    <div class="shortcut-description">
+                                        <strong>Dashboard</strong>
+                                        <span>Navigate to dashboard</span>
+                                    </div>
+                                </div>
+                                <div class="shortcut-item">
+                                    <div class="shortcut-keys">
+                                        <kbd>Ctrl</kbd> + <kbd>,</kbd>
+                                    </div>
+                                    <div class="shortcut-description">
+                                        <strong>Settings</strong>
+                                        <span>Open settings page</span>
+                                    </div>
+                                </div>
+                                <div class="shortcut-item">
+                                    <div class="shortcut-keys">
+                                        <kbd>/</kbd>
+                                    </div>
+                                    <div class="shortcut-description">
+                                        <strong>Search</strong>
+                                        <span>Focus search input (when available)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="settings-hint" style="margin-top: 1.5rem; padding: 1rem; background: var(--card-bg); border-radius: 0.5rem;">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Note:</strong> Shortcuts may vary depending on your browser and operating system. On Mac, use <kbd>Cmd</kbd> instead of <kbd>Ctrl</kbd>.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- About Tab -->
+                    <div class="settings-tab-content" id="tab-about">
+                        <div class="settings-group">
+                            <div class="settings-group-header">
+                                <h3 class="settings-group-title">
+                                    <i class="fas fa-info-circle"></i>
+                                    About ALGO3D
+                                </h3>
+                                <p class="settings-group-description">Application information and system details</p>
+                            </div>
+                            
+                            <div class="about-section">
+                                <div class="about-item">
+                                    <div class="about-label">Application Name</div>
+                                    <div class="about-value">ALGO3D Trading Dashboard</div>
+                                </div>
+                                <div class="about-item">
+                                    <div class="about-label">Version</div>
+                                    <div class="about-value" id="app-version">1.0.0</div>
+                                </div>
+                                <div class="about-item">
+                                    <div class="about-label">Build Date</div>
+                                    <div class="about-value" id="app-build-date"><?php echo date('Y-m-d'); ?></div>
+                                </div>
+                                <div class="about-item">
+                                    <div class="about-label">Browser</div>
+                                    <div class="about-value" id="app-browser">Detecting...</div>
+                                </div>
+                                <div class="about-item">
+                                    <div class="about-label">Screen Resolution</div>
+                                    <div class="about-value" id="app-resolution">Detecting...</div>
+                                </div>
+                                <div class="about-item">
+                                    <div class="about-label">Local Storage</div>
+                                    <div class="about-value" id="app-storage">Checking...</div>
+                                </div>
+                            </div>
+                            
+                            <div class="settings-item" style="margin-top: 1.5rem;">
+                                <div class="settings-item-header">
+                                    <label class="settings-label">System Information</label>
+                                </div>
+                                <button class="btn btn-secondary" id="copy-system-info-btn">
+                                    <i class="fas fa-copy"></i>
+                                    Copy System Info
+                                </button>
+                                <span class="settings-hint">Copy system information for troubleshooting</span>
+                            </div>
+                            
+                            <div class="settings-hint" style="margin-top: 1.5rem; padding: 1rem; background: var(--card-bg); border-radius: 0.5rem;">
+                                <i class="fas fa-heart"></i>
+                                <strong>Thank you for using ALGO3D!</strong> This application is designed to provide real-time market data and advanced trading analysis tools.
                             </div>
                         </div>
                     </div>
@@ -2729,10 +2957,22 @@ require_once 'includes/database.php';
                     </div>
 
                     <div class="settings-actions">
-                        <button class="btn btn-primary btn-large" id="save-settings-btn">
-                            <i class="fas fa-save"></i>
-                            Save All Settings
-                        </button>
+                        <div class="settings-actions-left">
+                            <div class="auto-save-indicator" id="auto-save-indicator" style="display: none;">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Settings auto-saved</span>
+                            </div>
+                        </div>
+                        <div class="settings-actions-right">
+                            <button class="btn btn-secondary" id="reset-settings-quick-btn" title="Reset to defaults">
+                                <i class="fas fa-undo"></i>
+                                Reset
+                            </button>
+                            <button class="btn btn-primary btn-large" id="save-settings-btn">
+                                <i class="fas fa-save"></i>
+                                Save All Settings
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -3376,5 +3616,8 @@ require_once 'includes/database.php';
     <script src="assets/js/news-feed.js"></script>
     <script src="assets/js/api-dashboard.js"></script>
     <script src="assets/js/main.js"></script>
+    
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
 </body>
 </html>

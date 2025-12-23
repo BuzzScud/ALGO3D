@@ -42,14 +42,19 @@ try {
             
             // Return defaults if not set
             $defaults = [
-                'finnhub_key' => FINNHUB_API_KEY,
-                'default_api' => DEFAULT_API_SOURCE,
+                'finnhub_key' => defined('FINNHUB_API_KEY') ? FINNHUB_API_KEY : '',
+                'default_api' => defined('DEFAULT_API_SOURCE') ? DEFAULT_API_SOURCE : 'finnhub',
                 'refresh_interval' => '60',
                 'theme' => 'dark',
                 'show_ticker' => 'true',
                 'compact_cards' => 'false',
                 'notifications' => 'false',
-                'sound_alerts' => 'false'
+                'sound_alerts' => 'false',
+                'font_size' => '14',
+                'animations' => 'true',
+                'tooltips' => 'true',
+                'notification_position' => 'top-right',
+                'notification_duration' => '5'
             ];
             
             foreach ($defaults as $key => $value) {

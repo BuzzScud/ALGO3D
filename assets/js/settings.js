@@ -1,5 +1,40 @@
 // Settings Management
 
+// Toast Notification System
+function showToast(message, type = 'success', duration = 3000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    
+    toast.innerHTML = `
+        <i class="fas ${icons[type] || icons.info}"></i>
+        <span>${message}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Trigger animation
+    setTimeout(() => toast.classList.add('show'), 10);
+    
+    // Auto remove
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
 // Load settings from API
 async function loadSettings() {
     try {
@@ -27,33 +62,6 @@ async function loadSettings() {
 
 // Apply settings to UI
 function applySettings(settings) {
-    // Finnhub API Key (keep as password type for security)
-    const finnhubKeyInput = document.getElementById('setting-finnhub-key');
-    if (finnhubKeyInput && settings.finnhub_key) {
-        // Only set value if it's different to avoid showing it
-        if (finnhubKeyInput.value !== settings.finnhub_key) {
-            finnhubKeyInput.value = settings.finnhub_key;
-        }
-        // Ensure it stays as password type
-        finnhubKeyInput.type = 'password';
-    }
-    
-    // Default API
-    const defaultApiSelect = document.getElementById('setting-default-api');
-    if (defaultApiSelect && settings.default_api) {
-        defaultApiSelect.value = settings.default_api;
-    }
-    
-    // Refresh interval
-    const refreshIntervalInput = document.getElementById('setting-refresh-interval');
-    const refreshIntervalRange = document.getElementById('setting-refresh-interval-range');
-    if (refreshIntervalInput && settings.refresh_interval) {
-        refreshIntervalInput.value = settings.refresh_interval;
-        if (refreshIntervalRange) {
-            refreshIntervalRange.value = settings.refresh_interval;
-        }
-    }
-    
     // Theme
     const themeSelect = document.getElementById('setting-theme');
     if (themeSelect && settings.theme) {
@@ -86,6 +94,46 @@ function applySettings(settings) {
         soundAlertsCheckbox.checked = settings.sound_alerts === 'true';
     }
     
+    // Font size
+    const fontSizeInput = document.getElementById('setting-font-size');
+    const fontSizeRange = document.getElementById('setting-font-size-range');
+    if (fontSizeInput && settings.font_size) {
+        fontSizeInput.value = settings.font_size;
+        if (fontSizeRange) {
+            fontSizeRange.value = settings.font_size;
+        }
+        applyFontSize(settings.font_size);
+    }
+    
+    // Animations
+    const animationsCheckbox = document.getElementById('setting-animations');
+    if (animationsCheckbox) {
+        animationsCheckbox.checked = settings.animations !== 'false';
+        applyAnimations(settings.animations !== 'false');
+    }
+    
+    // Tooltips
+    const tooltipsCheckbox = document.getElementById('setting-tooltips');
+    if (tooltipsCheckbox) {
+        tooltipsCheckbox.checked = settings.tooltips !== 'false';
+    }
+    
+    // Notification position
+    const notificationPositionSelect = document.getElementById('setting-notification-position');
+    if (notificationPositionSelect && settings.notification_position) {
+        notificationPositionSelect.value = settings.notification_position;
+    }
+    
+    // Notification duration
+    const notificationDurationInput = document.getElementById('setting-notification-duration');
+    const notificationDurationRange = document.getElementById('setting-notification-duration-range');
+    if (notificationDurationInput && settings.notification_duration) {
+        notificationDurationInput.value = settings.notification_duration;
+        if (notificationDurationRange) {
+            notificationDurationRange.value = settings.notification_duration;
+        }
+    }
+    
     // Store in localStorage for quick access
     localStorage.setItem('algo3d_settings', JSON.stringify(settings));
 }
@@ -103,17 +151,37 @@ function loadLocalSettings() {
     }
 }
 
+// Auto-save settings with debounce
+let autoSaveTimeout = null;
+function autoSaveSettings() {
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(() => {
+        saveSettings(true); // true = silent save
+    }, 2000); // Wait 2 seconds after last change
+    
+    // Show indicator
+    const indicator = document.getElementById('auto-save-indicator');
+    if (indicator) {
+        indicator.style.display = 'flex';
+        setTimeout(() => {
+            indicator.style.display = 'none';
+        }, 3000);
+    }
+}
+
 // Save settings
-async function saveSettings() {
+async function saveSettings(silent = false) {
     const settings = {
-        finnhub_key: document.getElementById('setting-finnhub-key')?.value || '',
-        default_api: document.getElementById('setting-default-api')?.value || 'finnhub',
-        refresh_interval: document.getElementById('setting-refresh-interval')?.value || '60',
         theme: document.getElementById('setting-theme')?.value || 'dark',
         show_ticker: document.getElementById('setting-show-ticker')?.checked ? 'true' : 'false',
         compact_cards: document.getElementById('setting-compact-cards')?.checked ? 'true' : 'false',
         notifications: document.getElementById('setting-notifications')?.checked ? 'true' : 'false',
-        sound_alerts: document.getElementById('setting-sound-alerts')?.checked ? 'true' : 'false'
+        sound_alerts: document.getElementById('setting-sound-alerts')?.checked ? 'true' : 'false',
+        font_size: document.getElementById('setting-font-size')?.value || '14',
+        animations: document.getElementById('setting-animations')?.checked ? 'true' : 'false',
+        tooltips: document.getElementById('setting-tooltips')?.checked ? 'true' : 'false',
+        notification_position: document.getElementById('setting-notification-position')?.value || 'top-right',
+        notification_duration: document.getElementById('setting-notification-duration')?.value || '5'
     };
     
     try {
@@ -134,16 +202,39 @@ async function saveSettings() {
             // Apply settings
             applyTheme(settings.theme);
             toggleTickerTape(settings.show_ticker === 'true');
+            applyFontSize(settings.font_size);
+            applyAnimations(settings.animations === 'true');
             
-            alert('Settings saved successfully!');
+            if (!silent) {
+                showToast('Settings saved successfully!', 'success');
+            }
         } else {
-            alert(result.message || 'Error saving settings');
+            if (!silent) {
+                showToast(result.message || 'Error saving settings', 'error');
+            }
         }
     } catch (error) {
         console.error('Error saving settings:', error);
         // Save locally even if API fails
         localStorage.setItem('algo3d_settings', JSON.stringify(settings));
-        alert('Settings saved locally');
+        if (!silent) {
+            showToast('Settings saved locally', 'warning');
+        }
+    }
+}
+
+// Apply font size
+function applyFontSize(size) {
+    if (!size) return;
+    document.documentElement.style.setProperty('--base-font-size', `${size}px`);
+}
+
+// Apply animations
+function applyAnimations(enabled) {
+    if (enabled) {
+        document.body.classList.remove('no-animations');
+    } else {
+        document.body.classList.add('no-animations');
     }
 }
 
@@ -200,13 +291,13 @@ async function clearCache() {
         const result = await response.json();
         
         if (result.success) {
-            alert(result.message);
+            showToast(result.message || 'Cache cleared successfully', 'success');
         } else {
-            alert(result.message || 'Error clearing cache');
+            showToast(result.message || 'Error clearing cache', 'error');
         }
     } catch (error) {
         console.error('Error clearing cache:', error);
-        alert('Error clearing cache');
+        showToast('Error clearing cache', 'error');
     }
 }
 
@@ -227,11 +318,147 @@ async function exportData() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        alert('Data exported successfully!');
+        showToast('Data exported successfully!', 'success');
     } catch (error) {
         console.error('Error exporting data:', error);
-        alert('Error exporting data');
+        showToast('Error exporting data', 'error');
     }
+}
+
+// Export settings
+function exportSettings() {
+    try {
+        const settings = {
+            theme: document.getElementById('setting-theme')?.value || 'dark',
+            show_ticker: document.getElementById('setting-show-ticker')?.checked ? 'true' : 'false',
+            compact_cards: document.getElementById('setting-compact-cards')?.checked ? 'true' : 'false',
+            notifications: document.getElementById('setting-notifications')?.checked ? 'true' : 'false',
+            sound_alerts: document.getElementById('setting-sound-alerts')?.checked ? 'true' : 'false',
+            font_size: document.getElementById('setting-font-size')?.value || '14',
+            animations: document.getElementById('setting-animations')?.checked ? 'true' : 'false',
+            tooltips: document.getElementById('setting-tooltips')?.checked ? 'true' : 'false',
+            notification_position: document.getElementById('setting-notification-position')?.value || 'top-right',
+            notification_duration: document.getElementById('setting-notification-duration')?.value || '5',
+            exported_at: new Date().toISOString()
+        };
+        
+        const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `algo3d_settings_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showToast('Settings exported successfully!', 'success');
+    } catch (error) {
+        console.error('Error exporting settings:', error);
+        showToast('Error exporting settings', 'error');
+    }
+}
+
+// Import settings
+function importSettings() {
+    const fileInput = document.getElementById('import-settings-file');
+    if (!fileInput) return;
+    
+    fileInput.click();
+    fileInput.onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                const settings = JSON.parse(event.target.result);
+                
+                // Apply imported settings
+                if (settings.theme) {
+                    document.getElementById('setting-theme').value = settings.theme;
+                }
+                if (settings.show_ticker !== undefined) {
+                    document.getElementById('setting-show-ticker').checked = settings.show_ticker === 'true';
+                }
+                if (settings.compact_cards !== undefined) {
+                    document.getElementById('setting-compact-cards').checked = settings.compact_cards === 'true';
+                }
+                if (settings.notifications !== undefined) {
+                    document.getElementById('setting-notifications').checked = settings.notifications === 'true';
+                }
+                if (settings.sound_alerts !== undefined) {
+                    document.getElementById('setting-sound-alerts').checked = settings.sound_alerts === 'true';
+                }
+                if (settings.font_size) {
+                    document.getElementById('setting-font-size').value = settings.font_size;
+                    document.getElementById('setting-font-size-range').value = settings.font_size;
+                }
+                if (settings.animations !== undefined) {
+                    document.getElementById('setting-animations').checked = settings.animations === 'true';
+                }
+                if (settings.tooltips !== undefined) {
+                    document.getElementById('setting-tooltips').checked = settings.tooltips === 'true';
+                }
+                if (settings.notification_position) {
+                    document.getElementById('setting-notification-position').value = settings.notification_position;
+                }
+                if (settings.notification_duration) {
+                    document.getElementById('setting-notification-duration').value = settings.notification_duration;
+                    document.getElementById('setting-notification-duration-range').value = settings.notification_duration;
+                }
+                
+                // Apply settings immediately
+                applySettings(settings);
+                saveSettings();
+                
+                showToast('Settings imported successfully!', 'success');
+            } catch (error) {
+                console.error('Error importing settings:', error);
+                showToast('Error importing settings. Invalid file format.', 'error');
+            }
+        };
+        reader.readAsText(file);
+    };
+}
+
+// Reset settings to defaults
+function resetSettingsToDefaults() {
+    if (!confirm('Are you sure you want to reset all settings to their default values?')) {
+        return;
+    }
+    
+    // Reset to defaults
+    document.getElementById('setting-theme').value = 'dark';
+    document.getElementById('setting-show-ticker').checked = true;
+    document.getElementById('setting-compact-cards').checked = false;
+    document.getElementById('setting-notifications').checked = false;
+    document.getElementById('setting-sound-alerts').checked = false;
+    document.getElementById('setting-font-size').value = '14';
+    document.getElementById('setting-font-size-range').value = '14';
+    document.getElementById('setting-animations').checked = true;
+    document.getElementById('setting-tooltips').checked = true;
+    document.getElementById('setting-notification-position').value = 'top-right';
+    document.getElementById('setting-notification-duration').value = '5';
+    document.getElementById('setting-notification-duration-range').value = '5';
+    
+    // Apply and save
+    const defaults = {
+        theme: 'dark',
+        show_ticker: 'true',
+        compact_cards: 'false',
+        notifications: 'false',
+        sound_alerts: 'false',
+        font_size: '14',
+        animations: 'true',
+        tooltips: 'true',
+        notification_position: 'top-right',
+        notification_duration: '5'
+    };
+    
+    applySettings(defaults);
+    saveSettings();
+    showToast('Settings reset to defaults', 'success');
 }
 
 // Reset all data
@@ -257,14 +484,14 @@ async function resetData() {
         
         if (result.success) {
             localStorage.clear();
-            alert('All data has been reset. The page will reload.');
-            window.location.reload();
+            showToast('All data has been reset. The page will reload.', 'success', 2000);
+            setTimeout(() => window.location.reload(), 2000);
         } else {
-            alert(result.message || 'Error resetting data');
+            showToast(result.message || 'Error resetting data', 'error');
         }
     } catch (error) {
         console.error('Error resetting data:', error);
-        alert('Error resetting data');
+        showToast('Error resetting data', 'error');
     }
 }
 
@@ -334,8 +561,187 @@ function setupSettingsListeners() {
             if (value > 300) value = 300;
             this.value = value;
             refreshIntervalRange.value = value;
+            autoSaveSettings();
         });
     }
+    
+    // Font size range sync
+    const fontSizeRange = document.getElementById('setting-font-size-range');
+    const fontSizeInput = document.getElementById('setting-font-size');
+    if (fontSizeRange && fontSizeInput) {
+        fontSizeRange.addEventListener('input', function() {
+            fontSizeInput.value = this.value;
+            applyFontSize(this.value);
+            autoSaveSettings();
+        });
+        fontSizeInput.addEventListener('input', function() {
+            let value = parseInt(this.value);
+            if (value < 12) value = 12;
+            if (value > 18) value = 18;
+            this.value = value;
+            fontSizeRange.value = value;
+            applyFontSize(value);
+            autoSaveSettings();
+        });
+    }
+    
+    // Notification duration range sync
+    const notificationDurationRange = document.getElementById('setting-notification-duration-range');
+    const notificationDurationInput = document.getElementById('setting-notification-duration');
+    if (notificationDurationRange && notificationDurationInput) {
+        notificationDurationRange.addEventListener('input', function() {
+            notificationDurationInput.value = this.value;
+            autoSaveSettings();
+        });
+        notificationDurationInput.addEventListener('input', function() {
+            let value = parseInt(this.value);
+            if (value < 2) value = 2;
+            if (value > 10) value = 10;
+            this.value = value;
+            notificationDurationRange.value = value;
+            autoSaveSettings();
+        });
+    }
+    
+    // Add auto-save listeners for all inputs
+    const autoSaveInputs = [
+        'setting-theme',
+        'setting-show-ticker',
+        'setting-compact-cards',
+        'setting-notifications',
+        'setting-sound-alerts',
+        'setting-animations',
+        'setting-tooltips',
+        'setting-notification-position'
+    ];
+    
+    autoSaveInputs.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', autoSaveSettings);
+        }
+    });
+    
+    // Export/Import settings buttons
+    const exportSettingsBtn = document.getElementById('export-settings-btn');
+    if (exportSettingsBtn) {
+        exportSettingsBtn.addEventListener('click', exportSettings);
+    }
+    
+    const importSettingsBtn = document.getElementById('import-settings-btn');
+    if (importSettingsBtn) {
+        importSettingsBtn.addEventListener('click', importSettings);
+    }
+    
+    // Reset settings button
+    const resetSettingsBtn = document.getElementById('reset-settings-btn');
+    const resetSettingsQuickBtn = document.getElementById('reset-settings-quick-btn');
+    if (resetSettingsBtn) {
+        resetSettingsBtn.addEventListener('click', resetSettingsToDefaults);
+    }
+    if (resetSettingsQuickBtn) {
+        resetSettingsQuickBtn.addEventListener('click', resetSettingsToDefaults);
+    }
+    
+    // Initialize About tab
+    initAboutTab();
+    
+    // Initialize keyboard shortcuts
+    initKeyboardShortcuts();
+}
+
+// Initialize About tab
+function initAboutTab() {
+    // Detect browser
+    const browserInfo = navigator.userAgent;
+    let browserName = 'Unknown';
+    if (browserInfo.includes('Chrome')) browserName = 'Chrome';
+    else if (browserInfo.includes('Firefox')) browserName = 'Firefox';
+    else if (browserInfo.includes('Safari')) browserName = 'Safari';
+    else if (browserInfo.includes('Edge')) browserName = 'Edge';
+    
+    const browserEl = document.getElementById('app-browser');
+    if (browserEl) {
+        browserEl.textContent = browserName;
+    }
+    
+    // Detect screen resolution
+    const resolutionEl = document.getElementById('app-resolution');
+    if (resolutionEl) {
+        resolutionEl.textContent = `${window.screen.width}x${window.screen.height}`;
+    }
+    
+    // Check localStorage
+    const storageEl = document.getElementById('app-storage');
+    if (storageEl) {
+        try {
+            let totalSize = 0;
+            for (let key in localStorage) {
+                if (localStorage.hasOwnProperty(key)) {
+                    totalSize += localStorage[key].length + key.length;
+                }
+            }
+            storageEl.textContent = `${(totalSize / 1024).toFixed(2)} KB used`;
+        } catch (e) {
+            storageEl.textContent = 'Unable to calculate';
+        }
+    }
+    
+    // Copy system info
+    const copySystemInfoBtn = document.getElementById('copy-system-info-btn');
+    if (copySystemInfoBtn) {
+        copySystemInfoBtn.addEventListener('click', function() {
+            const systemInfo = {
+                browser: browserName,
+                userAgent: navigator.userAgent,
+                screenResolution: `${window.screen.width}x${window.screen.height}`,
+                viewport: `${window.innerWidth}x${window.innerHeight}`,
+                platform: navigator.platform,
+                language: navigator.language,
+                localStorage: storageEl.textContent,
+                timestamp: new Date().toISOString()
+            };
+            
+            const text = JSON.stringify(systemInfo, null, 2);
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('System info copied to clipboard', 'success');
+            }).catch(() => {
+                showToast('Failed to copy system info', 'error');
+            });
+        });
+    }
+}
+
+// Initialize keyboard shortcuts
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + S to save settings
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            const settingsPage = document.getElementById('page-settings');
+            if (settingsPage && settingsPage.classList.contains('active')) {
+                e.preventDefault();
+                saveSettings();
+            }
+        }
+        
+        // Ctrl/Cmd + , to open settings
+        if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+            e.preventDefault();
+            const settingsItem = document.querySelector('.sidebar-item[data-page="settings"]');
+            if (settingsItem) {
+                settingsItem.click();
+            }
+        }
+        
+        // Ctrl/Cmd + D to go to dashboard
+        if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+            e.preventDefault();
+            const dashboardItem = document.querySelector('.sidebar-item[data-page="dashboard"]');
+            if (dashboardItem) {
+                dashboardItem.click();
+            }
+        }
+    });
 }
 
 // Initialize IP Whitelist functionality

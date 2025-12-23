@@ -74,6 +74,9 @@ const APIDashboard = (function() {
             });
         }
         
+        // API Settings event listeners
+        setupAPISettingsListeners();
+        
         // API Key Modal event listeners
         const modal = document.getElementById('api-key-modal');
         const modalClose = document.getElementById('api-key-modal-close');
@@ -597,10 +600,196 @@ const APIDashboard = (function() {
         `;
     }
 
+    // Setup API Settings listeners
+    function setupAPISettingsListeners() {
+        // Load API settings
+        loadAPISettings();
+        
+        // Save settings button
+        const saveSettingsBtn = document.getElementById('api-save-settings-btn');
+        if (saveSettingsBtn) {
+            saveSettingsBtn.addEventListener('click', saveAPISettings);
+        }
+        
+        // API key toggle and status update
+        const toggleKeyBtn = document.getElementById('api-toggle-finnhub-key');
+        const finnhubKeyInput = document.getElementById('api-finnhub-key');
+        if (toggleKeyBtn && finnhubKeyInput) {
+            toggleKeyBtn.addEventListener('click', function() {
+                const isPassword = finnhubKeyInput.type === 'password';
+                finnhubKeyInput.type = isPassword ? 'text' : 'password';
+                const icon = this.querySelector('i');
+                if (icon) {
+                    icon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+                }
+            });
+        }
+        
+        // Update status when key input changes
+        if (finnhubKeyInput) {
+            finnhubKeyInput.addEventListener('input', function() {
+                const statusEl = document.getElementById('api-finnhub-key-status');
+                if (statusEl) {
+                    if (this.value && this.value.length > 0) {
+                        statusEl.style.display = 'flex';
+                        statusEl.className = 'api-key-status configured';
+                        statusEl.innerHTML = '<i class="fas fa-check-circle"></i><span>Configured</span>';
+                    } else {
+                        statusEl.style.display = 'none';
+                    }
+                }
+            });
+        }
+        
+        // Range slider sync for refresh interval
+        const refreshRange = document.getElementById('api-refresh-interval-range');
+        const refreshInput = document.getElementById('api-refresh-interval');
+        if (refreshRange && refreshInput) {
+            refreshRange.addEventListener('input', function() {
+                refreshInput.value = this.value;
+            });
+            refreshInput.addEventListener('input', function() {
+                let value = parseInt(this.value);
+                if (value < 30) value = 30;
+                if (value > 300) value = 300;
+                this.value = value;
+                refreshRange.value = value;
+            });
+        }
+    }
+    
+    // Update API key status indicator
+    function updateAPIKeyStatus(data) {
+        const statusEl = document.getElementById('api-finnhub-key-status');
+        const finnhubKeyInput = document.getElementById('api-finnhub-key');
+        
+        if (statusEl && data && data.apis) {
+            const finnhubApi = data.apis.find(api => api.id === 'finnhub');
+            if (finnhubApi && finnhubApi.hasKey) {
+                statusEl.style.display = 'flex';
+                statusEl.className = 'api-key-status configured';
+                statusEl.innerHTML = '<i class="fas fa-check-circle"></i><span>Configured</span>';
+            } else if (finnhubKeyInput && finnhubKeyInput.value) {
+                statusEl.style.display = 'flex';
+                statusEl.className = 'api-key-status configured';
+                statusEl.innerHTML = '<i class="fas fa-check-circle"></i><span>Configured</span>';
+            } else {
+                statusEl.style.display = 'none';
+            }
+        }
+    }
+    
+    // Load API settings
+    async function loadAPISettings() {
+        try {
+            const response = await fetch('api/settings.php');
+            if (!response.ok) throw new Error('Failed to load settings');
+            
+            const settings = await response.json();
+            
+            // Apply settings to form
+            const finnhubKeyInput = document.getElementById('api-finnhub-key');
+            if (finnhubKeyInput && settings.finnhub_key) {
+                finnhubKeyInput.value = settings.finnhub_key;
+                finnhubKeyInput.type = 'password';
+                
+                // Update status indicator
+                const statusEl = document.getElementById('api-finnhub-key-status');
+                if (statusEl && settings.finnhub_key) {
+                    statusEl.style.display = 'flex';
+                    statusEl.className = 'api-key-status configured';
+                    statusEl.innerHTML = '<i class="fas fa-check-circle"></i><span>Configured</span>';
+                }
+            }
+            
+            const defaultSourceSelect = document.getElementById('api-default-source');
+            if (defaultSourceSelect && settings.default_api) {
+                defaultSourceSelect.value = settings.default_api;
+            }
+            
+            const refreshIntervalInput = document.getElementById('api-refresh-interval');
+            const refreshIntervalRange = document.getElementById('api-refresh-interval-range');
+            if (refreshIntervalInput && settings.refresh_interval) {
+                refreshIntervalInput.value = settings.refresh_interval;
+                if (refreshIntervalRange) {
+                    refreshIntervalRange.value = settings.refresh_interval;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading API settings:', error);
+        }
+    }
+    
+    // Save API settings
+    async function saveAPISettings() {
+        const saveBtn = document.getElementById('api-save-settings-btn');
+        if (!saveBtn) return;
+        
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        
+        const settings = {
+            finnhub_key: document.getElementById('api-finnhub-key')?.value || '',
+            default_api: document.getElementById('api-default-source')?.value || 'finnhub',
+            refresh_interval: document.getElementById('api-refresh-interval')?.value || '60'
+        };
+        
+        try {
+            const response = await fetch('api/settings.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Update status indicator
+                const finnhubKeyInput = document.getElementById('api-finnhub-key');
+                const statusEl = document.getElementById('api-finnhub-key-status');
+                if (statusEl && finnhubKeyInput && finnhubKeyInput.value) {
+                    statusEl.style.display = 'flex';
+                    statusEl.className = 'api-key-status configured';
+                    statusEl.innerHTML = '<i class="fas fa-check-circle"></i><span>Configured</span>';
+                }
+                
+                // Show success message
+                if (typeof showToast === 'function') {
+                    showToast('API settings saved successfully!', 'success');
+                } else {
+                    alert('API settings saved successfully!');
+                }
+                
+                // Reload API data to reflect changes
+                loadAPIData();
+            } else {
+                throw new Error(result.message || 'Failed to save settings');
+            }
+        } catch (error) {
+            console.error('Error saving API settings:', error);
+            if (typeof showToast === 'function') {
+                showToast('Error saving API settings: ' + error.message, 'error');
+            } else {
+                alert('Error saving API settings: ' + error.message);
+            }
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    }
+    
     // Render configuration
     function renderConfiguration(data) {
+        // Load API settings when configuration tab is rendered
+        loadAPISettings();
+        
+        // Update API key status indicator
+        updateAPIKeyStatus(data);
+        
         const selector = document.getElementById('api-source-selector');
-        const keysConfig = document.getElementById('api-keys-config');
         
         if (selector) {
             selector.innerHTML = `
@@ -628,40 +817,6 @@ const APIDashboard = (function() {
                             <button class="btn-set-source" onclick="APIDashboard.setAsDefault('${api.id}')" ${api.isDefault ? 'disabled' : ''}>
                                 ${api.isDefault ? '<i class="fas fa-check"></i> Current Default' : '<i class="fas fa-star"></i> Set as Default'}
                             </button>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-        
-        if (keysConfig) {
-            keysConfig.innerHTML = `
-                <div class="api-keys-list">
-                    ${data.apis.filter(api => api.requiresKey).map(api => `
-                        <div class="api-key-item">
-                            <div class="key-item-header">
-                                <div class="key-item-info">
-                                    <h4>${escapeHtml(api.name)} API Key</h4>
-                                    <span class="key-status ${api.hasKey ? 'configured' : 'missing'}">
-                                        ${api.hasKey ? '<i class="fas fa-check-circle"></i> Configured' : '<i class="fas fa-exclamation-circle"></i> Missing'}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="key-item-content">
-                                <p class="key-description">Required for accessing ${escapeHtml(api.name)} API endpoints. Get your free API key from <a href="https://finnhub.io/register" target="_blank">finnhub.io</a></p>
-                                ${api.hasKey ? `
-                                    <div class="key-display">
-                                        <code class="key-preview">${api.hasKey ? '••••••••••••••••' : 'Not configured'}</code>
-                                        <button class="btn-key-action" onclick="APIDashboard.showKeyConfig('${api.id}')">
-                                            <i class="fas fa-edit"></i> Update Key
-                                        </button>
-                                    </div>
-                                ` : `
-                                    <button class="btn-key-action primary" onclick="APIDashboard.showKeyConfig('${api.id}')">
-                                        <i class="fas fa-plus"></i> Add API Key
-                                    </button>
-                                `}
-                            </div>
                         </div>
                     `).join('')}
                 </div>
